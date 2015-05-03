@@ -119,6 +119,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "split" Split.fundecl
   ++ pass_dump_if ppf_dump dump_split "After live range splitting"
   ++ Profile.record ~accumulate:true "liveness" liveness
+  ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
   ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
