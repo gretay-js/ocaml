@@ -433,6 +433,13 @@ let mk_safe_string f =
   else " Make strings immutable"
 ;;
 
+let mk_save_ir f =
+  let langs = String.concat ", " Save_ir.all_languages in
+  "-save-ir", Arg.String f,
+  ("<language>  Save intermediate representation(s) to file (may be \
+    given more than once); valid languages: %s" ^ langs)
+;;
+
 let mk_shared f =
   "-shared", Arg.Unit f, " Produce a dynlinkable plugin"
 ;;
@@ -874,6 +881,7 @@ module type Compiler_options = sig
   val _rectypes : unit -> unit
   val _runtime_variant : string -> unit
   val _safe_string : unit -> unit
+  val _save_ir : string -> unit
   val _short_paths : unit -> unit
   val _thread : unit -> unit
   val _v : unit -> unit
@@ -1259,6 +1267,7 @@ struct
     mk_runtime_variant F._runtime_variant;
     mk_S F._S;
     mk_safe_string F._safe_string;
+    mk_save_ir F._save_ir;
     mk_shared F._shared;
     mk_short_paths F._short_paths;
     mk_strict_sequence F._strict_sequence;
