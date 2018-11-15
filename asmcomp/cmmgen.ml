@@ -2134,6 +2134,8 @@ and transl_prim_1 env p arg dbg =
               dbg)))
   | Pclzint ->
       tag_int(Cop(Cclz, [transl env arg], dbg)) dbg
+  | Ppopcntint ->
+      tag_int(Cop(Cpopcnt, [untag_int(transl env arg) dbg], dbg)) dbg
   (* Floating-point operations *)
   | Pfloatofint ->
       box_float dbg (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))

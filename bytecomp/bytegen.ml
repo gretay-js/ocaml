@@ -348,6 +348,7 @@ let comp_primitive p args =
   | Poffsetint n -> Koffsetint n
   | Poffsetref n -> Koffsetref n
   | Pclzint -> Kccall("caml_clz_int", 1)
+  | Ppopcntint -> Kccall("caml_popcnt_int", 1)
   | Pintoffloat -> Kccall("caml_int_of_float", 1)
   | Pfloatofint -> Kccall("caml_float_of_int", 1)
   | Pnegfloat -> Kccall("caml_neg_float", 1)

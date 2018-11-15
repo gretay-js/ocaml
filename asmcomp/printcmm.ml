@@ -127,6 +127,7 @@ let operation d = function
   | Clsr -> ">>u"
   | Casr -> ">>s"
   | Cclz -> "clz"
+  | Cpopcnt -> "popcnt"
   | Ccmpi c -> integer_comparison c
   | Caddv -> "+v"
   | Cadda -> "+a"

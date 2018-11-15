@@ -737,6 +737,8 @@ let emit_instr fallthrough i =
   | Lop (Iintop Iclz) ->
       I.bsr (arg i 0) (res i 0);
       I.xor (int 63) (res i 0)
+  | Lop (Iintop Ipopcnt) ->
+      I.popcnt (arg i 0) (res i 0);
   | Lop(Iintop Imulh) ->
       I.imul (arg i 1) None
   | Lop(Iintop op) ->
