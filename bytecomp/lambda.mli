@@ -79,6 +79,7 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   | Pclzint
+  | Ppopcntint
   (* Float operations *)
   | Pintoffloat | Pfloatofint
   | Pnegfloat | Pabsfloat

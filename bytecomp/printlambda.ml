@@ -215,6 +215,7 @@ let primitive ppf = function
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
   | Pclzint -> fprintf ppf "clz"
+  | Ppopcntint -> fprintf ppf "popcnt"
   | Pintoffloat -> fprintf ppf "int_of_float"
   | Pfloatofint -> fprintf ppf "float_of_int"
   | Pnegfloat -> fprintf ppf "~."
@@ -375,6 +376,7 @@ let name_of_primitive = function
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
   | Pclzint -> "Pclzint"
+  | Ppopcntint -> "Ppopcntint"
   | Pintoffloat -> "Pintoffloat"
   | Pfloatofint -> "Pfloatofint"
   | Pnegfloat -> "Pnegfloat"
