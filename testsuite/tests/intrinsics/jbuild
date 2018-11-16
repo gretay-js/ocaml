@@ -1,0 +1,4 @@
+(executables
+ ((names (clz))
+  (libraries (base))
+  (ocamlopt_flags (:standard -S))))
