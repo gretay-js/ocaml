@@ -420,6 +420,8 @@ let comp_primitive p args =
   | Plslbint bi -> comp_bint_primitive bi "shift_left" args
   | Plsrbint bi -> comp_bint_primitive bi "shift_right_unsigned" args
   | Pasrbint bi -> comp_bint_primitive bi "shift_right" args
+  | Pclzbint bi -> comp_bint_primitive bi "clz" args
+  | Ppopcntbint bi -> comp_bint_primitive bi "popcnt" args
   | Pbintcomp(_, Ceq) -> Kccall("caml_equal", 2)
   | Pbintcomp(_, Cne) -> Kccall("caml_notequal", 2)
   | Pbintcomp(_, Clt) -> Kccall("caml_lessthan", 2)

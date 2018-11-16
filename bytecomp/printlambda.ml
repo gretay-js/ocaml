@@ -277,6 +277,8 @@ let primitive ppf = function
   | Plslbint bi -> print_boxed_integer "lsl" ppf bi
   | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
   | Pasrbint bi -> print_boxed_integer "asr" ppf bi
+  | Pclzbint bi -> print_boxed_integer "clz" ppf bi
+  | Ppopcntbint bi -> print_boxed_integer "popcnt" ppf bi
   | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
   | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
   | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi
@@ -419,6 +421,8 @@ let name_of_primitive = function
   | Plslbint _ -> "Plslbint"
   | Plsrbint _ -> "Plsrbint"
   | Pasrbint _ -> "Pasrbint"
+  | Pclzbint _ -> "Pclzbint"
+  | Ppopcntbint _ -> "Ppopcntbint"
   | Pbintcomp _ -> "Pbintcomp"
   | Pbigarrayref _ -> "Pbigarrayref"
   | Pbigarrayset _ -> "Pbigarrayset"
