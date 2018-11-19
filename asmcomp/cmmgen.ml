@@ -2185,6 +2185,14 @@ and transl_prim_1 env p arg dbg =
   | Pnegbint bi ->
       box_int dbg bi
         (Cop(Csubi, [Cconst_int 0; transl_unbox_int dbg env bi arg], dbg))
+  | Pclzbint bi ->
+      tag_int(Cop(Cclz,
+                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
+                  dbg)) dbg
+  | Ppopcntbint bi ->
+      tag_int(Cop(Cpopcnt,
+                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
+                  dbg)) dbg
   | Pbbswap bi ->
       let prim = match bi with
         | Pnativeint -> "nativeint"
