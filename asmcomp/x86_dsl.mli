@@ -167,6 +167,7 @@ module I : sig
   val jne: arg -> unit
   val jp: arg -> unit
   val lea: arg -> arg -> unit
+  val cmov: condition -> arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
   val movsd: arg -> arg -> unit

@@ -735,8 +735,23 @@ let emit_instr fallthrough i =
       (* We have i.arg.(0) = i.res.(0) and i.arg.(1) = %rcx *)
       instr_for_intop op cl (res i 0)
   | Lop (Iintop Iclz) ->
-      I.bsr (arg i 0) (res i 0);
-      I.xor (int 63) (res i 0)
+    if !Arch.lzcnt_support then
+      I.lzcnt (arg i 0) (res i 0)
+    else
+      (I.bsr (arg i 0) (res i 0);
+       I.cmov E (res i 0) (int (-1));
+       I.sub (int 63) (res i 0))
+    (* Alternative implementation using branches: *)
+    (* let lbl_z = new_label () in
+     * let lbl_nz = new_label () in
+     * (I.cmp (int 0) (arg i 0);
+     *  I.je (label lbl_z);
+     *  I.bsr (arg i 0) (res i 0);
+     *  I.xor (int 63) (res i 0);
+     *  I.jmp (label lbl_nz);
+     *  def_label lbl_z;
+     *  I.mov (int 0) (res i 0);
+     *  def_label lbl_nz) *)
   | Lop (Iintop Ipopcnt) ->
       I.popcnt (arg i 0) (res i 0);
   | Lop(Iintop Imulh) ->

@@ -174,6 +174,7 @@ module I = struct
   let jne = j NE
   let jp = j P
   let lea x y = emit (LEA (x, y))
+  let cmov c x y = emit (CMOV (c, x, y))
   let mov x y = emit (MOV (x, y))
   let movapd x y = emit (MOVAPD (x, y))
   let movsd x y = emit (MOVSD (x, y))

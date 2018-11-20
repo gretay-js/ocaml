@@ -291,6 +291,12 @@ CAMLprim value caml_int32_shift_right_unsigned(value v1, value v2)
 #define int64_clz __builtin_clzll
 #define int64_popcnt __builtin_popcountll
 
+CAMLprim value caml_int_clz(value v1)
+{ return Val_long(int64_clz((uint32_t) (Int_val(v1)))); }
+
+CAMLprim value caml_int_popcnt(value v1)
+{ return Val_long(int64_popcnt((uint64_t) (Int_val(v1)))); }
+
 CAMLprim value caml_int32_clz(value v1)
 { return Val_long(int32_clz((uint32_t) (Int32_val(v1)))); }
 
