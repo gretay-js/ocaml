@@ -216,8 +216,8 @@ let primitives_table =
     "%nativeint_lsl", Primitive ((Plslbint Pnativeint), 2);
     "%nativeint_lsr", Primitive ((Plsrbint Pnativeint), 2);
     "%nativeint_asr", Primitive ((Pasrbint Pnativeint), 2);
-    "%native_clz", Primitive ((Pclzbint Pnativeint), 1);
-    "%native_popcnt", Primitive ((Ppopcntbint Pnativeint), 1);
+    "%nativeint_clz", Primitive ((Pclzbint Pnativeint), 1);
+    "%nativeint_popcnt", Primitive ((Ppopcntbint Pnativeint), 1);
     "%int32_of_int", Primitive ((Pbintofint Pint32), 1);
     "%int32_to_int", Primitive ((Pintofbint Pint32), 1);
     "%int32_neg", Primitive ((Pnegbint Pint32), 1);
