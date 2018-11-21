@@ -2199,14 +2199,23 @@ and transl_prim_1 env p arg dbg =
   | Pnegbint bi ->
       box_int dbg bi
         (Cop(Csubi, [Cconst_int 0; transl_unbox_int dbg env bi arg], dbg))
-  | Pclzbint bi ->
-    let res = Cop((Cclz false),
-                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg]
-                 , dbg) in
-    if bi = Pint32 && size_int = 8 then
-      tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
-    else
-      tag_int res dbg
+  | Pclzbint bi -> begin
+      match (transl_unbox_int dbg env bi arg) with
+      | Cconst_natint 0n ->
+        let n = (match bi with
+          | Pnativeint -> 8*size_int
+          | Pint32 -> 32
+          | Pint64 -> 64)
+        in tag_int (Cconst_int n) dbg
+      | _ ->
+        let res = Cop((Cclz false),
+                      [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg]
+                     , dbg) in
+        if bi = Pint32 && size_int = 8 then
+          tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
+        else
+          tag_int res dbg
+    end
   | Ppopcntbint bi ->
       tag_int(Cop(Cpopcnt,
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
