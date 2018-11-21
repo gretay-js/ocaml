@@ -117,6 +117,7 @@ module I : sig
   val cvtss2sd: arg -> arg -> unit
   val cvttsd2si: arg -> arg -> unit
   val dec: arg -> unit
+  val neg: arg -> unit
   val divsd: arg -> arg -> unit
   val fabs: unit -> unit
   val fadd: arg -> unit
@@ -167,7 +168,6 @@ module I : sig
   val jne: arg -> unit
   val jp: arg -> unit
   val lea: arg -> arg -> unit
-  val cmov: condition -> arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
   val movsd: arg -> arg -> unit

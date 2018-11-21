@@ -89,7 +89,7 @@ let intop = function
   | Ilsl -> " << "
   | Ilsr -> " >>u "
   | Iasr -> " >>s "
-  | Iclz -> " clz "
+  | Iclz b -> Printf.sprintf " clz %B" b
   | Ipopcnt -> " popcnt "
   | Icomp cmp -> intcomp cmp
   | Icheckbound { label_after_error; spacetime_index; } ->

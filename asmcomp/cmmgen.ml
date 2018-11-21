@@ -2146,7 +2146,7 @@ and transl_prim_1 env p arg dbg =
                add_const (Cop(Cload (Word_int, Mutable), [arg], dbg))
                  (n lsl 1) dbg],
               dbg)))
-  | Pclzint -> tag_int (Cop(Cclz, [transl env arg], dbg)) dbg
+  | Pclzint -> tag_int (Cop((Cclz true), [transl env arg], dbg)) dbg
   | Ppopcntint ->
       let res = Cop(Cpopcnt, [transl env arg], dbg) in
       tag_int (Cop(Caddi, [res; Cconst_int (-1)], dbg)) dbg
@@ -2200,7 +2200,7 @@ and transl_prim_1 env p arg dbg =
       box_int dbg bi
         (Cop(Csubi, [Cconst_int 0; transl_unbox_int dbg env bi arg], dbg))
   | Pclzbint bi ->
-    let res = Cop(Cclz,
+    let res = Cop((Cclz false),
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg]
                  , dbg) in
     if bi = Pint32 && size_int = 8 then
