@@ -1,34 +1,55 @@
-external popcnt : int -> int = "%popcnt"
+external int_popcnt : int -> int = "%popcntint"
+external int32_popcnt : int32 -> int = "%int32_popcnt"
+external int64_popcnt : int64 -> int = "%int64_popcnt"
+external nativeint_popcnt : nativeint -> int = "%nativeint_popcnt"
 
-let test =
-  assert (popcount 0 = 0);
-  assert (popcnt 7 = 59);
+(* how to test the generated instructions? *)
+(* how to set compilation flags to test -flzcnt on intel? *)
+
+let bitwidth = Sys.word_size
+
+let test_int popcnt =
+  assert (popcnt 0 = 0);
+  assert (popcnt 1 = 1);
+  assert (popcnt 7 = 3);
+  assert ((popcnt Int.max_int) = 63-1);
+  assert ((popcnt Int.min_int) = 63);
   ()
 
-let test_nativeint =
-  assert (Nativeint.popcnt 0n = 0);
-  assert (Nativeint.popcnt 7n = 3);
-  assert (Nativeint.popcnt Nativeint.max_int = Nativeint.size-1);
+let test_nativeint popcnt =
+  assert (popcnt 0n = 0);
+  assert (popcnt 7n = 3);
+  assert (popcnt Nativeint.max_int = (bitwidth - 1));
+  assert (popcnt Nativeint.min_int = bitwidth);
   ()
 
-let test_int32 =
-  assert (Int32.popcnt 0l = 0);
-  assert (Int32.popcnt 7l = 3);
-  assert ((Int32.popcnt (0xFF_FF_FF_FFl - 1l)) = 31);
+let test_int32 popcnt =
+  assert (popcnt 0l = 0);
+  assert (popcnt 7l = 3);
+  assert (popcnt Int32.max_int = (32 - 1));
+  assert (popcnt Int32.min_int = 32);
   ()
 
-let test_int64 =
-  assert (Int64.popcnt 0L = 0);
-  assert (Int64.popcnt 7L = 3);
+let test_int64 popcnt =
+  assert (popcnt 0L = 0);
+  assert (popcnt 7L = 3);
+  assert (popcnt Int64.max_int = (64 - 1));
+  assert (popcnt Int64.min_int = 64);
   ()
 
 let tests () =
-  test ();
-  test_nativeint ();
-  test_int32 ();
-  test_int64 ();
+  (* test directly *)
+  test_int int_popcnt;
+  test_int64 int64_popcnt;
+  test_int32 int32_popcnt;
+  test_nativeint nativeint_popcnt;
+  (* test through standard library routines *)
+  test_int Int.count_set_bits;
+  test_int64 Int64.count_set_bits;
+  test_int32 Int32.count_set_bits;
+  test_nativeint Nativeint.count_set_bits;
+  ()
 
 let () =
   tests ();
   print_endline "OK"
-
