@@ -737,26 +737,22 @@ let emit_instr fallthrough i =
   | Lop (Iintop(Iclz non_zero_input)) ->
     if !Arch.lzcnt_support then
       I.lzcnt (arg i 0) (res i 0)
-    else (if non_zero_input then
-      (* No need to handle that bsr is undefind on 0 input. *)
-      (I.bsr (arg i 0) (res i 0);
-       I.xor (int 63) (res i 0))
-    else
-      (I.bsr (arg i 0) (res i 0);
-       I.set E (arg8 i 0);
-       I.neg (res i 0);
-       I.add (int 63) (res i 0)))
-    (* Alternative implementation using branches (untested) *)
-    (* let lbl_z = new_label () in
-     * let lbl_nz = new_label () in
-     * (I.cmp (int 0) (arg i 0);
-     *  I.je (label lbl_z);
-     *  I.bsr (arg i 0) (res i 0);
-     *  I.xor (int 63) (res i 0);
-     *  I.jmp (label lbl_nz);
-     *  def_label lbl_z;
-     *  I.mov (int 0) (res i 0);
-     *  def_label lbl_nz) *)
+    else begin
+      if non_zero_input then
+        (* No need to handle that bsr is undefind on 0 input. *)
+        (I.bsr (arg i 0) (res i 0);
+         I.xor (int 63) (res i 0))
+      else
+        (let lbl_z = new_label () in
+         let lbl_nz = new_label () in
+         (I.bsr (arg i 0) (res i 0);
+          I.je (label lbl_z);
+          I.xor (int 63) (res i 0);
+          I.jmp (label lbl_nz);
+          def_label lbl_z;
+          I.mov (int 64) (res i 0);
+          def_label lbl_nz))
+    end
   | Lop (Iintop Ipopcnt) ->
       I.popcnt (arg i 0) (res i 0);
   | Lop(Iintop Imulh) ->
