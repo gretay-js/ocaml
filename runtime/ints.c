@@ -280,16 +280,61 @@ CAMLprim value caml_int32_shift_right(value v1, value v2)
 CAMLprim value caml_int32_shift_right_unsigned(value v1, value v2)
 { return caml_copy_int32((uint32_t)Int32_val(v1) >> Int_val(v2)); }
 
+#if defined(__GNUC__)
 #if ARCH_INT32_TYPE == long
 #define int32_clz __builtin_clzl
 #define int32_popcnt __builtin_popcountl
-#else
+#else /* ARCH_INT32_TYPE == long */
 #define int32_clz __builtin_clz
 #define int32_popcnt __builtin_popcount
-#endif
+#endif /* ARCH_INT32_TYPE == long */
 
 #define int64_clz __builtin_clzll
 #define int64_popcnt __builtin_popcountll
+
+#else /* defined(__GNUC__) */
+ /* _MSC_ does not have builting for popcnt, and
+  *  has undefined behavior for clz builtin when
+  *  lzcnt instruction is not supported.
+  *  Use naive version of clz and popcnt from Hacker's Delight. */
+
+
+#ifdef ARCH_SIXTYFOUR
+#define BITWIDTH 64
+#else
+#define BITWIDTH 32
+#endif
+int naive_clz(uint64_t v)
+{
+  int n = 0;
+  int64_t x = (int64_t) v;
+  int64_t y = x;
+
+L: if (x < 0) return n;
+   if (y == 0) return BITWIDTH - n;
+   n = n + 1;
+   x = x << 1;
+   y = y >> 1;
+   goto L;
+}
+#undef BITWIDTH
+
+int naive_popcnt (uint64_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
+}
+
+#define int32_clz naive_clz
+#define int64_clz naive_clz
+#define int32_popcnt naive_popcnt
+#define int64_popcnt naive_popcnt
+
+#endif /* defined(__GNUC__) */
 
 CAMLprim value caml_int_clz(value v1)
 { return Val_long(int64_clz((uint64_t)v1)); }
