@@ -241,7 +241,7 @@ method! select_operation op args dbg =
     when !fast_math && List.mem fn inline_float_ops ->
       (Ispecific(Ifloatspecial fn), args)
   (* Some Intel targets do not support popcnt *)
-  | Cpopcnt ->
+  | Cpopcnt when not !popcnt_support ->
       (Iextcall { func = "caml_untagged_int_popcnt";
                   alloc = false; label_after = Cmm.new_label (); }, args)
   (* i386 does not support immediate operands for multiply high signed *)
