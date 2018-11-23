@@ -248,6 +248,8 @@ method! select_operation op args dbg =
       Ispecific Izextend32, [arg]
     | _ -> super#select_operation op args dbg
     end
+  | Cclz _ when !lzcnt_support ->
+      (Ispecific Ilzcnt, args)
   | _ -> super#select_operation op args dbg
 
 (* Recognize float arithmetic with mem *)

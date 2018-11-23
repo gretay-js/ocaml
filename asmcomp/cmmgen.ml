@@ -797,7 +797,6 @@ and transl_prim_1 env p arg dbg =
   | Poffsetint n ->
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
-<<<<<<< HEAD
       offsetref n (transl env arg) dbg
   | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
   | Ppopcntint ->
@@ -836,33 +835,18 @@ and transl_prim_1 env p arg dbg =
       box_int dbg bi2 (transl_unbox_int dbg env bi1 arg)
   | Pnegbint bi ->
       box_int dbg bi
-<<<<<<< HEAD
         (Cop(Csubi, [Cconst_int (0, dbg); transl_unbox_int dbg env bi arg],
-          dbg))
-  | Pclzbint bi -> begin
-      match (transl_unbox_int dbg env bi arg) with
-      | Cconst_natint 0n ->
-        let n = (match bi with
-          | Pnativeint -> 8*size_int
-          | Pint32 -> 32
-          | Pint64 -> 64)
-        in tag_int (Cconst_int n) dbg
-      | _ ->
-        let res = Cop((Cclz false),
-                      [make_unsigned_int bi
-                         (transl_unbox_int dbg env bi arg) dbg], dbg) in
-        if bi = Pint32 && size_int = 8 then
-          tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
-        else
-          tag_int res dbg
-    end
-  | Ppopcntbint bi ->
-      tag_int(Cop(Cpopcnt,
-=======
-        (Cop(Csubi, [Cconst_int 0; transl_unbox_int dbg env bi arg], dbg))
+             dbg))
   | Pclzbint bi ->
       let res = Cop(Cclz {non_zero=false},
->>>>>>> 7573ed3922... Address review comments on style.
+                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
+                  dbg) in
+      if bi = Pint32 && size_int = 8 then
+        tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
+      else
+        tag_int res dbg
+  | Ppopcntbint bi ->
+      tag_int(Cop(Cpopcnt,
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
                   dbg) in
       if bi = Pint32 && size_int = 8 then
