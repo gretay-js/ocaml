@@ -440,6 +440,10 @@ val bbswap : Primitive.boxed_integer -> unary_primitive
     Operates on Cmm integers (untagged integers) *)
 val bswap16 : unary_primitive
 
+(** Count leading zeros and popcount *)
+val clz : Primitive.boxed_integer -> unary_primitive
+val popcnt : Primitive.boxed_integer -> unary_primitive
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 type assignment_kind = Caml_modify | Caml_initialize | Simple
