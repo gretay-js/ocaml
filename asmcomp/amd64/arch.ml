@@ -13,13 +13,32 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* LZCNT instruction is not available on Intel Architectures prior to Haswell.
+
+   Important: lzcnt assembles to bsr on architectures prior to Haswell.  Code
+   that uses lzcnt will run on older Intels and silently produce wrong
+   results. *)
+let lzcnt_support = ref true
+
+(* POPCNT instruction is not available prior to Nehalem. *)
+let popcnt_support = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
   [ "-fPIC", Arg.Set Clflags.pic_code,
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
-      " Generate position-dependent machine code" ]
+      " Generate position-dependent machine code";
+    "-flzcnt", Arg.Set lzcnt_support,
+      " Use lzcnt instruction to count leading zeros";
+    "-fno-lzcnt", Arg.Clear lzcnt_support,
+      " Do not use lzcnt instruction to count leading zeros";
+    "-fpopcnt", Arg.Set popcnt_support,
+      " Use popcnt instruction to count the number of bits set";
+    "-fno-popcnt", Arg.Clear popcnt_support,
+      " Do not use popcnt instruction to count the number of bits set";
+  ]
 
 (* Specific operations for the AMD64 processor *)
 
@@ -46,6 +65,10 @@ type specific_operation =
                                           extension *)
   | Izextend32                         (* 32 to 64 bit conversion with zero
                                           extension *)
+  | Ilzcnt                             (* count leading zeros instruction *)
+  | Ibsr of { non_zero : bool }        (* bit scan reverse instruction *)
+  | Irdtsc                             (* read timestamp *)
+  | Irdpmc                             (* read performance counter *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -135,6 +158,14 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Izextend32 ->
       fprintf ppf "zextend32 %a" printreg arg.(0)
+  | Ilzcnt ->
+      fprintf ppf "lzcnt %a" printreg arg.(0)
+  | Ibsr {non_zero} ->
+      fprintf ppf "bsr non_zero=%b %a" non_zero printreg arg.(0)
+  | Irdtsc ->
+      fprintf ppf "rdtsc"
+  | Irdpmc ->
+      fprintf ppf "rdpmc %a" printreg arg.(0)
 
 let win64 =
   match Config.system with

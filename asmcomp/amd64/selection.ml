@@ -112,6 +112,12 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
+  | Ispecific Irdtsc ->
+  (* Read the timestamp into edx (high) and eax (low). *)
+    ([| |], [| rdx; rax |])
+  | Ispecific Irdpmc ->
+  (* Read performance counter specified by ecx into edx (high) and eax (low). *)
+    ([| rcx |], [| rdx; rax |])
   (* Other instructions are regular *)
   | _ -> raise Use_default
 
@@ -119,7 +125,13 @@ let pseudoregs_for_operation op arg res =
    [effects_of], below. *)
 let inline_ops =
   [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
+    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap";
+    "caml_rdpmc_unboxed"; "caml_rdtsc_unboxed";
+    "caml_int_lzcnt_untagged";
+    "caml_int64_bsr_unboxed";
+    "caml_int_bsr_untagged";
+    "int64_bsr";
+  ]
 
 (* The selector class *)
 
@@ -228,6 +240,22 @@ method! select_operation op args dbg =
   | Cextcall("caml_int64_direct_bswap", _, _, _)
   | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
       (Ispecific (Ibswap 64), args)
+  | Cextcall("caml_rdtsc_unboxed", _, _, _) ->
+      (Ispecific Irdtsc, args)
+  | Cextcall("caml_rdpmc_unboxed", _, _, _) ->
+      (Ispecific Irdpmc, args)
+  | Cextcall("caml_int64_bsr_unboxed", _, _, _) ->
+      (Ispecific(Ibsr {non_zero=false}), args)
+  | Cextcall("int64_bsr", _, _, _) ->
+      (Ispecific(Ibsr {non_zero=true}), args)
+  (* Some Intel targets do not support popcnt and lzcnt *)
+  | Cextcall("caml_int_lzcnt_untagged", _, _, _)  when !lzcnt_support ->
+      (Ispecific Ilzcnt, args)
+  | Cpopcnt when not !popcnt_support ->
+      (Iextcall { func = "caml_popcnt_internal";
+                  alloc = false; label_after = Cmm.new_label (); }, args)
+  | Cclz _ when !lzcnt_support ->
+      (Ispecific Ilzcnt, args)
   (* AMD64 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
       (Iintop Imulh, args)
@@ -249,6 +277,18 @@ method! select_operation op args dbg =
     | _ -> super#select_operation op args dbg
     end
   | _ -> super#select_operation op args dbg
+
+
+method! emit_expr env exp =
+  match exp with
+  | Cop(Cextcall("caml_int_bsr_untagged", ty, false, dbg1), args, dbg) ->
+    let exp = Cop(Caddi,
+                  [Cop(Cextcall("int64_bsr", ty, false, dbg1),
+                       args, dbg);
+                   Cconst_int (-1, dbg)],
+                  dbg)
+    in super#emit_expr env exp
+  | _ -> super#emit_expr env exp
 
 (* Recognize float arithmetic with mem *)
 

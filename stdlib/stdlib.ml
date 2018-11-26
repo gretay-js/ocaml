@@ -575,6 +575,7 @@ module Char         = Char
 module Complex      = Complex
 module Digest       = Digest
 module Ephemeron    = Ephemeron
+module Intrinsics   = Intrinsics
 module Filename     = Filename
 module Float        = Float
 module Format       = Format

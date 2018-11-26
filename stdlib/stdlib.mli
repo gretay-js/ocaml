@@ -1341,6 +1341,7 @@ module Char         = Char
 module Complex      = Complex
 module Digest       = Digest
 module Ephemeron    = Ephemeron
+module Intrinsics   = Intrinsics
 module Filename     = Filename
 module Float        = Float
 module Format       = Format
@@ -1386,3 +1387,4 @@ module Sys          = Sys
 module Uchar        = Uchar
 module Unit         = Unit
 module Weak         = Weak
+

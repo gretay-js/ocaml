@@ -83,6 +83,11 @@ let pseudoregs_for_operation op arg res =
   (* Other instructions are regular *)
   | _ -> raise Use_default
 
+(* If you update [inline_ops], you may need to update [is_simple_expr] and/or
+   [effects_of], below. *)
+let inline_ops_v6 =
+  [ "caml_int32_direct_bswap"; ]
+
 (* Instruction selection *)
 class selector = object(self)
 
@@ -113,8 +118,8 @@ method! is_simple_expr = function
   | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
     when !arch >= ARMv6T2 ->
       List.for_all self#is_simple_expr args
-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
-    when !arch >= ARMv6 ->
+  | Cop(Cextcall(fn,_,_,_), args, _)
+    when !arch >= ARMv6 && List.mem fn inline_ops_v6  ->
       List.for_all self#is_simple_expr args
   | e -> super#is_simple_expr e
 
@@ -125,8 +130,8 @@ method! effects_of e =
   | Cop(Cextcall("caml_bswap16_direct", _, _, _), args, _)
     when !arch >= ARMv6T2 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | Cop(Cextcall("caml_int32_direct_bswap",_,_,_), args, _)
-    when !arch >= ARMv6 ->
+  | Cop(Cextcall(fn,_,_,_), args, _)
+    when !arch >= ARMv6 && List.mem fn inline_ops_v6 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | e -> super#effects_of e
 
@@ -213,6 +218,14 @@ method! select_operation op args dbg =
       (Iintop Imul, args)
   | (Cmulhi, args) ->
       (Iintop Imulh, args)
+  (* ARM does not support popcnt *)
+  | (Cpopcnt, args) ->
+       self#iextcall("caml_popcnt_internal", false), args
+  (* Recognize clz instructions (ARMv6 and above) *)
+  | (Cclz {non_zero=true}, args) when !arch < ARMv6 ->
+      self#iextcall("caml_int_clz_untagged", false), args
+  | (Cclz {non_zero=false}, args) when !arch < ARMv6 ->
+      self#iextcall("caml_int32_clz_unboxed", false), args
   (* Turn integer division/modulus into runtime ABI calls *)
   | (Cdivi, args) ->
       (self#iextcall("__aeabi_idiv", false), args)

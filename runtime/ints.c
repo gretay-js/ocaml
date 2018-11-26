@@ -284,6 +284,360 @@ CAMLprim value caml_int32_shift_right(value v1, value v2)
 CAMLprim value caml_int32_shift_right_unsigned(value v1, value v2)
 { return caml_copy_int32((uint32_t)Int32_val(v1) >> Int_val(v2)); }
 
+#if defined(__GNUC__)
+#if ARCH_INT32_TYPE == long
+#define int32_clz __builtin_clzl
+#define int32_popcnt __builtin_popcountl
+#else /* ARCH_INT32_TYPE == long */
+#define int32_clz __builtin_clz
+#define int32_popcnt __builtin_popcount
+#endif /* ARCH_INT32_TYPE == long */
+
+#define int64_clz __builtin_clzll
+#define int64_popcnt __builtin_popcountll
+
+#else /* defined(__GNUC__) */
+#ifdef _MSC_VER
+#include <intrin.h>
+#pragma intrinsic(_BitScanReverse)
+
+int naive_int64_clz(uint64_t v)
+{
+  unsigned long n;
+#ifdef ARCH_SIXTYFOUR
+  if (_BitScanReverse64(&n, v)) return 63-n;
+  else return 64;
+#else
+  /* _BitScanReverse64 is not supported */
+  if ((v >> 32) == 0)
+    {
+      if (_BitScanReverse(&n,v)) return 63-n;
+      else return 64;
+    }
+  else
+    {
+      _BitScanReverse(&n,(v>>32));
+      return 31-n;
+    }
+#endif
+}
+
+int naive_int32_clz(uint32_t v)
+{
+  unsigned long n;
+  if (_BitScanReverse(&n, v))
+#ifdef ARCH_SIXTYFOUR
+    return 63 - n;
+#else
+    return 31 - n;
+#endif
+  else return 32;
+}
+
+/* _MSVC_ intrinsic for popcnt is not supported on all targets.
+   Use naive version of clz and popcnt from Hacker's Delight. */
+
+int naive_int64_popcnt (uint64_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
+}
+
+int naive_int32_popcnt (uint32_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
+}
+
+#define int32_clz naive_int32_clz
+#define int64_clz naive_int64_clz
+#define int32_popcnt naive_int32_popcnt
+#define int64_popcnt naive_int64_popcnt
+#endif /* _MSC_VER */
+#endif /* defined(__GNUC__) */
+
+value caml_popcnt_internal(value x) {
+#ifdef ARCH_SIXTYFOUR
+  return int64_popcnt(x);
+#else
+  return int64_popcnt(x);
+#endif
+}
+
+int wrap_int32_clz(uint32_t x)
+{
+  int res;
+  /* builtin_clz on input 0 is undefined */
+  if (x == 0) res = 32;
+  else
+    {
+      res = int32_clz(x);
+#ifdef ARCH_SIXTYFOUR
+      res -= 32;
+#endif
+    }
+  return res;
+}
+
+int wrap_int64_clz(uint64_t x)
+{
+  int res;
+  /* builtin_clz on input 0 is undefined */
+  if (x == 0) res = 64;
+  else res = int64_clz(x);
+  return res;
+}
+
+/* Takes an untagged input and returns untagged output. */
+value caml_untagged_int_clz(value v1)
+{
+  /* -1 because size of int is 63 not 64 (31 not 32, resp.) */
+#ifdef ARCH_SIXTYFOUR
+  if (((int64_t) v1) < 0) return 0;
+  return wrap_int64_clz((uint64_t)v1)-1;
+#else
+  if (((int32_t) v1) < 0) return 0;
+  return wrap_int32_clz((uint32_t)v1)-1;
+#endif
+}
+
+/* Takes a tagged input and returns untagged output. */
+CAMLprim value caml_int_clz_untagged(value v1)
+{
+   /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input to builtin_clz is non-zero, to guard
+     against versions of builtin_clz that are undefined for intput 0.
+     The tag does not change the number of leading zeros.
+   */
+#ifdef ARCH_SIXTYFOUR
+  return int64_clz((uint64_t)v1);
+#else
+  return int32_clz((uint32_t)v1);
+#endif
+}
+
+CAMLprim value caml_int_clz(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input to builtin_clz is non-zero, to guard
+     against versions of builtin_clz that are undefined for intput 0.
+     The tag does not change the number of leading zeros.
+   */
+#ifdef ARCH_SIXTYFOUR
+  return Val_long(int64_clz((uint64_t)v1));
+#else
+  return Val_long(int32_clz((uint32_t)v1));
+#endif
+}
+
+
+
+#if (defined(TARGET_amd64) || defined(TARGET_i386)) && defined(__GNUC__)
+uint64_t __inline int64_bsr(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+uint32_t __inline int32_bsr(uint32_t a)
+{
+  uint32_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+int  __inline wrap_int32_bsr(uint32_t x)
+{
+  int32_t res;
+  /* bsr on input 0 is undefined */
+  if (x == 0) res = (uint32_t)-1;
+  else res = int32_bsr(x);
+  return res;
+}
+
+int  __inline wrap_int64_bsr(uint64_t x)
+{
+  int64_t res;
+  /* bsr on input 0 is undefined */
+  if (x == 0) res = (int64_t) -1;
+  else res = int64_bsr(x);
+  return res;
+}
+
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(_BitScanReverse)
+
+uint32_t int32_bsr(uint32_t v)
+{
+  unsigned long n;
+  if (_BitScanReverse(&n, v)) return (unint32_t) n;
+  else return (uint32_t)-1;
+}
+
+int int64_bsr(uint64_t v)
+{
+  unsigned long n;
+#ifdef ARCH_SIXTYFOUR
+  if (_BitScanReverse64(&n, v)) return (uint64_t) n;
+  else return (unint64_t)-1;
+#else
+  /* _BitScanReverse64 is not supported */
+  if ((v >> 32) == 0)
+    {
+      return (unit64_t) int32_bsr((uint32_t)v);
+    }
+  else
+    {
+      _BitScanReverse(&n,(v>>32));
+      return (uint64_t) n+32;
+    }
+#endif
+}
+#define wrap_int64_bsr int64_bsr
+#define wrap_int32_bsr int32_bsr
+#else
+uint64_t __inline int64_bsr(uint64_t a) { return (63 - wrap_int64_clz(a)); }
+uint32_t __inline int32_bsr(uint32_t a) { return (31 - wrap_int32_clz(a)); }
+#define wrap_int64_bsr int64_bsr
+#define wrap_int32_bsr int32_bsr
+#endif
+
+#if defined(TARGET_amd64) && defined(__GNUC__)
+uint64_t __inline int64_lzcnt(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("lzcnt %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+#else
+uint64_t __inline int64_lzcnt(uint64_t a) { return wrap_int64_clz(a); }
+#endif
+
+uint64_t __inline int32_lzcnt(uint32_t a) { return wrap_int32_clz(a); }
+
+/* Takes as input untagged int and returns untagged int */
+value caml_untagged_int_bsr(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  if (((int64_t) v1) < 0) return 62;
+  return wrap_int64_bsr((uint64_t)v1);
+#else
+  if (((int32_t) v1) < 0) return 30;
+  return wrap_int32_bsr((uint32_t)v1);
+#endif
+}
+
+/* Takes as input a tagged int and returns untagged int. */
+value caml_int_bsr_untagged(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input is non-zero, to guard
+     against undefined behavior of bsr for input 0.
+     Adjust the resulting index to account for the tag.
+     When input is 0, output is -1.
+  */
+#ifdef ARCH_SIXTYFOUR
+  return int64_bsr((uint64_t)v1)-1;
+#else
+  return int32_bsr((uint32_t)v1)-1;
+#endif
+}
+
+CAMLprim value caml_int_bsr(value v1)
+{
+  return Val_long(caml_int_bsr_untagged(v1));
+}
+
+value caml_int64_bsr_unboxed(value v1)
+{
+  return wrap_int64_bsr((uint64_t)v1);
+}
+CAMLprim value caml_int64_bsr(value v1)
+{
+  return Val_long(wrap_int64_bsr(Int64_val(v1)));
+}
+
+/* Takes as input an untagged int and returns untagged int. */
+value caml_untagged_int_lzcnt(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  if (((int64_t) v1) < 0) return 0;
+  return int64_lzcnt((uint64_t)v1)-1;
+#else
+  if (((int32_t) v1) < 0) return 0;
+  return int32_lzcnt((uint32_t)v1)-1;
+#endif
+}
+
+value caml_int_lzcnt_untagged(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag,
+     because the tag doesn't affect the number of leading zeros.
+  */
+
+#ifdef ARCH_SIXTYFOUR
+  return int64_lzcnt((uint64_t)v1);
+#else
+  return int32_lzcnt((uint32_t)v1);
+#endif
+}
+
+CAMLprim value caml_int_lzcnt(value v1)
+{
+  return Val_long(caml_int_lzcnt_untagged(v1));
+}
+
+/* Takes untagged int and returns untagged int. */
+value caml_untagged_int_popcnt(value v1)
+{
+  /* Untagging brought in one more '1' for negative numbers */
+#ifdef ARCH_SIXTYFOUR
+  uint64_t neg = (((int64_t) v1) < 0 ? 1 : 0);
+  return int64_popcnt((uint64_t)v1) - neg;
+#else
+  uint64_t neg = (((int32_t) v1) < 0 ? 1 : 0);
+  return int32_popcnt((uint32_t)v1) - neg;
+#endif
+}
+
+/* Takes tagged int and returns untagged int. */
+value caml_int_popcnt_untagged(value v1)
+{
+   /* -1 to account for the tag */
+#ifdef ARCH_SIXTYFOUR
+  return int64_popcnt((uint64_t)v1) - 1;
+#else
+  return int32_popcnt((uint32_t)v1) - 1;
+#endif
+}
+
+CAMLprim value caml_int_popcnt(value v1)
+{
+  return Val_long(caml_int_popcnt_untagged(v1));
+}
+
+int caml_int32_clz_unboxed(int32_t v)
+{ return wrap_int32_clz((uint32_t) v); }
+
+int caml_int32_popcnt_unboxed(int32_t v)
+{ return int32_popcnt((uint32_t) v); }
+
+CAMLprim value caml_int32_clz(value v1)
+{ return Val_long(wrap_int32_clz((uint32_t)Int32_val(v1))); }
+
+CAMLprim value caml_int32_popcnt(value v1)
+{ return Val_long(int32_popcnt((uint32_t) (Int32_val(v1)))); }
+
 static int32_t caml_swap32(int32_t x)
 {
   return (((x & 0x000000FF) << 24) |
@@ -502,6 +856,18 @@ CAMLprim value caml_int64_shift_right(value v1, value v2)
 
 CAMLprim value caml_int64_shift_right_unsigned(value v1, value v2)
 { return caml_copy_int64((uint64_t) (Int64_val(v1)) >>  Int_val(v2)); }
+
+int caml_int64_clz_unboxed(int64_t v)
+{ return wrap_int64_clz((uint64_t) v); }
+
+int caml_int64_popcnt_unboxed(int64_t v)
+{ return int64_popcnt((uint64_t) v); }
+
+CAMLprim value caml_int64_clz(value v1)
+{ return Val_long(wrap_int64_clz((uint64_t) Int64_val(v1))); }
+
+CAMLprim value caml_int64_popcnt(value v1)
+{ return Val_long(int64_popcnt((uint64_t) (Int64_val(v1)))); }
 
 #ifdef ARCH_SIXTYFOUR
 static value caml_swap64(value x)
@@ -783,6 +1149,42 @@ CAMLprim value caml_nativeint_shift_right(value v1, value v2)
 
 CAMLprim value caml_nativeint_shift_right_unsigned(value v1, value v2)
 { return caml_copy_nativeint((uintnat)Nativeint_val(v1) >> Int_val(v2)); }
+
+int caml_nativeint_clz_unboxed(intnat v)
+{
+#ifdef ARCH_SIXTYFOUR
+  return wrap_int64_clz((uint64_t) v);
+#else
+  return wrap_int32_clz((uint32_t) v);
+#endif
+}
+
+int caml_nativeint_popcnt_unboxed(intnat v)
+{
+#ifdef ARCH_SIXTYFOUR
+  return int64_popcnt((uint64_t) v);
+#else
+  return int32_popcnt((uint32_t) v);
+#endif
+}
+
+CAMLprim value caml_nativeint_clz(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  return Val_long(wrap_int64_clz((uint64_t) Int64_val(v1)));
+#else
+  return Val_long(wrap_int32_clz((uint32_t) Int32_val(v1)));
+#endif
+}
+
+CAMLprim value caml_nativeint_popcnt(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  return Val_long(int64_popcnt((uint64_t) Int64_val(v1)));
+#else
+  return Val_long(int32_popcnt((uint32_t) Int32_val(v1)));
+#endif
+}
 
 value caml_nativeint_direct_bswap(value v)
 {

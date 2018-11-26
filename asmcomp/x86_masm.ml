@@ -120,6 +120,9 @@ let print_instr b = function
   | AND (arg1, arg2) -> i2 b "and" arg1 arg2
   | ANDPD (arg1, arg2) -> i2 b "andpd" arg1 arg2
   | BSWAP arg -> i1 b "bswap" arg
+  | BSR (arg1, arg2) -> i2 b "bsr" arg1 arg2
+  | LZCNT (arg1, arg2) -> i2 b "lzcnt" arg1 arg2
+  | POPCNT (arg1, arg2) -> i2 b "popcnt" arg1 arg2
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cdq"
   | CMOV (c, arg1, arg2) -> i2 b ("cmov" ^ string_of_condition c) arg1 arg2
@@ -196,6 +199,8 @@ let print_instr b = function
   | OR (arg1, arg2) -> i2 b "or" arg1 arg2
   | POP arg -> i1 b "pop" arg
   | PUSH arg -> i1 b "push" arg
+  | RDTSC  -> i0 b "rdtsc"
+  | RDPMC -> i0 b "rdpmc"
   | RET -> i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2 b "sal" arg1 arg2

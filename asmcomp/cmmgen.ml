@@ -771,9 +771,21 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let args = transl_args prim.prim_native_repr_args args in
-  wrap_result
-    (Cop(Cextcall(Primitive.native_name prim,
-                  typ_res, prim.prim_alloc, None), args, dbg))
+  let op =
+    match Primitive.native_name prim with
+    | "caml_int_clz_untagged" -> Cop(Cclz {non_zero=true}, args, dbg)
+    | "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
+    | "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
+    | "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
+    | "caml_int_popcnt_untagged" ->
+        Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
+    | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
+    | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
+    | "caml_nativeint_popcnt_unboxed" -> popcnt Pnativeint (List.hd args) dbg
+    | native_name ->
+        Cop(Cextcall(native_name, typ_res, prim.prim_alloc, None), args, dbg)
+  in
+  wrap_result op
 
 and transl_prim_1 env p arg dbg =
   match p with
@@ -832,7 +844,7 @@ and transl_prim_1 env p arg dbg =
   | Pnegbint bi ->
       box_int dbg bi
         (Cop(Csubi, [Cconst_int (0, dbg); transl_unbox_int dbg env bi arg],
-          dbg))
+             dbg))
   | Pbbswap bi ->
       box_int dbg bi (bbswap bi (transl_unbox_int dbg env bi arg) dbg)
   | Pbswap16 ->

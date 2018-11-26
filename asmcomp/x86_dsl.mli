@@ -106,6 +106,9 @@ module I : sig
   val addsd: arg -> arg -> unit
   val and_: arg -> arg -> unit
   val andpd: arg -> arg -> unit
+  val bsr : arg -> arg -> unit
+  val lzcnt : arg -> arg -> unit
+  val popcnt : arg -> arg -> unit
   val bswap: arg -> unit
   val call: arg -> unit
   val cdq: unit -> unit
@@ -179,6 +182,8 @@ module I : sig
   val or_: arg -> arg -> unit
   val pop: arg -> unit
   val push: arg -> unit
+  val rdtsc: unit -> unit
+  val rdpmc: unit -> unit
   val ret: unit -> unit
   val sal: arg -> arg -> unit
   val sar: arg -> arg -> unit
