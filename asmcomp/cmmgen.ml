@@ -798,6 +798,10 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
+  | Pclzint -> tag_int (Cop((Cclz true), [transl env arg], dbg)) dbg
+  | Ppopcntint ->
+      let res = Cop(Cpopcnt, [transl env arg], dbg) in
+      tag_int (Cop(Caddi, [res; Cconst_int (-1)], dbg)) dbg
   (* Floating-point operations *)
   | Pfloatofint ->
       box_float dbg (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
@@ -833,6 +837,27 @@ and transl_prim_1 env p arg dbg =
       box_int dbg bi
         (Cop(Csubi, [Cconst_int (0, dbg); transl_unbox_int dbg env bi arg],
           dbg))
+  | Pclzbint bi -> begin
+      match (transl_unbox_int dbg env bi arg) with
+      | Cconst_natint 0n ->
+        let n = (match bi with
+          | Pnativeint -> 8*size_int
+          | Pint32 -> 32
+          | Pint64 -> 64)
+        in tag_int (Cconst_int n) dbg
+      | _ ->
+        let res = Cop((Cclz false),
+                      [make_unsigned_int bi
+                         (transl_unbox_int dbg env bi arg) dbg], dbg) in
+        if bi = Pint32 && size_int = 8 then
+          tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
+        else
+          tag_int res dbg
+    end
+  | Ppopcntbint bi ->
+      tag_int(Cop(Cpopcnt,
+                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
+                  dbg)) dbg
   | Pbbswap bi ->
       box_int dbg bi (bbswap bi (transl_unbox_int dbg env bi arg) dbg)
   | Pbswap16 ->

@@ -223,6 +223,8 @@ let primitive ppf = function
   | Pcompare_bints bi -> fprintf ppf "compare_bints %s" (boxed_integer_name bi)
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
+  | Pclzint -> fprintf ppf "clz"
+  | Ppopcntint -> fprintf ppf "popcnt"
   | Pintoffloat -> fprintf ppf "int_of_float"
   | Pfloatofint -> fprintf ppf "float_of_int"
   | Pnegfloat -> fprintf ppf "~."
@@ -284,6 +286,8 @@ let primitive ppf = function
   | Plslbint bi -> print_boxed_integer "lsl" ppf bi
   | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
   | Pasrbint bi -> print_boxed_integer "asr" ppf bi
+  | Pclzbint bi -> print_boxed_integer "clz" ppf bi
+  | Ppopcntbint bi -> print_boxed_integer "popcnt" ppf bi
   | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
   | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
   | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi
@@ -386,6 +390,8 @@ let name_of_primitive = function
   | Pcompare_bints _ -> "Pcompare"
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
+  | Pclzint -> "Pclzint"
+  | Ppopcntint -> "Ppopcntint"
   | Pintoffloat -> "Pintoffloat"
   | Pfloatofint -> "Pfloatofint"
   | Pnegfloat -> "Pnegfloat"
@@ -428,6 +434,8 @@ let name_of_primitive = function
   | Plslbint _ -> "Plslbint"
   | Plsrbint _ -> "Plsrbint"
   | Pasrbint _ -> "Pasrbint"
+  | Pclzbint _ -> "Pclzbint"
+  | Ppopcntbint _ -> "Ppopcntbint"
   | Pbintcomp _ -> "Pbintcomp"
   | Pbigarrayref _ -> "Pbigarrayref"
   | Pbigarrayset _ -> "Pbigarrayset"

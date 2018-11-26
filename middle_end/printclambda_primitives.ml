@@ -119,6 +119,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Plslint -> fprintf ppf "lsl"
   | Plsrint -> fprintf ppf "lsr"
   | Pasrint -> fprintf ppf "asr"
+  | Pclzint -> fprintf ppf "clz"
+  | Ppopcntint -> fprintf ppf "popcnt"
   | Pintcomp(cmp) -> Printlambda.integer_comparison ppf cmp
   | Pcompare_ints -> fprintf ppf "compare_ints"
   | Pcompare_floats -> fprintf ppf "compare_floats"
@@ -176,6 +178,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Plslbint bi -> print_boxed_integer "lsl" ppf bi
   | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
   | Pasrbint bi -> print_boxed_integer "asr" ppf bi
+  | Pclzbint bi -> print_boxed_integer "clz" ppf bi
+  | Ppopcntbint bi -> print_boxed_integer "popcnt" ppf bi
   | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
   | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
   | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi

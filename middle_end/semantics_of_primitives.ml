@@ -50,6 +50,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Pintcomp _ -> No_effects, No_coeffects
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
     -> No_effects, No_coeffects
+  | Pclzint -> No_effects, No_coeffects
+  | Ppopcntint -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }
   | Pmodbint { is_safe = Unsafe }
   | Pdivint Unsafe
@@ -89,6 +91,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Plslbint _
   | Plsrbint _
   | Pasrbint _
+  | Pclzbint _ -> No_effects, No_coeffects
+  | Ppopcntbint _ -> No_effects, No_coeffects
   | Pbintcomp _ -> No_effects, No_coeffects
   | Pbigarraydim _ ->
       No_effects, Has_coeffects  (* Some people resize bigarrays in place. *)
