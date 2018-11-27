@@ -124,6 +124,9 @@ method select_addressing chunk = function
   | arg ->
       (Iindexed 0, arg)
 
+method private iextcall (func, alloc) =
+  Iextcall { func; alloc; label_after = Cmm.new_label (); }
+
 method! select_operation op args dbg =
   match op with
   (* Integer addition *)
@@ -199,8 +202,8 @@ method! select_operation op args dbg =
   | Cmulhi ->
       (Iintop Imulh, args)
   (* ARM does not support popcnt *)
-  | (Cpopcnt args) ->
-      (self#iextcall("caml_native_popcnt", false), args)
+  | Cpopcnt ->
+      (self#iextcall("caml_int_popcnt", false), args)
   (* Bitwise logical operations have a different range of immediate
      operands than the other instructions *)
   | Cand -> self#select_logical Iand args
