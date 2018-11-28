@@ -79,7 +79,7 @@ method! select_operation op args dbg =
   | (Csubf, [Cop(Cmulf, [arg1; arg2], _); arg3]) ->
       (Ispecific Imultsubf, [arg1; arg2; arg3])
   (* popcnt is not supported prior to ppc64le *)
-  | Cpopcnt when Config.model <> "ppc64le" ->
+  | (Cpopcnt, args) when Config.model <> "ppc64le" ->
       (self#iextcall("caml_untagged_int_popcnt", false), args)
   | _ ->
       super#select_operation op args dbg

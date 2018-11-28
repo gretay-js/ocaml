@@ -326,7 +326,18 @@ L: if (x < 0) return n;
    goto L;
 }
 
-int naive_popcnt (uint64_t x)
+int naive_int64_popcnt (uint64_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
+}
+
+
+int naive_int32__popcnt (uint32_t x)
 {
    int n = 0;
    while (x != 0) {
@@ -338,8 +349,8 @@ int naive_popcnt (uint64_t x)
 
 #define int32_clz naive_int32_clz
 #define int64_clz naive_int64_clz
-#define int32_popcnt naive_popcnt
-#define int64_popcnt naive_popcnt
+#define int32_popcnt naive_int32_popcnt
+#define int64_popcnt naive_int64_popcnt
 
 #endif /* defined(__GNUC__) */
 
