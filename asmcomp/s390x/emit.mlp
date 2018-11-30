@@ -473,14 +473,12 @@ let emit_instr i =
           (* No need to handle input 0 specially. *)
         `	flogr	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
         `	xilf	{emit_reg i.res.(0)}, {emit_int 63}\n`
-        end
-        else begin
+        end else
           let lbl_z = new_label () in
-            `	flogr	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
-            `	bz      {emit_label lbl_z}\n`;
-            `	xilf	{emit_reg i.res.(0)}, {emit_int 63}\n`
-            `	{emit_label lbl_z}:\n`
-        end end
+          `	flogr	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
+          `	bz      {emit_label lbl_z}\n`;
+          `	xilf	{emit_reg i.res.(0)}, {emit_int 63}\n`;
+          `{emit_label lbl_z}:\n`
     | Lop(Iintop(Icomp cmp)) ->
         let lbl = new_label() in
         let (comp, mask) = name_for_int_comparison cmp in
