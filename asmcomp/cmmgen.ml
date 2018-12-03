@@ -2524,6 +2524,10 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi(transl_int_comparison cmp),
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Pperfmon ->
+      let n =  transl_unbox_int dbg env Pnativeint arg2 in
+      let un = make_unsigned_int Pnativeint n dbg in
+      box_int dbg Pnativeint (Cop(Cperfmon, [ (transl env arg); un], dbg))
   | prim ->
       fatal_errorf "Cmmgen.transl_prim_2: %a" Printlambda.primitive prim
 

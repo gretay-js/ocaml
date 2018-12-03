@@ -240,6 +240,15 @@ method! select_operation op args dbg =
       end
   | Cclz _ when !lzcnt_support ->
       (Ispecific Ilzcnt, args)
+  | Cperfmon ->
+    begin match args with
+    | [Cconst_string s; arg] ->
+      begin match s with
+      | "rdtsc" (Ispecific (Irdtsc) [])
+      | "rdpmc" (Ispecific (Irdpmc) [arg])
+      | s -> Misc.fatal_errorf "Unsupported perfmon intrinsic: %s" s
+      end
+    end
   | _ -> super#select_operation op args dbg
 
 (* Recognize float arithmetic with mem *)

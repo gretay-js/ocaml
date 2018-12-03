@@ -143,6 +143,7 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Format.asprintf "%a%s" raise_kind k (Debuginfo.to_string d)
   | Ccheckbound -> "checkbound" ^ Debuginfo.to_string d
+  | Cperfmon -> "perfmon"
 
 let rec expr ppf = function
   | Cconst_int n -> fprintf ppf "%i" n

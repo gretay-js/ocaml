@@ -157,6 +157,7 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of raise_kind
   | Ccheckbound
+  | Cperfmon
 
 type expression =
     Cconst_int of int

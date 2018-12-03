@@ -57,6 +57,8 @@ type specific_operation =
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
   | Ilzcnt                             (* count leading zeros instruction *)
+  | Irdtsc                             (* read timestamp *)
+  | Irdpmc                             (* read performance counter *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -146,6 +148,10 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Ilzcnt ->
       fprintf ppf "lzcnt %a" printreg arg.(0)
+  | Irdtsc ->
+      fprintf ppf "rdtsc"
+  | Irdpmc ->
+      fprintf ppf "rdpmc %a" printreg arg.(0)
 
 let win64 =
   match Config.system with

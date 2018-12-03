@@ -600,6 +600,8 @@ let rec comp_expr env exp sz cont =
         comp_init env sz decl_size
       end
   | Lprim((Pidentity | Popaque), [arg], _) ->
+      comp_expr env arg sz con
+  | Lprim(Pperfmon, [arg], _) ->
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
