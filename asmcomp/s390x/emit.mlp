@@ -468,17 +468,8 @@ let emit_instr i =
         `	srlg	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, 0({emit_reg i.arg.(1)})\n`
     | Lop(Iintop Iasr) ->
         `	srag	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, 0({emit_reg i.arg.(1)})\n`
-    | Lop(Iintop (Iclz non_zero_input)) ->
-        if non_zero_input then begin
-          (* No need to handle input 0 specially. *)
+    | Lop(Iintop (Iclz _)) ->
         `	flogr	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
-        `	xilf	{emit_reg i.res.(0)}, {emit_int 63}\n`
-        end else
-          let lbl_z = new_label () in
-          `	flogr	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
-          `	bz      {emit_label lbl_z}\n`;
-          `	xilf	{emit_reg i.res.(0)}, {emit_int 63}\n`;
-          `{emit_label lbl_z}:\n`
     | Lop(Iintop(Icomp cmp)) ->
         let lbl = new_label() in
         let (comp, mask) = name_for_int_comparison cmp in

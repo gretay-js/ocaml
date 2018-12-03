@@ -63,9 +63,9 @@ let pseudoregs_for_operation op arg res =
      to ensure that it is not clobbered.
      To keep it simple, force the argument to r7 and the result to r8 and r9. *)
   | Iintop(Iclz _) ->
-    let r7 = Proc.phys_reg 7 in
-    let r8 = Proc.phys_reg 8 in
-    let r9 = Proc.phys_reg 9 in
+    let r7 = Proc.phys_reg 5 in
+    let r8 = Proc.phys_reg 6 in
+    let r9 = Proc.phys_reg 7 in
     ([| r7 |], [| r8; r9 |])
   (* Other instructions are regular *)
   | _ -> raise Use_default
