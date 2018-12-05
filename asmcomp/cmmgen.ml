@@ -1414,6 +1414,7 @@ let simplif_primitive_32bits = function
   | Plslbint Pint64 -> Pccall (default_prim "caml_int64_shift_left")
   | Plsrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right_unsigned")
   | Pasrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right")
+  | Pclzbint Pint64 -> Pccall (default_prim "caml_int64_clz")
   | Pbintcomp(Pint64, Lambda.Ceq) -> Pccall (default_prim "caml_equal")
   | Pbintcomp(Pint64, Lambda.Cne) -> Pccall (default_prim "caml_notequal")
   | Pbintcomp(Pint64, Lambda.Clt) -> Pccall (default_prim "caml_lessthan")
@@ -2132,6 +2133,7 @@ and transl_prim_1 env p arg dbg =
                add_const (Cop(Cload (Word_int, Mutable), [arg], dbg))
                  (n lsl 1) dbg],
               dbg)))
+  | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
   (* Floating-point operations *)
   | Pfloatofint ->
       box_float dbg (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
@@ -2181,6 +2183,14 @@ and transl_prim_1 env p arg dbg =
   | Pnegbint bi ->
       box_int dbg bi
         (Cop(Csubi, [Cconst_int 0; transl_unbox_int dbg env bi arg], dbg))
+  | Pclzbint bi ->
+      let res = Cop(Cclz {non_zero=false},
+                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
+                  dbg) in
+      if bi = Pint32 && size_int = 8 then
+        tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
+      else
+        tag_int res dbg
   | Pbbswap bi ->
       let prim = match bi with
         | Pnativeint -> "nativeint"

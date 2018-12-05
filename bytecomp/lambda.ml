@@ -73,6 +73,7 @@ type primitive =
   | Pintcomp of integer_comparison
   | Poffsetint of int
   | Poffsetref of int
+  | Pclzint
   (* Float operations *)
   | Pintoffloat | Pfloatofint
   | Pnegfloat | Pabsfloat
@@ -109,6 +110,7 @@ type primitive =
   | Plslbint of boxed_integer
   | Plsrbint of boxed_integer
   | Pasrbint of boxed_integer
+  | Pclzbint of boxed_integer
   | Pbintcomp of boxed_integer * integer_comparison
   (* Operations on big arrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
