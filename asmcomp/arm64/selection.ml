@@ -198,6 +198,10 @@ method! select_operation op args dbg =
       (Iintop Imul, args)
   | Cmulhi ->
       (Iintop Imulh, args)
+  (* ARM does not support popcnt *)
+  | Cpopcnt ->
+      (Iextcall { func = "caml_untagged_int_popcnt";
+                  alloc = false; label_after = Cmm.new_label (); }, args)
   (* Bitwise logical operations have a different range of immediate
      operands than the other instructions *)
   | Cand -> self#select_logical Iand args

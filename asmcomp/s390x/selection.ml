@@ -92,6 +92,10 @@ method! select_operation op args dbg =
   match (op, args) with
   (* Z does not support immediate operands for multiply high *)
     (Cmulhi, _) -> (Iintop Imulh, args)
+  (* Z does not support popcnt *)
+  | (Cpopcnt, args) ->
+      (Iextcall { func = "caml_untagged_int_popcnt";
+                  alloc = false; label_after = Cmm.new_label (); }, args)
   (* The and, or and xor instructions have a different range of immediate
      operands than the other instructions *)
   | (Cand, _) ->

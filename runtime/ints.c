@@ -283,11 +283,14 @@ CAMLprim value caml_int32_shift_right_unsigned(value v1, value v2)
 #if defined(__GNUC__)
 #if ARCH_INT32_TYPE == long
 #define int32_clz __builtin_clzl
+#define int32_popcnt __builtin_popcountl
 #else /* ARCH_INT32_TYPE == long */
 #define int32_clz __builtin_clz
+#define int32_popcnt __builtin_popcount
 #endif /* ARCH_INT32_TYPE == long */
 
 #define int64_clz __builtin_clzll
+#define int64_popcnt __builtin_popcountll
 
 #else /* defined(__GNUC__) */
 #ifdef _MSC_VER
@@ -325,6 +328,29 @@ int naive_int32_clz(uint32_t v)
     return 31 - n;
 #endif
   else return 32;
+}
+
+/* _MSVC_ intrinsic for popcnt is not supported on all targets.
+   Use naive version of clz and popcnt from Hacker's Delight. */
+
+int naive_int64_popcnt (uint64_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
+}
+
+int naive_int32_popcnt (uint32_t x)
+{
+   int n = 0;
+   while (x != 0) {
+      n = n + 1;
+      x = x & (x - 1);
+   }
+   return n;
 }
 
 #define int32_clz naive_int32_clz
@@ -381,8 +407,30 @@ CAMLprim value caml_int_clz(value v1)
 #endif
 }
 
+CAMLprim value caml_untagged_int_popcnt(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  return int64_popcnt((uint64_t)v1);
+#else
+  return int32_popcnt((uint32_t)v1);
+#endif
+}
+
+CAMLprim value caml_int_popcnt(value v1)
+{
+  /* -1 to account for the tag */
+#ifdef ARCH_SIXTYFOUR
+  return Val_long((int64_popcnt((uint64_t)v1)) - 1);
+#else
+  return Val_long((int32_popcnt((uint32_t)v1)) - 1);
+#endif
+}
+
 CAMLprim value caml_int32_clz(value v1)
 { return Val_long(wrap_int32_clz((uint32_t)Int32_val(v1))); }
+
+CAMLprim value caml_int32_popcnt(value v1)
+{ return Val_long(int32_popcnt((uint32_t) (Int32_val(v1)))); }
 
 static int32_t caml_swap32(int32_t x)
 {
@@ -606,6 +654,9 @@ CAMLprim value caml_int64_shift_right_unsigned(value v1, value v2)
 
 CAMLprim value caml_int64_clz(value v1)
 { return Val_long(wrap_int64_clz((uint64_t) Int64_val(v1))); }
+
+CAMLprim value caml_int64_popcnt(value v1)
+{ return Val_long(int64_popcnt((uint64_t) (Int64_val(v1)))); }
 
 #ifdef ARCH_SIXTYFOUR
 static value caml_swap64(value x)
@@ -894,6 +945,15 @@ CAMLprim value caml_nativeint_clz(value v1)
   return Val_long(wrap_int64_clz((uint64_t) Int64_val(v1)));
 #else
   return Val_long(wrap_int32_clz((uint32_t) Int32_val(v1)));
+#endif
+}
+
+CAMLprim value caml_nativeint_popcnt(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  return Val_long(int64_popcnt((uint64_t) Int64_val(v1)));
+#else
+  return Val_long(int32_popcnt((uint32_t) Int32_val(v1)));
 #endif
 }
 
