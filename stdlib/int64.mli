@@ -121,6 +121,12 @@ external shift_right_logical : int64 -> int -> int64 = "%int64_lsr"
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= 64]. *)
 
+external count_leading_zeros : int64 -> int = "%int64_clz"
+(** Counts the number of most significant zero bits. *)
+
+external count_set_bits : int64 -> int = "%int64_popcnt"
+(** Counts the number of bit set to 1. *)
+
 external of_int : int -> int64 = "%int64_of_int"
 (** Convert the given integer (type [int]) to a 64-bit integer
     (type [int64]). *)
