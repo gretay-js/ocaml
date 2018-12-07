@@ -297,7 +297,7 @@ CAMLprim value caml_int32_shift_right_unsigned(value v1, value v2)
 #include <intrin.h>
 #pragma intrinsic(_BitScanReverse)
 
-int naive_int64_clz(uint64_t v)
+int __inline naive_int64_clz(uint64_t v)
 {
   unsigned long n;
 #ifdef ARCH_SIXTYFOUR
@@ -318,7 +318,7 @@ int naive_int64_clz(uint64_t v)
 #endif
 }
 
-int naive_int32_clz(uint32_t v)
+int __inline naive_int32_clz(uint32_t v)
 {
   unsigned long n;
   if (_BitScanReverse(&n, v))
