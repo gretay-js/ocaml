@@ -229,7 +229,7 @@ method! select_operation op args dbg =
   | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
       (Ispecific (Ibswap 64), args)
   (* Some Intel targets do not support popcnt *)
-  | Cpopcnt ->
+  | Cpopcnt when not !popcnt_support ->
       (Iextcall { func = "caml_untagged_int_popcnt";
                   alloc = false; label_after = Cmm.new_label (); }, args)
   (* AMD64 does not support immediate operands for multiply high signed *)
