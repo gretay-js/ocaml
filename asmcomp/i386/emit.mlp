@@ -689,7 +689,7 @@ let emit_instr fallthrough i =
       I.mov (int 32) res0;
       def_label lbl_nz
     end
-  | Lop (Iintop Ipopcnt) ->
+  | Lop (Iintop Ipopcnt) when !popcnt_support ->
       I.popcnt (reg i.arg.(0)) (reg i.res.(0));
   | Lop(Iintop Imulh) ->
       I.imul (reg i.arg.(1)) None

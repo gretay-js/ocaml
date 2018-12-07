@@ -430,6 +430,12 @@ CAMLprim value caml_int_popcnt(value v1)
 #endif
 }
 
+int caml_int32_clz_unboxed(int32_t v)
+{ return wrap_int32_clz((uint32_t) v); }
+
+int caml_int32_popcnt_unboxed(int32_t v)
+{ return int32_popcnt((uint32_t) v); }
+
 CAMLprim value caml_int32_clz(value v1)
 { return Val_long(wrap_int32_clz((uint32_t)Int32_val(v1))); }
 
@@ -654,6 +660,12 @@ CAMLprim value caml_int64_shift_right(value v1, value v2)
 
 CAMLprim value caml_int64_shift_right_unsigned(value v1, value v2)
 { return caml_copy_int64((uint64_t) (Int64_val(v1)) >>  Int_val(v2)); }
+
+int caml_int64_clz_unboxed(int64_t v)
+{ return wrap_int64_clz((uint64_t) v); }
+
+int caml_int64_popcnt_unboxed(int64_t v)
+{ return int64_popcnt((uint64_t) v); }
 
 CAMLprim value caml_int64_clz(value v1)
 { return Val_long(wrap_int64_clz((uint64_t) Int64_val(v1))); }
@@ -941,6 +953,24 @@ CAMLprim value caml_nativeint_shift_right(value v1, value v2)
 
 CAMLprim value caml_nativeint_shift_right_unsigned(value v1, value v2)
 { return caml_copy_nativeint((uintnat)Nativeint_val(v1) >> Int_val(v2)); }
+
+int caml_nativeint_clz_unboxed(intnat v)
+{
+#ifdef ARCH_SIXTYFOUR
+  return wrap_int64_clz((uint64_t) v);
+#else
+  return wrap_int32_clz((uint32_t) v);
+#endif
+}
+
+int caml_nativeint_popcnt_unboxed(intnat v)
+{
+#ifdef ARCH_SIXTYFOUR
+  return int64_popcnt((uint64_t) v);
+#else
+  return int32_popcnt((uint32_t) v);
+#endif
+}
 
 CAMLprim value caml_nativeint_clz(value v1)
 {

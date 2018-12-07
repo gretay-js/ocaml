@@ -107,6 +107,7 @@ module I : sig
   val and_: arg -> arg -> unit
   val andpd: arg -> arg -> unit
   val bsr : arg -> arg -> unit
+  val lzcnt : arg -> arg -> unit
   val popcnt : arg -> arg -> unit
   val bswap: arg -> unit
   val call: arg -> unit
