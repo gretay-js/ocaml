@@ -151,7 +151,7 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of raise_kind
   | Ccheckbound
-  | Cperfmon
+  | Cperfmon of string
 
 (** Not all cmm expressions currently have [Debuginfo.t] values attached to
     them.  The ones that do are those that are likely to generate code that
