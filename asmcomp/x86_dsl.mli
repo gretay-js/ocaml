@@ -182,6 +182,8 @@ module I : sig
   val or_: arg -> arg -> unit
   val pop: arg -> unit
   val push: arg -> unit
+  val rdtsc: unit -> unit
+  val rdpmc: unit -> unit
   val ret: unit -> unit
   val sal: arg -> arg -> unit
   val sar: arg -> arg -> unit

@@ -87,6 +87,7 @@ let oper_result_type = function
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
+  | Cperfmon _ -> typ_int
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -332,8 +333,8 @@ method is_simple_expr = function
       | Cprobe_is_enabled _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
       | Cxor | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
+      | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -341,6 +342,7 @@ method is_simple_expr = function
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ -> false
+
 
 (* Analyses the effects and coeffects of an expression.  This is used across
    a whole list of expressions with a view to determining which expressions
@@ -381,6 +383,7 @@ method effects_of exp =
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
       | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
+      | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ ->

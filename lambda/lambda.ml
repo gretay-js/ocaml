@@ -117,7 +117,6 @@ type primitive =
   | Pclzbint of boxed_integer
   | Ppopcntbint of boxed_integer
   | Pbintcomp of boxed_integer * integer_comparison
-  (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
   (* size of the nth dimension of a Bigarray *)
@@ -151,6 +150,8 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
+  | Pperfmon
+  | Pperfmonint
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

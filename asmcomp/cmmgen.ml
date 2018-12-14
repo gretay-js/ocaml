@@ -1042,6 +1042,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Pperfmon ->
+      let n = transl_unbox_int dbg env Pint64 arg2 in
+      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1)),
+                              [make_unsigned_int Pint64 n dbg],
+                              dbg))
+  | Pperfmonint ->
+      tag_int (Cop((Cperfmon (get_perfmon_name arg1)),
+                   [untag_int(transl env arg2) dbg], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint | Pnegfloat
   | Pabsfloat | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _

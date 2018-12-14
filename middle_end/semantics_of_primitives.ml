@@ -140,6 +140,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psequor ->
       (* Removed by [Closure_conversion] in the flambda pipeline. *)
       No_effects, No_coeffects
+  | Pperfmon -> No_effects, No_coeffects
+  | Pperfmonint -> No_effects, No_coeffects
 
 type return_type =
   | Float
