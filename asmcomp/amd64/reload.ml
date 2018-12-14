@@ -16,6 +16,7 @@
 open Cmm
 open Reg
 open Mach
+open Arch
 
 (* Reloading for the AMD64 *)
 
@@ -59,11 +60,18 @@ let stackp r =
     Stack _ -> true
   | _ -> false
 
+let rax = Proc.phys_reg 0
+let rdx = Proc.phys_reg 4
+let rcx = Proc.phys_reg 5
+
 class reload = object (self)
 
 inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
+  let force r target_reg =
+    if r = target_reg then r
+    else self#makereg target_reg in
   match op with
   | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icomp _|Icheckbound _) ->
       (* One of the two arguments can reside in the stack, but not both *)
@@ -86,6 +94,15 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
+  | Ispecific (Irdtsc) ->
+    let rdx = force res.(0) rdx in
+    let rax = force res.(1) rax in
+    ([| |], [| rdx; rax |])
+  | Ispecific (Irdpmc) ->
+    let rcx = force arg.(0) rcx in
+    let rdx = force res.(0) rdx in
+    let rax = force res.(1) rax in
+    ([| rcx |], [| rdx; rax |])
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

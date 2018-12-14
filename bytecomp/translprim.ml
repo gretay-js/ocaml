@@ -360,7 +360,7 @@ let primitives_table =
     "%greaterthan", Comparison(Greater_than, Compare_generic);
     "%compare", Comparison(Compare, Compare_generic);
     "%perfmon", Primitive (Pperfmon, 2);
-    "%perfmonint", Primitive (Pperfmon, 2);
+    "%perfmonint", Primitive (Pperfmonint, 2);
   ]
 
 
