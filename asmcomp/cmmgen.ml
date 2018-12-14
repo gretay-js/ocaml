@@ -84,6 +84,11 @@ let bind_nonvar name arg fn =
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
     (* cf. runtime/caml/gc.h *)
 
+let get_perfmon_name arg =
+  match arg with
+  | Uconst(Uconst_ref(_, Some (Uconst_string s))) -> s
+  | _ -> fatal_errorf "Perfmon first argument must be a string literal."
+
 (* Block headers. Meaning of the tag field: see stdlib/obj.ml *)
 
 let floatarray_tag = Cconst_int Obj.double_array_tag
@@ -2524,14 +2529,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi(transl_int_comparison cmp),
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
-  | Pperfmon -> begin
-      match arg1 with
-      | Uconst(Uconst_ref(_, Some (Uconst_string s))) ->
-        let n = transl_unbox_int dbg env Pint64 arg2 in
-        let un = make_unsigned_int Pint64 n dbg in
-        box_int dbg Pint64 (Cop((Cperfmon s), [un], dbg))
-      | _ -> fatal_errorf "Cmmgen.transl_prim_2: %a" Printlambda.primitive p
-    end
+  | Pperfmon ->
+      let n = transl_unbox_int dbg env Pint64 arg2 in
+      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1)),
+                              [make_unsigned_int Pint64 n dbg],
+                              dbg))
+  | Pperfmonint ->
+      tag_int (Cop((Cperfmon (get_perfmon_name arg1)),
+                   [untag_int(transl env arg2) dbg], dbg)) dbg
   | prim ->
       fatal_errorf "Cmmgen.transl_prim_2: %a" Printlambda.primitive prim
 
