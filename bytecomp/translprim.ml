@@ -343,6 +343,8 @@ let primitives_table = create_hashtable 57 [
   "%greaterequal", Comparison(Greater_equal, Compare_generic);
   "%greaterthan", Comparison(Greater_than, Compare_generic);
   "%compare", Comparison(Compare, Compare_generic);
+  "%perfmon", Primitive (Pperfmon);
+  "%perfmonint", Primitive (Pperfmonint);
 ]
 
 let lookup_primitive loc p env path =

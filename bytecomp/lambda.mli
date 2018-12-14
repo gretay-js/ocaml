@@ -122,6 +122,8 @@ type primitive =
   | Pclzbint of boxed_integer
   | Ppopcntbint of boxed_integer
   | Pbintcomp of boxed_integer * integer_comparison
+  | Pperfmon
+  | Pperfmonint
   (* Operations on big arrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout

@@ -57,6 +57,8 @@ type specific_operation =
   | Ibswap of int                      (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
+  | Irdtsc                             (* read timestamp *)
+  | Irdpmc                             (* read performance counter *)
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
 
@@ -141,6 +143,10 @@ let print_specific_operation printreg op ppf arg =
                    (Array.sub arg 1 (Array.length arg - 1))
   | Ibswap i ->
       fprintf ppf "bswap_%i %a" i printreg arg.(0)
+  | Irdtsc ->
+      fprintf ppf "rdtsc"
+  | Irdpmc ->
+      fprintf ppf "rdpmc %a" printreg arg.(0)
 
 let win64 =
   match Config.system with

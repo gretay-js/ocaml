@@ -68,6 +68,7 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Cperfmon _ -> typ_int
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -297,7 +298,7 @@ method is_simple_expr = function
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -305,6 +306,7 @@ method is_simple_expr = function
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Cloop _ | Ccatch _ | Cexit _
   | Ctrywith _ -> false
+
 
 (* Analyses the effects and coeffects of an expression.  This is used across
    a whole list of expressions with a view to determining which expressions
@@ -342,7 +344,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
-      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ ->
