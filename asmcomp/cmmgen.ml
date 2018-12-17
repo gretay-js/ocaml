@@ -33,6 +33,11 @@ module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm_helpers
 
+type error =
+  | Wrong_argument_perfmon_primitive
+
+exception Error of Location.t * error
+
 (* Environments used for translation to Cmm. *)
 
 type boxed_number =
@@ -120,6 +125,12 @@ let mut_from_env env ptr =
 let get_field env ptr n dbg =
   let mut = mut_from_env env ptr in
   get_field_gen mut ptr n dbg
+
+let get_perfmon_name arg dbg =
+  match arg with
+  | Uconst(Uconst_ref(_, Some (Uconst_string s))) -> s
+  | _ ->
+    raise(Error(Debuginfo.to_location dbg, Wrong_argument_perfmon_primitive))
 
 type rhs_kind =
   | RHS_block of int
@@ -1044,11 +1055,11 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
   | Pperfmon ->
       let n = transl_unbox_int dbg env Pint64 arg2 in
-      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1)),
+      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
                               [make_unsigned_int Pint64 n dbg],
                               dbg))
   | Pperfmonint ->
-      tag_int (Cop((Cperfmon (get_perfmon_name arg1)),
+      tag_int (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
                    [untag_int(transl env arg2) dbg], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint | Pnegfloat
   | Pabsfloat | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
@@ -1505,3 +1516,21 @@ let compunit (ulam, preallocated_blocks, constants) =
   Cmmgen_state.set_structured_constants [];
   let c4 = emit_preallocated_blocks preallocated_blocks c3 in
   emit_cmm_data_items_for_constants c4
+
+(* Error report *)
+
+open Format
+
+let report_error ppf = function
+  | Wrong_argument_perfmon_primitive ->
+      fprintf ppf "Perfmon primitive: first argument must be a string literal."
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error (loc, err) ->
+          Some (Location.error_of_printer loc report_error err)
+      | _ ->
+        None
+    )
+

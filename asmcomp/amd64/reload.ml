@@ -94,11 +94,11 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
-  | Ispecific (Irdtsc) ->
+  | Ispecific Irdtsc ->
     let rdx = force res.(0) rdx in
     let rax = force res.(1) rax in
     ([| |], [| rdx; rax |])
-  | Ispecific (Irdpmc) ->
+  | Ispecific Irdpmc ->
     let rcx = force arg.(0) rcx in
     let rdx = force res.(0) rdx in
     let rax = force res.(1) rax in
