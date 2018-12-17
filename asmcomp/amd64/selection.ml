@@ -112,10 +112,10 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Ispecific (Irdtsc) ->
+  | Ispecific Irdtsc ->
   (* Read the timestamp into edx (high) and eax (low). *)
     ([| |], [| rdx; rax |])
-  | Ispecific (Irdpmc) ->
+  | Ispecific Irdpmc ->
   (* Read performance counter specified by ecx into edx (high) and eax (low). *)
     ([| rcx |], [| rdx; rax |])
   (* Other instructions are regular *)
@@ -242,10 +242,10 @@ method! select_operation op args dbg =
   | Cmulhi ->
       (Iintop Imulh, args)
   | Cperfmon s ->
-    begin match s with
+    begin match String.lowercase_ascii s with
     | "rdtsc" -> (Ispecific Irdtsc, [])
     | "rdpmc" -> (Ispecific Irdpmc, args)
-    | _ -> Misc.fatal_errorf "Unsupported perfmon intrinsic: %s" s
+    | _ -> super#select_operation op args dbg
     end
   | _ -> super#select_operation op args dbg
 
