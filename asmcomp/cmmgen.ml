@@ -3682,14 +3682,14 @@ let plugin_header units =
 open Format
 
 let report_error ppf = function
-  | Wrong_argument_perfmon_primitive prim_name ->
+  | Wrong_argument_perfmon_primitive ->
       fprintf ppf "Perfmon primitive: first argument must be a string literal."
 
 let () =
   Location.register_error_of_exn
     (function
       | Error (loc, err) ->
-          Some (Location.error_of_printer loc report_error err)
+          Some (Location.error_of_printer ~loc report_error err)
       | _ ->
         None
     )
