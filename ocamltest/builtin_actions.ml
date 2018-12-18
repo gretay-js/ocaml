@@ -160,6 +160,12 @@ let initialize_test_exit_status_variables _log env =
     Builtin_variables.test_skip, "125";
   ] env
 
+let amd64 = make
+  "amd64"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.arch = "amd64")
+    "amd64 target"
+    "not amd64 target")
+
 let _ =
   Environments.register_initializer
     "test_exit_status_variables" initialize_test_exit_status_variables;
@@ -184,4 +190,5 @@ let _ =
     run;
     script;
     check_program_output;
+    amd64;
   ]

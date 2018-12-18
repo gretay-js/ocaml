@@ -29,6 +29,11 @@ module String = Misc.Stdlib.String
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+type error =
+  | Wrong_argument_perfmon_primitive
+
+exception Error of Location.t * error
+
 (* Environments used for translation to Cmm. *)
 
 type boxed_number =
@@ -83,6 +88,12 @@ let bind_nonvar name arg fn =
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
     (* cf. runtime/caml/gc.h *)
+
+let get_perfmon_name arg dbg =
+  match arg with
+  | Uconst(Uconst_ref(_, Some (Uconst_string s))) -> s
+  | _ ->
+    raise(Error(Debuginfo.to_location dbg, Wrong_argument_perfmon_primitive))
 
 (* Block headers. Meaning of the tag field: see stdlib/obj.ml *)
 
@@ -2515,6 +2526,14 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi(transl_int_comparison cmp),
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
+  | Pperfmon ->
+      let n = transl_unbox_int dbg env Pint64 arg2 in
+      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
+                              [make_unsigned_int Pint64 n dbg],
+                              dbg))
+  | Pperfmonint ->
+      tag_int (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
+                   [untag_int(transl env arg2) dbg], dbg)) dbg
   | prim ->
       fatal_errorf "Cmmgen.transl_prim_2: %a" Printlambda.primitive prim
 
@@ -3647,3 +3666,21 @@ let plugin_header units =
     } in
   global_data "caml_plugin_header"
     { dynu_magic = Config.cmxs_magic_number; dynu_units = List.map mk units }
+
+
+(* Error report *)
+
+open Format
+
+let report_error ppf = function
+  | Wrong_argument_perfmon_primitive ->
+      fprintf ppf "Perfmon primitive: first argument must be a string literal."
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error (loc, err) ->
+          Some (Location.error_of_printer ~loc report_error err)
+      | _ ->
+        None
+    )

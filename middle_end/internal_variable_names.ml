@@ -297,6 +297,10 @@ let the_dead_constant = "the_dead_constant"
 let toplevel_substitution_named = "toplevel_substitution_named"
 let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
 let zero = "zero"
+let perfmon = "perfmon"
+let perfmon_arg = "perfmon_arg"
+let perfmonint = "perfmonint"
+let perfmonint_arg = "perfmonint_arg"
 
 let anon_fn_with_loc (loc: Location.t) =
   let (file, line, startchar) = Location.get_pos_info loc.loc_start in
@@ -414,6 +418,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
+  | Pperfmon -> perfmon
+  | Pperfmonint -> perfmonint
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -521,3 +527,5 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
+  | Pperfmon -> perfmon_arg
+  | Pperfmonint -> perfmonint_arg

@@ -24,6 +24,11 @@ module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+type error =
+  | Unknown_perfmon_primitive of string
+
+exception Error of Location.t * error
+
 type environment =
   { vars : (Reg.t array * Backend_var.Provenance.t option) V.Map.t;
     static_exceptions : Reg.t array list Int.Map.t;
@@ -74,6 +79,7 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Cperfmon _ -> typ_int
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -305,7 +311,7 @@ method is_simple_expr = function
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -313,6 +319,7 @@ method is_simple_expr = function
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Cloop _ | Ccatch _ | Cexit _
   | Ctrywith _ -> false
+
 
 (* Analyses the effects and coeffects of an expression.  This is used across
    a whole list of expressions with a view to determining which expressions
@@ -351,7 +358,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
-      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ ->
@@ -416,7 +423,7 @@ method select_checkbound () =
   Icheckbound { spacetime_index = 0; label_after_error = None; }
 method select_checkbound_extra_args () = []
 
-method select_operation op args _dbg =
+method select_operation op args dbg =
   match (op, args) with
   | (Capply _, Cconst_symbol func :: rem) ->
     let label_after = Cmm.new_label () in
@@ -480,6 +487,8 @@ method select_operation op args _dbg =
     let extra_args = self#select_checkbound_extra_args () in
     let op = self#select_checkbound () in
     self#select_arith op (args @ extra_args)
+  | (Cperfmon s, _) ->
+    raise(Error(Debuginfo.to_location dbg, Unknown_perfmon_primitive s))
   | _ -> Misc.fatal_error "Selection.select_oper"
 
 method private select_arith_comm op = function
@@ -1255,3 +1264,21 @@ let _ =
 
 let reset () =
   current_function_name := ""
+
+
+(* Error report *)
+
+open Format
+
+let report_error ppf = function
+  | Unknown_perfmon_primitive name ->
+      fprintf ppf "Unknown perfmon builtin \"%s\"" name
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error (loc, err) ->
+          Some (Location.error_of_printer ~loc report_error err)
+      | _ ->
+        None
+    )

@@ -737,6 +737,22 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Iclz _)) when !lzcnt_support ->
       I.lzcnt (arg i 0) (res i 0)
   | Lop(Iintop(Iclz {non_zero})) ->
+      (* The result of bsr x is the index of the most significant set bit in x.
+         The index is between 0 and 63.
+         The result of clz is (63-index).
+         To subtract *from immediate*, we would need to negate the second operand,
+         and then add the immediate. Instead, we emit (63 xor index),
+         which is a single instruction.
+
+         Why is (63-index) equivalent to (63 xor index)?
+         The bit representation of 63 is 0..011111, i.e., low 5 bits set,
+         and index has at most the low 5 bits set.
+         Therefore, the subtract operation (63-index) does not need to "borrow",
+         and only the following bitwise cases can arise:
+         1-0 = 1 = 1 xor 0
+         1-1 = 0 = 1 xor 1
+         0-0 = 0 = 0 xor 0
+      *)
       if non_zero then begin
         (* No need to handle that bsr is undefind on 0 input. *)
          I.bsr (arg i 0) (res i 0);
@@ -802,6 +818,22 @@ let emit_instr fallthrough i =
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
+  | Lop(Ispecific(Irdtsc)) ->
+    (* Fixed registers: results in res i 0 is rdx and res i 1 is rax. *)
+    I.rdtsc ();
+    (* The instruction fills in the low 32-bit of the result registers. *)
+    (* Combine edx and eax into a single 64-bit result in rdx. *)
+    I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
+    I.movsxd (res32 i 1) (res i 1); (* sign extend eax *)
+    I.or_ (res i 1) (res i 0) (* combine high and low into rdx *)
+  | Lop(Ispecific(Irdpmc)) ->
+    (* Fixed registers: arg i 0 in rcx, res i 0 is rdx and res i 1 is rax. *)
+    I.rdpmc ();
+    (* The instruction fills in the low 32-bit of the result registers. *)
+    (* Combine edx and eax into a single 64-bit result in rdx. *)
+    I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
+    I.movsxd (res32 i 1) (res i 1); (* sign extend eax *)
+    I.or_ (res i 1) (res i 0) (* combine high and low into rdx *)
   | Lop (Iname_for_debugger _) -> ()
   | Lreloadretaddr ->
       ()

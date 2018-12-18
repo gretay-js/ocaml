@@ -1,3 +1,4 @@
 clz.ml
 popcnt.ml
 clz_closure.ml
+perfmon.ml
