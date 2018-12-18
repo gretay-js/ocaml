@@ -1,9 +1,8 @@
 (* TEST
  * bytecode
  * native
+ * amd64
 *)
-
-(* how to enable it only for amd64? *)
 
 external perfmon : string -> int64 -> int64  = "%perfmon"
 
