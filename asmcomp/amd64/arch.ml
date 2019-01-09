@@ -23,6 +23,8 @@ let lzcnt_support = ref false
 (* POPCNT instruction is not available prior to Nehalem. *)
 let popcnt_support = ref false
 
+let no_three_operand_lea = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -30,6 +32,8 @@ let command_line_options =
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
+    "-fno-three-operand-lea", Arg.Set no_three_operand_lea,
+      " Do not generate three-operand LEA instructions";
     "-flzcnt", Arg.Set lzcnt_support,
       " Use lzcnt instruction to count leading zeros";
     "-fpopcnt", Arg.Set popcnt_support,
