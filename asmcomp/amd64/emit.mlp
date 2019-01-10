@@ -707,7 +707,8 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Iclz {non_zero})) ->
       if non_zero then begin
         (* No need to handle that bsr is undefind on 0 input. *)
-         I.bsr (arg i 0) (res i 0)
+        I.bsr (arg i 0) (res i 0);
+        I.nop ()
          (* I.xor (int 63) (res i 0) *)
       end else begin
         let lbl_z = new_label () in
