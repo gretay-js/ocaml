@@ -51,6 +51,8 @@ let for_primitive (prim : Lambda.primitive) =
   | Plsrint
   | Pasrint
   | Pintcomp _
+  | Pbsrint -> No_effects, No_coeffects
+  | Plzcntint -> No_effects, No_coeffects
   | Pclzint -> No_effects, No_coeffects
   | Ppopcntint -> No_effects, No_coeffects
   | Pdivbint { is_safe = Unsafe }

@@ -106,6 +106,8 @@ let pbytesrefu = "Pbytesrefu"
 let pbytessets = "Pbytessets"
 let pbytessetu = "Pbytessetu"
 let pccall = "Pccall"
+let pbsrint = "Pbsrint"
+let plzcntint = "Plzcntint"
 let pclzint = "Pclzint"
 let ppopcntint = "Ppopcntint"
 let pctconst = "Pctconst"
@@ -209,6 +211,8 @@ let pbytesrefu_arg = "Pbytesrefu_arg"
 let pbytessets_arg = "Pbytessets_arg"
 let pbytessetu_arg = "Pbytessetu_arg"
 let pccall_arg = "Pccall_arg"
+let pbsrint_arg = "Pbsrint_arg"
+let plzcntint_arg = "Plzcntint_arg"
 let pclzint_arg = "Pclzint_arg"
 let ppopcntint_arg = "Ppopcntint_arg"
 let pctconst_arg = "Pctconst_arg"
@@ -346,6 +350,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pintcomp _ -> pintcomp
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
+  | Pbsrint -> pbsrint
+  | Plzcntint -> plzcntint
   | Pclzint -> pclzint
   | Ppopcntint -> ppopcntint
   | Pintoffloat -> pintoffloat
@@ -455,6 +461,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pintcomp _ -> pintcomp_arg
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
+  | Pbsrint -> pbsrint_arg
+  | Plzcntint -> plzcntint_arg
   | Pclzint -> pclzint_arg
   | Ppopcntint -> ppopcntint_arg
   | Pintoffloat -> pintoffloat_arg

@@ -78,6 +78,8 @@ type primitive =
   | Pintcomp of integer_comparison
   | Poffsetint of int
   | Poffsetref of int
+  | Pbsrint
+  | Plzcntint
   | Pclzint
   | Ppopcntint
   (* Float operations *)
