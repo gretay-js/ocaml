@@ -388,6 +388,56 @@ int wrap_int64_clz(uint64_t x)
   return res;
 }
 
+
+
+/* Code for benchmarking purposes only! */
+/* Assume 64-bit Intel target and GCC Compiler */
+
+uint64_t __inline int64_bsr(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+uint32_t __inline int32_bsr(uint32_t a)
+{
+  uint32_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+uint64_t __inline int64_lzcnt(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("lzcnt %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+CAMLprim value caml_int_lzcnt(value v1)
+{
+  /* Supported only on amd64.
+     On other architectures will fail to assemble.  */
+  /* Do not use Long_val(v1) conversion and preserve the tag,
+     because it doesn't affect the number of leading zeros.
+  */
+  return Val_long(int64_lzcnt((uint64_t)v1));
+}
+
+CAMLprim value caml_int_bsr(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input to builtin_clz is non-zero, to guard
+     against versions of builtin_clz that are undefined for intput 0.
+     Adjust the resulting index to account for the tag.
+  */
+#ifdef ARCH_SIXTYFOUR
+  return Val_long(int64_bsr((uint64_t)v1)-1);
+#else
+  return Val_long(int32_bsr((uint32_t)v1)-1);
+#endif
+}
+
 CAMLprim value caml_untagged_int_clz(value v1)
 {
 #ifdef ARCH_SIXTYFOUR

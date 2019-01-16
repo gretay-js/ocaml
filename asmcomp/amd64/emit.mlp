@@ -861,6 +861,10 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Ilsl | Ilsr | Iasr as op)) ->
       (* We have i.arg.(0) = i.res.(0) and i.arg.(1) = %rcx *)
       instr_for_intop op cl (res i 0)
+  | Lop(Iintop(Ibsr)) ->
+    I.bsr (arg i 0) (res i 0);
+  | Lop(Iintop(Ilzcnt)) ->
+      I.lzcnt (arg i 0) (res i 0);
   | Lop(Iintop(Iclz _)) when !lzcnt_support ->
       I.lzcnt (arg i 0) (res i 0)
   | Lop(Iintop(Iclz {non_zero})) ->

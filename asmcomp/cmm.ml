@@ -142,7 +142,8 @@ and operation =
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
-  | Cand | Cor | Cxor | Clsl | Clsr | Casr | Cclz of {non_zero: bool} | Cpopcnt
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr | Cbsr | Clzcnt
+  | Cclz of {non_zero: bool} | Cpopcnt
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

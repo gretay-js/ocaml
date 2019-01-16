@@ -75,6 +75,8 @@ type primitive =
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
+  | Pbsrint
+  | Plzcntint
   | Pclzint
   | Ppopcntint
   | Pintcomp of integer_comparison

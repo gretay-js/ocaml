@@ -414,6 +414,8 @@ let comp_primitive p args =
   | Pasrint -> Kasrint
   | Poffsetint n -> Koffsetint n
   | Poffsetref n -> Koffsetref n
+  | Pbsrint -> Kccall("caml_int_bsr", 1)
+  | Plzcntint -> Kccall("caml_int_lzcnt", 1)
   | Pclzint -> Kccall("caml_int_clz", 1)
   | Ppopcntint -> Kccall("caml_int_popcnt", 1)
   | Pintoffloat -> Kccall("caml_int_of_float", 1)

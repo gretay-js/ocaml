@@ -76,7 +76,7 @@ let oper_result_type = function
   | Calloc -> typ_val
   | Cstore (_c, _) -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
-    Cand | Cor | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt |
+    Cand | Cor | Cxor | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
@@ -333,6 +333,7 @@ method is_simple_expr = function
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Cxor | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -379,7 +380,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
-      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ ->
@@ -493,6 +494,8 @@ method select_operation op args _dbg =
   | (Clsl, _) -> self#select_shift Ilsl args
   | (Clsr, _) -> self#select_shift Ilsr args
   | (Casr, _) -> self#select_shift Iasr args
+  | (Cbsr, _) -> (Iintop Ibsr, args)
+  | (Clzcnt, _) -> (Iintop Ilzcnt, args)
   | (Cclz {non_zero}, _) -> (Iintop (Iclz{non_zero}), args)
   | (Cpopcnt, _) -> (Iintop Ipopcnt, args)
   | (Ccmpi comp, _) -> self#select_arith_comp (Isigned comp) args
