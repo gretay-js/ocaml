@@ -799,7 +799,8 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
-  | Pbsrint -> tag_int (Cop(Cbsr, [transl env arg], dbg)) dbg
+      let res = Cop(Cbsr, [transl env arg], dbg) in
+      tag_int (Cop(Caddi, [res; Cconst_int (-1)], dbg)) dbg
   | Plzcntint -> tag_int (Cop(Clzcnt, [transl env arg], dbg)) dbg
   | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
   | Ppopcntint ->
