@@ -96,11 +96,18 @@ static void fill_hashtable(link *frametables) {
   uintnat h;
   link *lnk = NULL;
 
+  if (DEBUG_PRINT_FRAMETABLE)
+    printf("fill_hashtable start\n");
+
   iter_list(frametables,lnk) {
     tbl = (intnat*) lnk->data;
+    if (DEBUG_PRINT_FRAMETABLE)
+        printf("*** frametable at %x of size %d\n", tbl, len);
     len = *tbl;
     d = (frame_descr *)(tbl + 1);
     for (j = 0; j < len; j++) {
+      if (DEBUG_PRINT_FRAMETABLE)
+        printf("%x: %x\n", d, d->retaddr);
       h = Hash_retaddr(d->retaddr);
       while (caml_frame_descriptors[h] != NULL) {
         h = (h+1) & caml_frame_descriptors_mask;
@@ -108,7 +115,12 @@ static void fill_hashtable(link *frametables) {
       caml_frame_descriptors[h] = d;
       d = next_frame_descr(d);
     }
+    if (DEBUG_PRINT_FRAMETABLE)
+      printf("*** frametable at %x end\n", tbl);
   }
+
+  if (DEBUG_PRINT_FRAMETABLE)
+    printf("fill_hashtable end\n");
 }
 
 static void init_frame_descriptors(link *new_frametables)
