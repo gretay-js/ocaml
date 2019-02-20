@@ -62,6 +62,7 @@ with_cfi=true
 flambda=false
 force_safe_string=false
 default_safe_string=true
+function_sections=false
 afl_instrument=false
 max_testsuite_dir_retries=0
 with_cplugins=false
@@ -253,6 +254,8 @@ while : ; do
         flat_float_array=true;;
     -no-flat-float-array|--no-flat-float-array)
         flat_float_array=false;;
+    -function_sections)
+        function_sections=true;;
     -afl-instrument)
         afl_instrument=true;;
     *) if echo "$1" | grep -q -e '^--\?[a-zA-Z0-9-]\+='; then
@@ -2145,6 +2148,7 @@ config WITH_FLAMBDA_INVARIANTS "$with_flambda_invariants"
 config FORCE_SAFE_STRING "$force_safe_string"
 config DEFAULT_SAFE_STRING "$default_safe_string"
 config WINDOWS_UNICODE "0"
+config FUNCTION_SECTIONS "$function_sections"
 config AFL_INSTRUMENT "$afl_instrument"
 config MAX_TESTSUITE_DIR_RETRIES "$max_testsuite_dir_retries"
 config FLAT_FLOAT_ARRAY "$flat_float_array"
@@ -2285,6 +2289,11 @@ else
   inf "        flat float arrays ........ yes"
   else
   inf "        flat float arrays ........ no"
+  fi
+  if test "$function_sections" = "true"; then
+  inf "        function sections enabled .. yes"
+  else
+  inf "        function sections enabled .. no"
   fi
   if test "$afl_instrument" = "true"; then
   inf "        afl-fuzz always enabled .. yes"
