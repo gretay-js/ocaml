@@ -235,7 +235,10 @@ let make_startup_file ppf units_list =
                  (unit.ui_name, intf_crc, crc, unit.ui_defines))
           units_list));
   compile_phrase(Cmmgen.data_segment_table ("_startup" :: name_list));
-  compile_phrase(Cmmgen.code_segment_table ("_startup" :: name_list));
+  if (Config.function_sections) then
+    compile_phrase(Cmmgen.code_segment_table ("_hot" :: "_startup" :: name_list))
+  else
+    compile_phrase(Cmmgen.code_segment_table ("_startup" :: name_list));
   let all_names = "_startup" :: "_system" :: name_list in
   compile_phrase (Cmmgen.frame_table all_names);
   if Config.spacetime then begin

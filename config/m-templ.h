@@ -81,3 +81,5 @@
    by most contemporary processors.  Otherwise, or if you don't know,
    define NONSTANDARD_DIV_MOD: this will select a slower but correct
    software emulation of division and modulus. */
+
+#undef FUNCTION_SECTIONS

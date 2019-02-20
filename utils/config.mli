@@ -184,6 +184,10 @@ val default_safe_string: bool
 val flat_float_array : bool
         (* Whether the compiler and runtime automagically flatten float
            arrays *)
+val function_sections : bool
+        (* Whether the compiler was configured to generate
+           functions in separate section *)
+
 val windows_unicode: bool
         (* Whether Windows Unicode runtime is enabled *)
 val afl_instrument : bool
