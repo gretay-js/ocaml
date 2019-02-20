@@ -68,7 +68,7 @@ let libraries backend env =
 let binary_modules backend env =
   let extension = Ocaml_backends.module_extension backend in
   filelist env Ocaml_variables.binary_modules extension
-  
+
 let backend_default_flags env =
   get_backend_value_from_env env
     Ocaml_variables.ocamlc_default_flags
@@ -375,7 +375,7 @@ let setup_ocamlc_byte_build_env =
     Ocaml_compilers.ocamlc_byte
 
 let setup_ocamlc_opt_build_env =
-  native_action 
+  native_action
     (mk_compiler_env_setup
       "setup-ocamlc.opt-build-env"
       Ocaml_compilers.ocamlc_opt)
@@ -777,7 +777,7 @@ let run_test_program_in_toplevel (toplevel : Ocaml_toplevels.toplevel) log env =
         Environments.lookup_as_bool
           Ocaml_variables.ocaml_script_as_argument env
       with
-      | None -> false 
+      | None -> false
       | Some b -> b
     in
     let commandline =
@@ -895,6 +895,12 @@ let native_compiler = Actions.make
   (Actions_helpers.pass_or_skip (Ocamltest_config.arch <> "none")
     "native compiler available"
     "native compiler not available")
+
+let function_sections = Actions.make
+  "function-sections"
+  (Actions_helpers.pass_or_skip Ocamltest_config.function_sections
+    "Function sections enabled"
+    "Function sections disabled")
 
 let afl_instrument = Actions.make
   "afl-instrument"
@@ -1096,6 +1102,7 @@ let _ =
     no_spacetime;
     shared_libraries;
     native_compiler;
+    function_sections;
     afl_instrument;
     no_afl_instrument;
     setup_ocamldoc_build_env;
