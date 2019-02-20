@@ -693,6 +693,7 @@ flexdll_chain
 default_safe_string
 force_safe_string
 afl
+function_sections
 flat_float_array
 windows_unicode
 max_testsuite_dir_retries
@@ -850,6 +851,7 @@ with_reserved_header_bits
 enable_force_safe_string
 with_default_string
 enable_flat_float_array
+enable_function_sections
 with_afl
 enable_shared
 enable_static
@@ -1535,6 +1537,9 @@ Optional Features:
                           force strings to be safe
   --disable-flat-float-array
                           do not use flat float arrays
+  --enable-function-sections
+                          generate each function in a separate section if
+                          target supports it
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-fast-install[=PKGS]
@@ -2837,6 +2842,7 @@ VERSION=4.09.0+dev0-2019-01-18
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.common"
@@ -3189,6 +3195,12 @@ fi
 # Check whether --enable-flat-float-array was given.
 if test "${enable_flat_float_array+set}" = set; then :
   enableval=$enable_flat_float_array;
+fi
+
+
+# Check whether --enable-function-sections was given.
+if test "${enable_function_sections+set}" = set; then :
+  enableval=$enable_function_sections;
 fi
 
 
@@ -16924,6 +16936,16 @@ else
   $as_echo "#define FLAT_FLOAT_ARRAY 1" >>confdefs.h
 
   flat_float_array=true
+fi
+
+
+if test x"$enable_function_sections" = "xyes"; then :
+  function_sections=true
+  $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
+
+  common_cflags="$common_cflags -ffunction-sections"
+else
+  function_sections=false
 fi
 
 if test x"$with_afl" = "xyes"; then :

@@ -19,7 +19,8 @@ let command_line_options =
   [ "-fPIC", Arg.Set Clflags.pic_code,
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
-      " Generate position-dependent machine code" ]
+      " Generate position-dependent machine code"
+  ]
 
 (* Specific operations for the AMD64 processor *)
 
