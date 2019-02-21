@@ -38,7 +38,7 @@ value caml_ephe_none = (value) &ephe_dummy;
 static inline int Is_Dead_during_clean(value x){
   CAMLassert (x != caml_ephe_none);
   CAMLassert (caml_gc_phase == Phase_clean);
-  return Is_block (x) && !Is_young (x) && Is_white_val(x);
+  return Is_block (x) && x != 0 && !Is_young (x) && Is_white_val(x);
 }
 /** The minor heap doesn't have to be marked, outside they should
     already be black
@@ -46,7 +46,7 @@ static inline int Is_Dead_during_clean(value x){
 static inline int Must_be_Marked_during_mark(value x){
   CAMLassert (x != caml_ephe_none);
   CAMLassert (caml_gc_phase == Phase_mark);
-  return Is_block (x) && !Is_young (x);
+  return Is_block (x) && x != 0 && !Is_young (x);
 }
 #else
 static inline int Is_Dead_during_clean(value x){
@@ -55,7 +55,7 @@ static inline int Is_Dead_during_clean(value x){
   return Is_block (x) && Is_in_heap (x) && Is_white_val(x);
 }
 static inline int Must_be_Marked_during_mark(value x){
-  CAMLassert (x != caml_ephe_none); 
+  CAMLassert (x != caml_ephe_none);
   CAMLassert (caml_gc_phase == Phase_mark);
   return Is_block (x) && Is_in_heap (x);
 }
