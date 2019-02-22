@@ -282,11 +282,11 @@
 #define C_ARG_4 %rcx
 #endif
 
-        .section .text.caml_hot__code_begin
+        .section .text.caml_hot__code_begin,"ax",%progbits
         .globl  G(caml_hot__code_begin)
 G(caml_hot__code_begin):
 
-        .section .text.caml_hot__code_end
+        .section .text.caml_hot__code_end,"ax",%progbits
         .globl  G(caml_hot__code_end)
 G(caml_hot__code_end):
 

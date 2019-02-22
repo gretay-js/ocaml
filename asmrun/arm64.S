@@ -81,6 +81,14 @@
 
 /* Allocation functions and GC interface */
 
+        .section .text.caml_hot__code_begin,"ax",%progbits
+        .globl  caml_hot__code_begin
+caml_hot__code_begin:
+
+        .section .text.caml_hot__code_end,"ax",%progbits
+        .globl  caml_hot__code_end
+caml_hot__code_end:
+
         .globl  caml_system__code_begin
 caml_system__code_begin:
 

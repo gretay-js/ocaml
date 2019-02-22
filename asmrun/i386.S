@@ -124,6 +124,14 @@
 
 /* Allocation */
 
+        .section .text.caml_hot__code_begin,"ax",%progbits
+        .globl  G(caml_hot__code_begin)
+G(caml_hot__code_begin):
+
+        .section .text.caml_hot__code_end,"ax",%progbits
+        .globl  G(caml_hot__code_end)
+G(caml_hot__code_end):
+
         .text
         .globl  G(caml_system__code_begin)
 G(caml_system__code_begin):
