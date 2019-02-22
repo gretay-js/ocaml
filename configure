@@ -481,6 +481,7 @@ case "$ccfamily" in
 esac
 
 internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
+common_cflags="$common_cflags -ffunction-sections"
 
 # Adjust according to target
 
