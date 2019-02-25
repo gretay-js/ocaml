@@ -489,10 +489,6 @@ let specialize_primitive env ty ~has_constant_constructor prim =
     end
   | _ -> None
 
-let unboxed_compare name native_repr =
-  Primitive.make ~name ~alloc:false ~native_name:(name^"_unboxed")
-    ~native_repr_args:[native_repr;native_repr] ~native_repr_res:Untagged_int
-
 let caml_equal =
   Primitive.simple ~name:"caml_equal" ~arity:2 ~alloc:true
 let caml_string_equal =
@@ -531,21 +527,10 @@ let caml_bytes_greaterthan =
   Primitive.simple ~name:"caml_bytes_greaterthan" ~arity:2 ~alloc: false
 let caml_compare =
   Primitive.simple ~name:"caml_compare" ~arity:2 ~alloc:true
-let caml_int_compare =
-  (* Not unboxed since the comparison is done directly on tagged int *)
-  Primitive.simple ~name:"caml_int_compare" ~arity:2 ~alloc:false
-let caml_float_compare =
-  unboxed_compare "caml_float_compare" Unboxed_float
 let caml_string_compare =
   Primitive.simple ~name:"caml_string_compare" ~arity:2 ~alloc:false
 let caml_bytes_compare =
   Primitive.simple ~name:"caml_bytes_compare" ~arity:2 ~alloc:false
-let caml_nativeint_compare =
-  unboxed_compare "caml_nativeint_compare" (Unboxed_integer Pnativeint)
-let caml_int32_compare =
-  unboxed_compare "caml_int32_compare" (Unboxed_integer Pint32)
-let caml_int64_compare =
-  unboxed_compare "caml_int64_compare" (Unboxed_integer Pint64)
 
 let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
@@ -598,13 +583,13 @@ let comparison_primitive comparison comparison_kind =
   | Greater_than, Compare_int32s -> Pbintcomp(Pint32, Cgt)
   | Greater_than, Compare_int64s -> Pbintcomp(Pint64, Cgt)
   | Compare, Compare_generic -> Pccall caml_compare
-  | Compare, Compare_ints -> Pccall caml_int_compare
-  | Compare, Compare_floats -> Pccall caml_float_compare
+  | Compare, Compare_ints -> Pcompare_ints
+  | Compare, Compare_floats -> Pcompare_floats
   | Compare, Compare_strings -> Pccall caml_string_compare
   | Compare, Compare_bytes -> Pccall caml_bytes_compare
-  | Compare, Compare_nativeints -> Pccall caml_nativeint_compare
-  | Compare, Compare_int32s -> Pccall caml_int32_compare
-  | Compare, Compare_int64s -> Pccall caml_int64_compare
+  | Compare, Compare_nativeints -> Pcompare_bints Pnativeint
+  | Compare, Compare_int32s -> Pcompare_bints Pint32
+  | Compare, Compare_int64s -> Pcompare_bints Pint64
 
 let lambda_of_loc kind loc =
   let loc_start = loc.Location.loc_start in
@@ -752,6 +737,7 @@ let transl_primitive loc p env ty path =
 let primitive_is_ccall = function
   | Pccall _ | Pstringrefs  | Pbytesrefs | Pbytessets | Parrayrefs _ |
     Parraysets _ | Pbigarrayref _ | Pbigarrayset _ | Pduprecord _ | Pdirapply |
+    Pcompare_ints | Pcompare_floats | Pcompare_bints _ |
     Prevapply -> true
   | _ -> false
 
