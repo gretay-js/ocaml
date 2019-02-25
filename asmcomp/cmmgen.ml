@@ -307,6 +307,23 @@ let mk_not dbg cmm =
       (* 1 -> 3, 3 -> 1 *)
       Cop(Csubi, [Cconst_int 4; c], dbg)
 
+let mk_compare_ints dbg a1 a2 =
+  match (a1,a2) with
+  | Cconst_int c1, Cconst_int c2 -> begin
+      if c1 = c2 then int_const 0
+      else if c1 < c2 then int_const (-1)
+      else int_const 1
+    end
+  | Cconst_natint c1, Cconst_natint c2 -> begin
+      if c1 = c2 then int_const 0
+      else if c1 < c2 then int_const (-1)
+      else int_const 1
+    end
+  | a1, a2 -> begin
+      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
+      tag_int(sub_int op1 op2 dbg) dbg
+    end
 
 (* Turning integer divisions into multiply-high then shift.
    The [division_parameters] function is used in module Emit for
@@ -2213,26 +2230,19 @@ and transl_prim_2 env p arg1 arg2 dbg =
       (* Compare directly on tagged ints *)
       let a1 = transl env arg1 in
       let a2 = transl env arg2 in
-      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
-      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
-      tag_int(Cop(Csubi, [op1; op2], dbg)) dbg
-  | Pcompare_floats ->
-      let a1 = transl_unbox_float dbg env arg1 in
-      let a2 = transl_unbox_float dbg env arg2 in
-      tag_int (Cop(Cextcall("caml_float_compare_unboxed", typ_int, false, None),
-                   [a1;a2], dbg)) dbg
-      (* CR: to get native code, need to check for nan*)
-      (* let a1 = transl_unbox_float dbg env arg1 in
-       * let a2 = transl_unbox_float dbg env arg2 in
-       * let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
-       * let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
-       * tag_int (Cop(Csubf, [op1; op2], dbg)) dbg *)
+      mk_compare_ints dbg a1 a2
   | Pcompare_bints bi ->
       let a1 = transl_unbox_int dbg env bi arg1 in
       let a2 = transl_unbox_int dbg env bi arg2 in
-      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
-      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
-      tag_int(Cop(Csubi, [op1; op2], dbg)) dbg
+      mk_compare_ints dbg a1 a2
+  | Pcompare_floats ->
+      let a1 = transl_unbox_float dbg env arg1 in
+      let a2 = transl_unbox_float dbg env arg2 in
+      let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
+      let op3 = Cop(Ccmpf(CFeq), [a1; a1], dbg) in
+      let op4 = Cop(Ccmpf(CFeq), [a2; a2], dbg) in
+      tag_int (add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg) dbg
   | Pisout ->
       transl_isout (transl env arg1) (transl env arg2) dbg
   (* Float operations *)
