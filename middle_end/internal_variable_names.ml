@@ -122,6 +122,9 @@ let pidentity = "Pidentity"
 let pignore = "Pignore"
 let pint_as_pointer = "Pint_as_pointer"
 let pintcomp = "Pintcomp"
+let pcompare_ints = "Pcompare_ints"
+let pcompare_floats = "Pcompare_floats"
+let pcompare_bints = "Pcompare_bints"
 let pintofbint = "Pintofbint"
 let pintoffloat = "Pintoffloat"
 let pisint = "Pisint"
@@ -221,6 +224,9 @@ let pidentity_arg = "Pidentity_arg"
 let pignore_arg = "Pignore_arg"
 let pint_as_pointer_arg = "Pint_as_pointer_arg"
 let pintcomp_arg = "Pintcomp_arg"
+let pcompare_ints_arg = "Pcompare_ints_arg"
+let pcompare_floats_arg = "Pcompare_floats_arg"
+let pcompare_bints_arg = "Pcompare_bints_arg"
 let pintofbint_arg = "Pintofbint_arg"
 let pintoffloat_arg = "Pintoffloat_arg"
 let pisint_arg = "Pisint_arg"
@@ -332,6 +338,9 @@ let of_primitive : Lambda.primitive -> string = function
   | Plsrint -> plsrint
   | Pasrint -> pasrint
   | Pintcomp _ -> pintcomp
+  | Pcompare_ints -> pcompare_ints
+  | Pcompare_floats -> pcompare_floats
+  | Pcompare_bints _ -> pcompare_bints
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
   | Pintoffloat -> pintoffloat
@@ -435,6 +444,9 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Plsrint -> plsrint_arg
   | Pasrint -> pasrint_arg
   | Pintcomp _ -> pintcomp_arg
+  | Pcompare_ints -> pcompare_ints_arg
+  | Pcompare_floats -> pcompare_floats_arg
+  | Pcompare_bints _ -> pcompare_bints_arg
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
   | Pintoffloat -> pintoffloat_arg

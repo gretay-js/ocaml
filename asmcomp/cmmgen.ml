@@ -612,7 +612,7 @@ let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
 
 let non_profinfo_mask =
-  if Config.profinfo 
+  if Config.profinfo
   then (1 lsl (64 - Config.profinfo_width)) - 1
   else 0 (* [non_profinfo_mask] is unused in this case *)
 
@@ -2209,6 +2209,30 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pintcomp cmp ->
       tag_int(Cop(Ccmpi(transl_int_comparison cmp),
                   [transl env arg1; transl env arg2], dbg)) dbg
+  | Pcompare_ints ->
+      (* Compare directly on tagged ints *)
+      let a1 = transl env arg1 in
+      let a2 = transl env arg2 in
+      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
+      tag_int(Cop(Csubi, [op1; op2], dbg)) dbg
+  | Pcompare_floats ->
+      let a1 = transl_unbox_float dbg env arg1 in
+      let a2 = transl_unbox_float dbg env arg2 in
+      tag_int (Cop(Cextcall("caml_float_compare_unboxed", typ_int, false, None),
+                   [a1;a2], dbg)) dbg
+      (* CR: to get native code, need to check for nan*)
+      (* let a1 = transl_unbox_float dbg env arg1 in
+       * let a2 = transl_unbox_float dbg env arg2 in
+       * let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
+       * let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
+       * tag_int (Cop(Csubf, [op1; op2], dbg)) dbg *)
+  | Pcompare_bints bi ->
+      let a1 = transl_unbox_int dbg env bi arg1 in
+      let a2 = transl_unbox_int dbg env bi arg2 in
+      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
+      tag_int(Cop(Csubi, [op1; op2], dbg)) dbg
   | Pisout ->
       transl_isout (transl env arg1) (transl env arg2) dbg
   (* Float operations *)
