@@ -320,9 +320,15 @@ let mk_compare_ints dbg a1 a2 =
       else int_const 1
     end
   | a1, a2 -> begin
-      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
-      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
-      tag_int(sub_int op1 op2 dbg) dbg
+      Cifthenelse(Cop(Ccmpi(Ceq),[a1;a2],dbg),
+                  int_const 0,
+                  Cifthenelse(Cop(Ccmpi(Clt), [a1; a2], dbg),
+                              int_const (-1),
+                              int_const 1))
+
+      (* let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
+       * let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
+       * tag_int(sub_int op1 op2 dbg) dbg *)
     end
 
 (* Turning integer divisions into multiply-high then shift.
