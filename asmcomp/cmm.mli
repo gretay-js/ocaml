@@ -118,6 +118,7 @@ and operation =
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
   | Ccmpa of integer_comparison
+  | Ccmpo  (* integer comparison that returns an int (not bool) for ordering *)
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat

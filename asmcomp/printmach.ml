@@ -88,6 +88,7 @@ let intop = function
   | Ilsr -> " >>u "
   | Iasr -> " >>s "
   | Icomp cmp -> intcomp cmp
+  | Icompo -> "compareints"
   | Icheckbound { label_after_error; spacetime_index; } ->
     if not Config.spacetime then " check > "
     else

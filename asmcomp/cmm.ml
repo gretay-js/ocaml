@@ -142,6 +142,7 @@ and operation =
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison
+  | Ccmpo
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat

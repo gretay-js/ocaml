@@ -29,6 +29,7 @@ type integer_operation =
     Iadd | Isub | Imul | Imulh | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Icomp of integer_comparison
+  | Icompo
   | Icheckbound of { label_after_error : label option;
         spacetime_index : int; }
     (** For Spacetime only, [Icheckbound] operations take two arguments, the

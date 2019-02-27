@@ -25,6 +25,7 @@ type integer_operation =
     Iadd | Isub | Imul | Imulh | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Icomp of integer_comparison
+  | Icompo
   | Icheckbound of { label_after_error : label option;
         spacetime_index : int; }
 
@@ -187,6 +188,7 @@ let spacetime_node_hole_pointer_is_live_before insn =
            [Ialloc]. *)
       | Iadd | Isub | Imul | Imulh | Idiv | Imod
       | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+      | Icompo
       | Icomp _ -> false
       end
     | Ispecific specific_op ->

@@ -304,6 +304,8 @@ let destroyed_at_oper = function
   | Iop(Ialloc _) -> destroyed_at_alloc
   | Iop(Iintop(Imulh | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
+  | Iop(Iintop(Icompo) | Iintop_imm(Icompo,_))
+        -> [| rax; rdx|]
   | Iop (Iintop (Icheckbound _)) when Config.spacetime ->
       [| loc_spacetime_node_hole |]
   | Iop (Iintop_imm(Icheckbound _, _)) when Config.spacetime ->

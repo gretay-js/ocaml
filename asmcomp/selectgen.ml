@@ -60,6 +60,7 @@ let oper_result_type = function
   | Cstore (_c, _) -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
+    Ccmpo |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
@@ -298,6 +299,7 @@ method is_simple_expr = function
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Ccmpo
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ | Ccheckbound -> List.for_all self#is_simple_expr args
       end
@@ -341,6 +343,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
+      | Ccmpo
       | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
         EC.none
     in
@@ -453,6 +456,7 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
+  | (Ccmpo, _)  -> self#select_arith Icompo args
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
   | (Caddf, _) -> (Iaddf, args)

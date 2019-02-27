@@ -104,6 +104,7 @@ let operation d = function
   | Caddv -> "+v"
   | Cadda -> "+a"
   | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
+  | Ccmpo -> "compareints"
   | Cnegf -> "~f"
   | Cabsf -> "absf"
   | Caddf -> "+f"
