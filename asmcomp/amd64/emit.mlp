@@ -675,12 +675,13 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Icomp cmp)) ->
       I.cmp (arg i 1) (arg i 0);
       I.set (cond cmp) al;
-      I.movzx al (res i 0)
+      I.movzx al (res32 i 0)
   | Lop(Iintop_imm(Icomp cmp, n)) ->
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
-      I.movzx al (res i 0)
+      I.movzx al (res32 i 0)
   | Lop(Iintop(Icompo) | Iintop_imm(Icompo, _) as op) ->
+    (* We have i.arg.(0) = i.res.(0) *)
       let dl = Reg8L RDX in
       let rdx = Reg64 RDX in
       begin
@@ -689,11 +690,17 @@ let emit_instr fallthrough i =
         | Iintop_imm(Icompo, n) -> I.cmp (int n) (arg i 0)
         | _ -> assert false
       end;
-      I.set L dl;
       I.set G al;
-      I.movzx dl edx;
-      I.movzx al (res i 0);
-      I.sub rdx (res i 0)
+      I.movzx al (res32 i 0);
+      I.set L dl;
+      if ((res i 0) = rdx) then begin
+        (* this condition implies that eax is not (res i 0) *)
+        I.movzx dl eax;
+        I.sub rax (res i 0);
+      end else begin
+        I.movzx dl edx;
+        I.sub rdx (res i 0);
+      end;
   | Lop(Iintop (Icheckbound { label_after_error; spacetime_index; } )) ->
       let spacetime =
         if not Config.spacetime then None
