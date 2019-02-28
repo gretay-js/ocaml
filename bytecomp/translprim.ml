@@ -689,7 +689,6 @@ let transl_primitive loc p env ty path =
 let primitive_is_ccall = function
   | Pccall _ | Pstringrefs  | Pbytesrefs | Pbytessets | Parrayrefs _ |
     Parraysets _ | Pbigarrayref _ | Pbigarrayset _ | Pduprecord _ | Pdirapply |
-    Pcompare_ints | Pcompare_floats | Pcompare_bints _ |
     Prevapply -> true
   | _ -> false
 
