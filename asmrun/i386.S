@@ -44,7 +44,16 @@
 #define FUNCTION_ALIGN 2
 #endif
 
+#if defined(SYS_macosx)
+#define TEXT_SECTION(name) .section .text.##name
+#elif defined(SYS_mingw) || defined(SYS_gnu)
+#define TEXT_SECTION(name) .section __TEXT,##name
+#else
+#define TEXT_SECTION(name) .section .text.##name,"ax",%progbits
+#endif
+
 #define FUNCTION(name) \
+        TEXT_SECTION(name); \
         .globl G(name); \
         .align FUNCTION_ALIGN; \
         G(name):
@@ -124,11 +133,11 @@
 
 /* Allocation */
 
-        .section .text.caml_hot__code_begin,"ax",%progbits
+        TEXT_SECTION(caml_hot__code_begin)
         .globl  G(caml_hot__code_begin)
 G(caml_hot__code_begin):
 
-        .section .text.caml_hot__code_end,"ax",%progbits
+        TEXT_SECTION(caml_hot__code_end)
         .globl  G(caml_hot__code_end)
 G(caml_hot__code_end):
 

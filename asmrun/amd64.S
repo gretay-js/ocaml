@@ -26,10 +26,12 @@
 #define G(r) _##r
 #define GREL(r) _##r@GOTPCREL
 #define GCALL(r) _##r
+#define TEXT_SECTION(name) .section __TEXT,##name
 #define FUNCTION_ALIGN 2
 #define EIGHT_ALIGN 3
 #define SIXTEEN_ALIGN 4
 #define FUNCTION(name) \
+        TEXT_SECTION(name); \
         .globl name; \
         .align FUNCTION_ALIGN; \
         name:
@@ -40,10 +42,12 @@
 #define G(r) r
 #undef  GREL
 #define GCALL(r) r
+#define TEXT_SECTION(name) .section .text.##name
 #define FUNCTION_ALIGN 4
 #define EIGHT_ALIGN 8
 #define SIXTEEN_ALIGN 16
 #define FUNCTION(name) \
+        TEXT_SECTION(name); \
         .globl name; \
         .align FUNCTION_ALIGN; \
         name:
@@ -54,10 +58,12 @@
 #define G(r) r
 #define GREL(r) r@GOTPCREL
 #define GCALL(r) r@PLT
+#define TEXT_SECTION(name) .section .text.##name,"ax",%progbits
 #define FUNCTION_ALIGN 4
 #define EIGHT_ALIGN 8
 #define SIXTEEN_ALIGN 16
 #define FUNCTION(name) \
+        TEXT_SECTION(name); \
         .globl name; \
         .type name,@function; \
         .align FUNCTION_ALIGN; \
@@ -282,11 +288,11 @@
 #define C_ARG_4 %rcx
 #endif
 
-        .section .text.caml_hot__code_begin,"ax",%progbits
+        TEXT_SECTION(caml_hot__code_begin)
         .globl  G(caml_hot__code_begin)
 G(caml_hot__code_begin):
 
-        .section .text.caml_hot__code_end,"ax",%progbits
+        TEXT_SECTION(caml_hot__code_end)
         .globl  G(caml_hot__code_end)
 G(caml_hot__code_end):
 

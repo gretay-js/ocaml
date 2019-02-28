@@ -24,7 +24,7 @@ let command_line_options =
       " Generate position-dependent machine code";
     "-ffunction-sections", Arg.Set func_sections,
       " Generate each function in a separate .text.* section\
-       (supported on Linux 64-bit only)"
+       (not supported on windows yet)"
   ]
 
 (* Specific operations for the AMD64 processor *)
