@@ -683,7 +683,6 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Icompo) | Iintop_imm(Icompo, _) as op) ->
       let dl = Reg8L RDX in
       let rdx = Reg64 RDX in
-      I.xor rdx rdx;
       begin
         match op with
         | Iintop(Icompo) -> I.cmp (arg i 1) (arg i 0)
@@ -692,6 +691,7 @@ let emit_instr fallthrough i =
       end;
       I.set L dl;
       I.set G al;
+      I.movzx dl edx;
       I.movzx al eax;
       I.sub rdx (res i 0)
   | Lop(Iintop (Icheckbound { label_after_error; spacetime_index; } )) ->
