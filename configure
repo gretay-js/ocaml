@@ -16945,8 +16945,13 @@ if test x"$enable_function_sections" = "xyes"; then :
 
   common_cflags="$common_cflags -ffunction-sections"
 else
-  function_sections=false
+  # for testing only, always enable:
+  function_sections=true
+  $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
+
+  common_cflags="$common_cflags -ffunction-sections"
 fi
+  ## [function_sections=false])
 
 if test x"$with_afl" = "xyes"; then :
   afl=true

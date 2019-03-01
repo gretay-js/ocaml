@@ -1666,7 +1666,11 @@ AS_IF([test x"$enable_function_sections" = "xyes"],
   [function_sections=true
   AC_DEFINE([FUNCTION_SECTIONS])
   common_cflags="$common_cflags -ffunction-sections"],
-  [function_sections=false])
+  # for testing only, always enable:
+  [function_sections=true
+  AC_DEFINE([FUNCTION_SECTIONS])
+  common_cflags="$common_cflags -ffunction-sections"])
+  ## [function_sections=false])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],
