@@ -490,12 +490,15 @@ let emit_profile () =
     I.pop r10
   end
 
-(* Output .text section directive, or named .text.<name> if enabled. *)
+(* Output .text section directive, or named .text.<name> if enabled and
+   supported on the target system. *)
 
 let emit_named_text_section func_name =
   if Config.function_sections then
     begin match system with
-    | S_macosx -> D.section ["__TEXT"; emit_symbol func_name] None []
+    | S_macosx
+    (* Names of section segments are restricted to 16 characters,
+       but function names are often longer. *)
     | S_mingw64 | S_cygwin | S_win64 -> D.text()
     | _ -> D.section [ ".text."^(emit_symbol func_name) ] (Some "ax") ["@progbits"]
     end

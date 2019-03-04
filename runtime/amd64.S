@@ -26,16 +26,11 @@
 #define G(r) _##r
 #define GREL(r) _##r@GOTPCREL
 #define GCALL(r) _##r
-#if defined(FUNCTION_SECTIONS)
-#define TEXT_SECTION(name) .section __TEXT,##name
-#else
-#define TEXT_SECTION(name)
-#endif
+#define TEXT_SECTION(name) .text
 #define FUNCTION_ALIGN 2
 #define EIGHT_ALIGN 3
 #define SIXTEEN_ALIGN 4
 #define FUNCTION(name) \
-        TEXT_SECTION(name); \
         .globl name; \
         .align FUNCTION_ALIGN; \
         name:
