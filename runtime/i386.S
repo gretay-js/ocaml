@@ -47,8 +47,8 @@
 #if defined(FUNCTION_SECTIONS)
 #if defined(SYS_macosx)
 #define TEXT_SECTION(name) .text
-#elif defined(SYS_mingw) || defined(SYS_gnu)
-#define TEXT_SECTION(name) .section __TEXT.##name
+#elif defined(SYS_mingw) || defined(SYS_cygwin)
+#define TEXT_SECTION(name) .section .text.##name
 #else
 #define TEXT_SECTION(name) .section .text.##name,"ax",%progbits
 #endif

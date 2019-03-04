@@ -16940,18 +16940,49 @@ fi
 
 
 if test x"$enable_function_sections" = "xyes"; then :
-  function_sections=true
-  $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
-
-  common_cflags="$common_cflags -ffunction-sections"
+  case $arch in #(
+  amd64|i386) :
+    case $target in #(
+  *-*-cygwin*|*-*-mingw*|*-pc-windows) :
+    function_sections=false;
+           { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections. No target support." >&5
+$as_echo "$as_me: WARNING: Disabling function sections. No target support." >&2;} ;; #(
+  *) :
+    function_sections=true;
+           common_cflags="$common_cflags -ffunction-sections";
+           $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
+ ;; #(
+  *) :
+     ;;
+esac ;; #(
+  *) :
+    function_sections=false ;; #(
+  *) :
+     ;;
+esac
 else
-  # for testing only, always enable:
-  function_sections=true
-  $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
-
-  common_cflags="$common_cflags -ffunction-sections"
+  case $arch in #(
+  amd64|i386) :
+    case $target in #(
+  *-*-cygwin*|*-*-mingw*|*-pc-windows) :
+    function_sections=false;
+           { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections. No target support." >&5
+$as_echo "$as_me: WARNING: Disabling function sections. No target support." >&2;} ;; #(
+  *) :
+    function_sections=true;
+           common_cflags="$common_cflags -ffunction-sections";
+           $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
+ ;; #(
+  *) :
+     ;;
+esac ;; #(
+  *) :
+    function_sections=false ;; #(
+  *) :
+     ;;
+esac
 fi
-  ## [function_sections=false])
+#   [function_sections=false])
 
 if test x"$with_afl" = "xyes"; then :
   afl=true

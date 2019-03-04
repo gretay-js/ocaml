@@ -1663,14 +1663,29 @@ AS_IF([test x"$enable_flat_float_array" = "xno"],
 
 
 AS_IF([test x"$enable_function_sections" = "xyes"],
-  [function_sections=true
-  AC_DEFINE([FUNCTION_SECTIONS])
-  common_cflags="$common_cflags -ffunction-sections"],
-  # for testing only, always enable:
-  [function_sections=true
-  AC_DEFINE([FUNCTION_SECTIONS])
-  common_cflags="$common_cflags -ffunction-sections"])
-  ## [function_sections=false])
+  [AS_CASE([$arch],
+    [amd64|i386],
+      AS_CASE([$target],
+        [*-*-cygwin*|*-*-mingw*|*-pc-windows],
+          [function_sections=false;
+           AC_MSG_WARN([Disabling function sections. No target support.])],
+        [*],
+          [function_sections=true;
+           common_cflags="$common_cflags -ffunction-sections";
+           AC_DEFINE([FUNCTION_SECTIONS])]),
+    [*], [function_sections=false])],
+  [AS_CASE([$arch],
+    [amd64|i386],
+      AS_CASE([$target],
+        [*-*-cygwin*|*-*-mingw*|*-pc-windows],
+          [function_sections=false;
+           AC_MSG_WARN([Disabling function sections. No target support.])],
+        [*],
+          [function_sections=true;
+           common_cflags="$common_cflags -ffunction-sections";
+           AC_DEFINE([FUNCTION_SECTIONS])]),
+    [*], [function_sections=false])])
+#   [function_sections=false])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],
