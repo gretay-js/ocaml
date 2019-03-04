@@ -14,6 +14,7 @@
 /*   special exception on linking described in the file LICENSE.          */
 /*                                                                        */
 /**************************************************************************/
+#include "caml/m.h"
 
 #if defined(__PIC__)
 

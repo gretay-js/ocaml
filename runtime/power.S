@@ -12,6 +12,7 @@
 /*   special exception on linking described in the file LICENSE.          */
 /*                                                                        */
 /**************************************************************************/
+#include "caml/m.h"
 
 #if defined(MODEL_ppc64le)
         .abiversion 2
