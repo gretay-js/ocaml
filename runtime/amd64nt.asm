@@ -39,6 +39,17 @@ IFDEF WITH_SPACETIME
         EXTRN  caml_spacetime_c_to_ocaml: NEAR
 ENDIF
 
+
+IFDEF FUNCTION_SECTIONS
+        .CODE   caml_hot__code_begin
+        PUBLIC  caml_hot__code_begin
+caml_hot__code_begin:
+
+        .CODE  caml_hot__code_end
+        PUBLIC caml_hot__code_end
+caml_hot__code_end:
+ENDIF
+
         .CODE
 
         PUBLIC  caml_system__code_begin
