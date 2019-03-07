@@ -142,5 +142,4 @@ let rec deadcode i =
 
 let fundecl f =
   let new_body = deadcode f.fun_body in
-  assert (IntSet.is_empty new_body.exits);   (* sanity check *)
   {f with fun_body = new_body.i}
