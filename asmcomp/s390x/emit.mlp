@@ -718,6 +718,11 @@ let data l =
   `	.align	8\n`;
   List.iter emit_item l
 
+let data l =
+  emit_string code_space;
+  `	.align	8\n`;
+  List.iter emit_item l
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly() =

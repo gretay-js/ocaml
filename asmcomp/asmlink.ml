@@ -222,10 +222,19 @@ let make_globals_map units_list ~crc_interfaces =
       (name, intf, None, []) :: acc)
     crc_interfaces defined
 
+
 let make_startup_file ~ppf_dump units_list ~crc_interfaces =
+  Printf.printf "make startup\n";
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup";
+  if Config.function_sections then
+    (* There is no facility for emitting code that does not belong
+       to a compilation unit, i.e., between begin_assembly and end_assembly,
+       but if we emit the hot sections inside startup__code_begin and
+       startup_code_end, then when we move the hot__code_end section,
+       it will also move part of the startup code out of place.  *)
+    List.iter compile_phrase (Cmmgen.define_segments "_hot");
   (* set the name of the "current" compunit *)
   Emit.begin_assembly ();
   let name_list =
@@ -239,11 +248,12 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   compile_phrase (Cmmgen.global_table name_list);
   let globals_map = make_globals_map units_list ~crc_interfaces in
   compile_phrase (Cmmgen.globals_map globals_map);
-  compile_phrase(Cmmgen.data_segment_table ("_startup" :: name_list));
-  if (Config.function_sections) then
-    compile_phrase(Cmmgen.code_segment_table ("_hot" :: "_startup" :: name_list))
-  else
-    compile_phrase(Cmmgen.code_segment_table ("_startup" :: name_list));
+  let segment_names = "_startup" :: name_list in
+  compile_phrase(Cmmgen.data_segment_table (segment_names));
+  if Config.function_sections then begin
+    compile_phrase(Cmmgen.code_segment_table ("_hot" :: segment_names));
+  end else
+    compile_phrase(Cmmgen.code_segment_table (segment_names));
   let all_names = "_startup" :: "_system" :: name_list in
   compile_phrase (Cmmgen.frame_table all_names);
   if Config.spacetime then begin

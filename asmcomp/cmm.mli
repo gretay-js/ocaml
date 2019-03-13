@@ -211,6 +211,7 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+  | Ctext of string * data_item list
 
 val ccatch :
      int * (Backend_var.With_provenance.t * machtype) list

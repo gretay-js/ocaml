@@ -283,10 +283,11 @@ let data_item ppf = function
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n
 
-let data ppf dl =
+let data title ppf dl =
   let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) dl in
-  fprintf ppf "@[<hv 1>(data%t)@]" items
+  fprintf ppf "@[<hv 1>(%s%t)@]" title items
 
 let phrase ppf = function
   | Cfunction f -> fundecl ppf f
-  | Cdata dl -> data ppf dl
+  | Cdata dl -> data "data" ppf dl
+  | Ctext(s, dl) -> let title = sprintf "text.%s" s in data title ppf dl

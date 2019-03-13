@@ -981,6 +981,12 @@ let data l =
   D.data ();
   List.iter emit_item l
 
+(* Emit items in the text section *)
+let text name l =
+  Printf.printf "Emit.text %s, items = %d\n" name (List.length l);
+  emit_named_text_section name;
+  List.iter emit_item l
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly() =

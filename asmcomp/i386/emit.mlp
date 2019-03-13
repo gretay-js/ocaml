@@ -1010,6 +1010,11 @@ let data l =
   D.data ();
   List.iter emit_item l
 
+(* Emit items in the text section *)
+let text name l =
+  emit_named_text_section name;
+  List.iter emit_item l
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly() =

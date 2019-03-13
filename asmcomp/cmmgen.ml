@@ -3617,6 +3617,16 @@ let data_segment_table namelist =
 let code_segment_table namelist =
   segment_table namelist "caml_code_segments" "code_begin" "code_end"
 
+let define_segments name =
+  let addseg s =
+    Ctext(s, [Cglobal_symbol s ; Cdefine_symbol s])
+  in
+  let begname = "code_begin" in
+  let endname = "code_end" in
+  let symbol_begin = Compilenv.make_symbol ~unitname:name (Some begname) in
+  let symbol_end = Compilenv.make_symbol ~unitname:name (Some endname) in
+  [addseg symbol_begin; addseg symbol_end]
+
 (* Initialize a predefined exception *)
 
 let predef_exception i name =

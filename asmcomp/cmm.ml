@@ -213,6 +213,7 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+  | Ctext of string * data_item list
 
 let ccatch (i, ids, e1, e2)=
   Ccatch(Nonrecursive, [i, ids, e2], e1)

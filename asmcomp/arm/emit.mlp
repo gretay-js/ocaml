@@ -951,6 +951,10 @@ let data l =
   `	.data\n`;
   List.iter emit_item l
 
+let text section_name l =
+  `     .text\n`;
+  List.iter emit_item l
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly() =

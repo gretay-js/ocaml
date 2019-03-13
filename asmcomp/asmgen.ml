@@ -132,6 +132,7 @@ let compile_phrase ~ppf_dump p =
   match p with
   | Cfunction fd -> compile_fundecl ~ppf_dump fd
   | Cdata dl -> Emit.data dl
+  | Ctext(s, dl) -> Emit.text s dl
 
 
 (* For the native toplevel: generates generic functions unless

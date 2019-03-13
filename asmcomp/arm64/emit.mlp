@@ -969,6 +969,11 @@ let data l =
   `	.align 3\n`;
   List.iter emit_item l
 
+let text s l =
+  `	.text\n`;
+  `	.align 3\n`;
+  List.iter emit_item l
+
 (* Beginning / end of an assembly file *)
 
 let begin_assembly() =
