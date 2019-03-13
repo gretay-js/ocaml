@@ -295,16 +295,6 @@
 #define C_ARG_4 %rcx
 #endif
 
-#if defined(FUNCTION_SECTIONS)
-        TEXT_SECTION(caml_hot__code_begin)
-        .globl  G(caml_hot__code_begin)
-G(caml_hot__code_begin):
-
-        TEXT_SECTION(caml_hot__code_end)
-        .globl  G(caml_hot__code_end)
-G(caml_hot__code_end):
-#endif
-
         .text
 
         .globl  G(caml_system__code_begin)

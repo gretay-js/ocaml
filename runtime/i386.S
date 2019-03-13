@@ -135,17 +135,8 @@
 #define ALIGN_STACK(amount) subl $ amount, %esp ; CFI_ADJUST(amount)
 #define UNDO_ALIGN_STACK(amount) addl $ amount, %esp ; CFI_ADJUST(-amount)
 
-#if defined(FUNCTION_SECTIONS)
-        TEXT_SECTION(caml_hot__code_begin)
-        .globl  G(caml_hot__code_begin)
-G(caml_hot__code_begin):
-
-        TEXT_SECTION(caml_hot__code_end)
-        .globl  G(caml_hot__code_end)
-G(caml_hot__code_end):
-#endif
-
 /* Allocation */
+
         .text
         .globl  G(caml_system__code_begin)
 G(caml_system__code_begin):

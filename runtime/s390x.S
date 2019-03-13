@@ -14,7 +14,6 @@
 /*   special exception on linking described in the file LICENSE.          */
 /*                                                                        */
 /**************************************************************************/
-#include "caml/m.h"
 
 #if defined(__PIC__)
 
@@ -44,19 +43,10 @@
 
 #endif
 
-#if defined(FUNCTION_SECTIONS)
-        .section ".text.caml_hot__code_begin"
-        .globl  caml_hot__code_begin
-caml_hot__code_begin:
-
-        .section ".text.caml_hot__code_end"
-        .globl  caml_hot__code_end
-caml_hot__code_end:
-#endif
-
         .section ".text"
 
 /* Invoke the garbage collector. */
+
         .globl  caml_system__code_begin
 caml_system__code_begin:
 

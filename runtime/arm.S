@@ -111,17 +111,8 @@ alloc_limit     .req    r11
 #define PROFILE
 #endif
 
-#if defined(FUNCTION_SECTIONS)
-        .section .text.caml_hot__code_begin,"ax",%progbits
-        .globl  caml_hot__code_begin
-caml_hot__code_begin:
-
-        .section .text.caml_hot__code_end,"ax",%progbits
-        .globl  caml_hot__code_end
-caml_hot__code_end:
-#endif
-
 /* Allocation functions and GC interface */
+
         .globl  caml_system__code_begin
 caml_system__code_begin:
 
