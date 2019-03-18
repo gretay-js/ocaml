@@ -12,7 +12,6 @@
 /*   special exception on linking described in the file LICENSE.          */
 /*                                                                        */
 /**************************************************************************/
-#include "caml/m.h"
 
 #if defined(MODEL_ppc64le)
         .abiversion 2
@@ -156,25 +155,6 @@
         Addrglobal(tmp,glob); \
         stw     reg, 0(tmp)
 
-#endif
-
-#if defined(FUNCTION_SECTIONS)
-#if defined(MODEL_ppc64)
-        .section ".opd", "aw"
-        .globl  caml_hot__code_begin
-caml_hot__code_begin:
-
-        .globl  caml_hot__code_end
-caml_hot__code_end:
-#else
-        .section ".text.caml_hot__code_begin","ax",%progbits
-        .globl  caml_hot__code_begin
-caml_hot__code_begin:
-
-        .section ".text.caml_hot__code_end","ax",%progbits
-        .globl  caml_hot__code_end
-caml_hot__code_end:
-#endif
 #endif
 
 #if defined(MODEL_ppc64)
