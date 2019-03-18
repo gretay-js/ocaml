@@ -16938,27 +16938,49 @@ else
   flat_float_array=true
 fi
 
-
 if test x"$enable_function_sections" = "xyes"; then :
   case $arch in #(
-  amd64|i386) :
+  amd64|i386|arm|arm64) :
     case $target in #(
   *-*-cygwin*|*-*-mingw*|*-pc-windows) :
     function_sections=false;
            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections. No target support." >&5
 $as_echo "$as_me: WARNING: Disabling function sections. No target support." >&2;} ;; #(
   *) :
+    case $ocaml_cv_cc_vendor in #(
+  gcc-0123-*|gcc-4-01234567) :
+    function_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections.
+              Not supported in GCC prior to version 4.8." >&5
+$as_echo "$as_me: WARNING: Disabling function sections.
+              Not supported in GCC prior to version 4.8." >&2;} ;; #(
+  clang-012-*|clang-3-01234) :
+    function_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections.
+              Not supported in Clang prior to version 3.5." >&5
+$as_echo "$as_me: WARNING: Disabling function sections.
+              Not supported in Clang prior to version 3.5." >&2;} ;; #(
+  gcc-*|clang-*) :
     function_sections=true;
-           common_cflags="$common_cflags -ffunction-sections";
-           $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
+              common_cflags="$common_cflags -ffunction-sections";
+              $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
  ;; #(
+  *) :
+    function_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections.
+              Compiler not supported." >&5
+$as_echo "$as_me: WARNING: Disabling function sections.
+              Compiler not supported." >&2;} ;; #(
   *) :
      ;;
 esac ;; #(
   *) :
-    function_sections=false ;; #(
-  *) :
      ;;
+esac ;; #(
+  *) :
+    function_sections=false
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Disabling function sections on this target." >&5
+$as_echo "$as_me: WARNING: Disabling function sections on this target." >&2;} ;;
 esac
 else
   function_sections=false

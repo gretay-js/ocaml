@@ -1661,20 +1661,34 @@ AS_IF([test x"$enable_flat_float_array" = "xno"],
   [AC_DEFINE([FLAT_FLOAT_ARRAY])
   flat_float_array=true])
 
-
 AS_IF([test x"$enable_function_sections" = "xyes"],
   [AS_CASE([$arch],
-    [amd64|i386],
-      AS_CASE([$target],
+    [amd64|i386|arm|arm64],
+     [AS_CASE([$target],
         [*-*-cygwin*|*-*-mingw*|*-pc-windows],
           [function_sections=false;
            AC_MSG_WARN([Disabling function sections. No target support.])],
         [*],
-          [function_sections=true;
-           common_cflags="$common_cflags -ffunction-sections";
-           AC_DEFINE([FUNCTION_SECTIONS])]),
-    [*], [function_sections=false])],
-   [function_sections=false])
+          [AS_CASE([$ocaml_cv_cc_vendor],
+            [gcc-[0123]-*|gcc-4-[01234567]],
+              [function_sections=false;
+              AC_MSG_WARN([Disabling function sections.
+              Not supported in GCC prior to version 4.8.])],
+            [clang-[012]-*|clang-3-[01234]],
+              [function_sections=false;
+              AC_MSG_WARN([Disabling function sections.
+              Not supported in Clang prior to version 3.5.])],
+            [gcc-*|clang-*],
+              [function_sections=true;
+              common_cflags="$common_cflags -ffunction-sections";
+              AC_DEFINE([FUNCTION_SECTIONS])],
+            [*],
+              [function_sections=false;
+              AC_MSG_WARN([Disabling function sections.
+              Compiler not supported.])])])],
+    [function_sections=false
+      AC_MSG_WARN([Disabling function sections on this target.])])],
+  [function_sections=false])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],
