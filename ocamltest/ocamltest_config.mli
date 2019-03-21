@@ -21,6 +21,9 @@ val arch : string
 val afl_instrument : bool
 (** Whether AFL support has been enabled in the compiler *)
 
+val function_sections : bool
+(** Whether AFL support has been enabled in the compiler *)
+
 val shared_libraries : bool
 (** [true] if shared libraries are supported, [false] otherwise *)
 
