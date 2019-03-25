@@ -222,7 +222,8 @@ let rec instr ppf i =
             fprintf ppf "@ and";
             aux t
       in
-      aux handlers
+      aux handlers;
+      fprintf ppf "@]"
   | Iexit i ->
       fprintf ppf "exit(%d)" i
   | Itrywith(body, handler) ->
