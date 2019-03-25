@@ -283,7 +283,7 @@ let rec linear i n =
   | Iloop body ->
       let lbl_head = Cmm.new_label() in
       let n1 = linear i.Mach.next n in
-      let n2 = linear body (cons_instr (Lbranch lbl_head) n1) in
+      let n2 = linear body (add_branch lbl_head n1) in
       cons_instr (Llabel lbl_head) n2
   | Icatch(_rec_flag, handlers, body) ->
       let (lbl_end, n1) = get_label(linear i.Mach.next n) in
