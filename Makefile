@@ -192,7 +192,7 @@ ASMCOMP=\
   asmcomp/branch_relaxation.cmo \
   asmcomp/emitaux.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
-  driver/opterrors.cmo driver/optcompile.cmo
+  driver/opterrors.cmo driver/optcompile.cmo driver/optmain.cmo
 
 MIDDLE_END=\
   middle_end/debuginfo.cmo \
@@ -263,7 +263,7 @@ OPTTOPLEVEL=toplevel/genprintval.cmo toplevel/opttoploop.cmo \
   toplevel/opttopdirs.cmo toplevel/opttopmain.cmo
 BYTESTART=driver/main.cmo
 
-OPTSTART=driver/optmain.cmo
+OPTSTART=driver/optmain_entrypoint.cmo
 
 TOPLEVELSTART=toplevel/topstart.cmo
 
