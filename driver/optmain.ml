@@ -239,7 +239,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let anonymous = anonymous
 end);;
 
-let main () =
+let main () = begin
   native_code := true;
   let ppf = Format.err_formatter in
   try
@@ -315,8 +315,5 @@ let main () =
   with x ->
       Location.report_exception ppf x;
       exit 2
-
-let () =
-  main ();
-  Profile.print Format.std_formatter !Clflags.profile_columns;
-  exit 0
+end;
+  Profile.print Format.std_formatter !Clflags.profile_columns
