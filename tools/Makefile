@@ -116,13 +116,13 @@ CSLPROF_IMPORTS=config.cmo build_path_prefix_map.cmo misc.cmo identifiable.cmo \
   syntaxerr.cmo ast_helper.cmo \
   camlinternalMenhirLib.cmo parser.cmo \
   pprintast.cmo \
-  lexer.cmo parse.cmo
+  lexer.cmo parse.cmo save_ir.cmo
 
 $(call byte_and_opt,ocamlprof,$(CSLPROF_IMPORTS) profiling.cmo $(CSLPROF),)
 
 ocamlcp_cmos = config.cmo build_path_prefix_map.cmo misc.cmo profile.cmo \
                warnings.cmo identifiable.cmo numbers.cmo arg_helper.cmo \
-               clflags.cmo main_args.cmo
+               save_ir.cmo clflags.cmo main_args.cmo
 
 $(call byte_and_opt,ocamlcp,$(ocamlcp_cmos) ocamlcp.cmo,)
 $(call byte_and_opt,ocamloptp,$(ocamlcp_cmos) ocamloptp.cmo,)

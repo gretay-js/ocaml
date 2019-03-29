@@ -77,7 +77,7 @@ UTILS=utils/config.cmo utils/build_path_prefix_map.cmo utils/misc.cmo \
   utils/terminfo.cmo utils/ccomp.cmo utils/warnings.cmo \
   utils/consistbl.cmo \
   utils/strongly_connected_components.cmo \
-  utils/targetint.cmo
+  utils/targetint.cmo utils/save_ir.cmo
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
   parsing/docstrings.cmo parsing/syntaxerr.cmo \
@@ -182,13 +182,15 @@ ASMCOMP=\
   asmcomp/reloadgen.cmo asmcomp/reload.cmo \
   asmcomp/deadcode.cmo \
   asmcomp/printlinear.cmo asmcomp/linearize.cmo \
+  asmcomp/linear_invariants.cmo \
+  asmcomp/reoptimize.cmo \
   asmcomp/debug/available_regs.cmo \
   asmcomp/schedgen.cmo asmcomp/scheduling.cmo \
   asmcomp/branch_relaxation_intf.cmo \
   asmcomp/branch_relaxation.cmo \
   asmcomp/emitaux.cmo asmcomp/emit.cmo asmcomp/asmgen.cmo \
   asmcomp/asmlink.cmo asmcomp/asmlibrarian.cmo asmcomp/asmpackager.cmo \
-  driver/opterrors.cmo driver/optcompile.cmo
+  driver/opterrors.cmo driver/optcompile.cmo driver/optmain.cmo
 
 MIDDLE_END=\
   middle_end/int_replace_polymorphic_compare.cmo \
@@ -262,7 +264,7 @@ OPTTOPLEVEL=toplevel/genprintval.cmo toplevel/opttoploop.cmo \
   toplevel/opttopdirs.cmo toplevel/opttopmain.cmo
 BYTESTART=driver/main.cmo
 
-OPTSTART=driver/optmain.cmo
+OPTSTART=driver/optmain_entrypoint.cmo
 
 TOPLEVELSTART=toplevel/topstart.cmo
 

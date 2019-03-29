@@ -40,6 +40,7 @@ SUBST_QUOTE=$(call SUBST_QUOTE2,$1,$(call SUBST_ESCAPE,$1,$2))
 FLEXLINK_LDFLAGS=$(if $(OC_LDFLAGS), -link "$(OC_LDFLAGS)")
 config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	sed $(call SUBST,AFL_INSTRUMENT) \
+	    $(call SUBST,EXTENDED_DEBUG) \
 	    $(call SUBST,ARCH) \
 	    $(call SUBST,ARCMD) \
 	    $(call SUBST,ASM) \

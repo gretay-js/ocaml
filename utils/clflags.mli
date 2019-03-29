@@ -78,6 +78,7 @@ val make_archive : bool ref
 val debug : bool ref
 val debug_full : bool ref
 val unsafe : bool ref
+val extended_debug : bool ref
 val use_linscan : bool ref
 val link_everything : bool ref
 val custom_runtime : bool ref

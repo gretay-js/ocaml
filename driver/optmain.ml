@@ -57,6 +57,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _config_var = Misc.show_config_variable_and_exit
   let _for_pack s = for_package := Some s
   let _g = set debug
+  let _xg = set extended_debug
   let _i () =
     print_types := true;
     compile_only := true;
@@ -178,6 +179,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _remove_unused_arguments = set remove_unused_arguments
   let _runtime_variant s = runtime_variant := s
   let _safe_string = clear unsafe_string
+  let _save_ir = Save_ir.should_save
   let _short_paths = clear real_paths
   let _strict_sequence = set strict_sequence
   let _no_strict_sequence = clear strict_sequence
@@ -249,7 +251,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let anonymous = anonymous
 end);;
 
-let main () =
+let main () = begin
   native_code := true;
   let ppf = Format.err_formatter in
   try
@@ -261,6 +263,7 @@ let main () =
         (use 'ocamlopt -depend -help' for details)"];
     Clflags.parse_arguments anonymous usage;
     Compmisc.read_clflags_from_env ();
+    if !Clflags.extended_debug then Clflags.debug := true;
     if !gprofile && not Config.profiling then
       fatal "Profiling with \"gprof\" is not supported on this platform.";
     begin try
@@ -332,8 +335,5 @@ let main () =
   with x ->
       Location.report_exception ppf x;
       exit 2
-
-let () =
-  main ();
-  Profile.print Format.std_formatter !Clflags.profile_columns;
-  exit 0
+end;
+  Profile.print Format.std_formatter !Clflags.profile_columns

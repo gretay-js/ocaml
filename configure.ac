@@ -163,6 +163,7 @@ AC_SUBST([default_safe_string])
 AC_SUBST([flexdll_chain])
 AC_SUBST([flexlink_flags])
 AC_SUBST([PACKLD])
+AC_SUBST([extended_debug])
 
 ## Generated files
 
@@ -368,6 +369,10 @@ AS_IF([test x"$enable_unix_lib" = "xno" -o x"$enable_str_lib" = "xno"],
     [enable_ocamldoc="no"
      with_camltex=""])],
   [with_camltex="true"])
+
+AC_ARG_ENABLE([extended-debug],
+  [AS_HELP_STRING([--enable-extended-debug],
+    [emit extended debug info])])
 
 # Initialization of libtool
 # Allow the MSVC linker to be found even if ld isn't installed.
@@ -1740,6 +1745,11 @@ AS_IF([test x"$enable_force_safe_string" = "xyes"],
 AS_IF([test x"$DEFAULT_STRING" = "xunsafe"],
   [default_safe_string=false],
   [default_safe_string=true])
+
+AS_IF([test x"$enable_extended_debug" = "xyes"],
+  [AC_DEFINE([EXTENDED_DEBUG])
+  extended_debug=true],
+  [extended_debug=false])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

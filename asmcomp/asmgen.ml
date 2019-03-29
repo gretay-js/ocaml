@@ -125,6 +125,9 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
+  ++ Profile.record ~accumulate:true "reoptimize" Reoptimize.fundecl
+  ++ pass_dump_linear_if ppf_dump dump_reoptimize "After reoptimize"
+  ++ Profile.record ~accumulate:true "linear invariants" Linear_invariants.check
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl
 
 let compile_phrase ~ppf_dump p =

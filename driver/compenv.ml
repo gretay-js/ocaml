@@ -199,6 +199,7 @@ let read_one_param ppf position name v =
   let clear name options s = setter ppf (fun b -> not b) name options s in
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
+  | "xg" -> set "xg" [Clflags.extended_debug ] v
   | "p" -> set "p" [ Clflags.gprofile ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
   | "afl-instrument" -> set "afl-instrument" [ Clflags.afl_instrument ] v

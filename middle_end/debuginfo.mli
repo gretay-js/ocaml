@@ -21,6 +21,7 @@ type item = private {
   dinfo_start_bol: int;
   dinfo_end_bol: int;
   dinfo_end_line: int;
+  dinfo_discriminator: int;
 }
 
 type t = item list
@@ -44,3 +45,8 @@ val compare : t -> t -> int
 val hash : t -> int
 
 val print_compact : Format.formatter -> t -> unit
+
+
+(* CR gyorsh: used for creating debug info for low level IR,
+   but we should have a better way to pass in this information. *)
+val make: file:string -> line:int -> discriminator:int -> t

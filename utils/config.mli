@@ -246,3 +246,7 @@ val print_config : out_channel -> unit
 
 val config_var : string -> string option
 (** the configuration value of a variable, if it exists *)
+
+val extended_debug : bool
+(** Whether to generate extended debug info by default *)
+

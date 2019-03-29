@@ -61,3 +61,4 @@ let implementation ~source_file ~output_prefix =
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmo" @@ fun info ->
   Compile_common.implementation info ~backend
+

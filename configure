@@ -690,6 +690,7 @@ build_os
 build_vendor
 build_cpu
 build
+extended_debug
 PACKLD
 flexlink_flags
 flexdll_chain
@@ -850,6 +851,7 @@ enable_reserved_header_bits
 enable_force_safe_string
 enable_flat_float_array
 with_afl
+enable_extended_debug
 enable_shared
 enable_static
 with_pic
@@ -1530,6 +1532,7 @@ Optional Features:
                           force strings to be safe
   --disable-flat-float-array
                           do not use flat float arrays
+  --enable-extended-debug emit extended debug info
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-fast-install[=PKGS]
@@ -2830,6 +2833,7 @@ VERSION=4.08.1+dev0-2019-06-13
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.common"
@@ -3206,6 +3210,12 @@ fi
 else
   with_camltex="true"
 fi
+
+# Check whether --enable-extended-debug was given.
+if test "${enable_extended_debug+set}" = set; then :
+  enableval=$enable_extended_debug;
+fi
+
 
 # Initialization of libtool
 # Allow the MSVC linker to be found even if ld isn't installed.
@@ -16945,6 +16955,14 @@ if test x"$DEFAULT_STRING" = "xunsafe"; then :
   default_safe_string=false
 else
   default_safe_string=true
+fi
+
+if test x"$enable_extended_debug" = "xyes"; then :
+  $as_echo "#define EXTENDED_DEBUG 1" >>confdefs.h
+
+  extended_debug=true
+else
+  extended_debug=false
 fi
 
 oc_cflags="$common_cflags $internal_cflags"
