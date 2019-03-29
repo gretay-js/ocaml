@@ -36,7 +36,7 @@ val emit_debug_info: Debuginfo.t -> unit
 val emit_debug_info_gen :
   Debuginfo.t ->
   (file_num:int -> file_name:string -> unit) ->
-  (file_num:int -> line:int -> col:int -> unit) -> unit
+  (file_num:int -> line:int -> col:int -> discriminator:int -> unit) -> unit
 
 val record_frame_descr :
   label:int ->              (* Return address *)

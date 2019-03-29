@@ -83,6 +83,7 @@ let supports_shared_libraries = %%SUPPORTS_SHARED_LIBRARIES%%
 let flat_float_array = %%FLAT_FLOAT_ARRAY%%
 
 let afl_instrument = %%AFL_INSTRUMENT%%
+let extended_debug = %%EXTENDED_DEBUG%%
 
 let exec_magic_number = "Caml1999X025"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
@@ -201,6 +202,7 @@ let configuration_variables =
   p_bool "default_safe_string" default_safe_string;
   p_bool "flat_float_array" flat_float_array;
   p_bool "afl_instrument" afl_instrument;
+  p_bool "extended_debug" extended_debug;
   p_bool "windows_unicode" windows_unicode;
   p_bool "supports_shared_libraries" supports_shared_libraries;
 

@@ -2,10 +2,11 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*           Damien Doligez, projet Moscova, INRIA Rocquencourt           *)
+(*                       Pierre Chambart, OCamlPro                        *)
+(*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2000 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
+(*   Copyright 2016 OCamlPro SAS                                          *)
+(*   Copyright 2016 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,4 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val main: unit -> unit
+(** Invariant checks on code produced by [Linearize]. *)
+
+val check : Linearize.fundecl -> Linearize.fundecl
+
+module LabelMap : Map.S with type key = Linearize.label
+
+val compute_trap_depths : Linearize.fundecl -> int LabelMap.t

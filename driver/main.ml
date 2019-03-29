@@ -96,6 +96,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _no_rectypes = unset recursive_types
   let _runtime_variant s = runtime_variant := s
   let _safe_string = unset unsafe_string
+  let _save_ir = Save_ir.should_save
   let _short_paths = unset real_paths
   let _strict_sequence = set strict_sequence
   let _no_strict_sequence = unset strict_sequence

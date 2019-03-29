@@ -172,6 +172,7 @@ let unsafe_string =
 let classic_inlining = ref false       (* -Oclassic *)
 let inlining_report = ref false    (* -inlining-report *)
 
+let extended_debug = ref Config.extended_debug (* -xg for extra debug info *)
 let afl_instrument = ref Config.afl_instrument (* -afl-instrument *)
 let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 

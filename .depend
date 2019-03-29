@@ -89,6 +89,15 @@ utils/profile.cmx : \
     utils/misc.cmx \
     utils/profile.cmi
 utils/profile.cmi :
+utils/save_ir.cmo : \
+    utils/misc.cmi \
+    utils/identifiable.cmi \
+    utils/save_ir.cmi
+utils/save_ir.cmx : \
+    utils/misc.cmx \
+    utils/identifiable.cmx \
+    utils/save_ir.cmi
+utils/save_ir.cmi :
 utils/strongly_connected_components.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
@@ -2323,6 +2332,7 @@ asmcomp/asmgen.cmo : \
     asmcomp/spill.cmi \
     asmcomp/selection.cmi \
     asmcomp/scheduling.cmi \
+    asmcomp/reoptimize.cmi \
     asmcomp/reload.cmi \
     asmcomp/reg.cmi \
     utils/profile.cmi \
@@ -2340,6 +2350,7 @@ asmcomp/asmgen.cmo : \
     asmcomp/linscan.cmi \
     middle_end/base_types/linkage_name.cmi \
     asmcomp/linearize.cmi \
+    asmcomp/linear_invariants.cmi \
     bytecomp/lambda.cmi \
     asmcomp/interval.cmi \
     asmcomp/interf.cmi \
@@ -2370,6 +2381,7 @@ asmcomp/asmgen.cmx : \
     asmcomp/spill.cmx \
     asmcomp/selection.cmx \
     asmcomp/scheduling.cmx \
+    asmcomp/reoptimize.cmx \
     asmcomp/reload.cmx \
     asmcomp/reg.cmx \
     utils/profile.cmx \
@@ -2387,6 +2399,7 @@ asmcomp/asmgen.cmx : \
     asmcomp/linscan.cmx \
     middle_end/base_types/linkage_name.cmx \
     asmcomp/linearize.cmx \
+    asmcomp/linear_invariants.cmx \
     bytecomp/lambda.cmx \
     asmcomp/interval.cmx \
     asmcomp/interf.cmx \
@@ -3123,6 +3136,18 @@ asmcomp/interval.cmx : \
 asmcomp/interval.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi
+asmcomp/linear_invariants.cmo : \
+    asmcomp/printlinear.cmi \
+    utils/misc.cmi \
+    asmcomp/linearize.cmi \
+    asmcomp/linear_invariants.cmi
+asmcomp/linear_invariants.cmx : \
+    asmcomp/printlinear.cmx \
+    utils/misc.cmx \
+    asmcomp/linearize.cmx \
+    asmcomp/linear_invariants.cmi
+asmcomp/linear_invariants.cmi : \
+    asmcomp/linearize.cmi
 asmcomp/linearize.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -3349,6 +3374,20 @@ asmcomp/reloadgen.cmx : \
 asmcomp/reloadgen.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi
+asmcomp/reoptimize.cmo : \
+    asmcomp/x86_proc.cmi \
+    asmcomp/linearize.cmi \
+    middle_end/debuginfo.cmi \
+    utils/clflags.cmi \
+    asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmx : \
+    asmcomp/x86_proc.cmx \
+    asmcomp/linearize.cmx \
+    middle_end/debuginfo.cmx \
+    utils/clflags.cmx \
+    asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmi : \
+    asmcomp/linearize.cmi
 asmcomp/schedgen.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -5493,6 +5532,7 @@ driver/errors.cmx : \
 driver/errors.cmi :
 driver/main.cmo : \
     utils/warnings.cmi \
+    utils/save_ir.cmi \
     utils/profile.cmi \
     utils/misc.cmi \
     driver/makedepend.cmi \
@@ -5510,6 +5550,7 @@ driver/main.cmo : \
     driver/main.cmi
 driver/main.cmx : \
     utils/warnings.cmx \
+    utils/save_ir.cmx \
     utils/profile.cmx \
     utils/misc.cmx \
     driver/makedepend.cmx \
@@ -5528,12 +5569,14 @@ driver/main.cmx : \
 driver/main.cmi :
 driver/main_args.cmo : \
     utils/warnings.cmi \
+    utils/save_ir.cmi \
     utils/profile.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
     driver/main_args.cmi
 driver/main_args.cmx : \
     utils/warnings.cmx \
+    utils/save_ir.cmx \
     utils/profile.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
@@ -5611,6 +5654,7 @@ driver/opterrors.cmx : \
 driver/opterrors.cmi :
 driver/optmain.cmo : \
     utils/warnings.cmi \
+    utils/save_ir.cmi \
     utils/profile.cmi \
     asmcomp/proc.cmi \
     asmcomp/printmach.cmi \
@@ -5634,6 +5678,7 @@ driver/optmain.cmo : \
     driver/optmain.cmi
 driver/optmain.cmx : \
     utils/warnings.cmx \
+    utils/save_ir.cmx \
     utils/profile.cmx \
     asmcomp/proc.cmx \
     asmcomp/printmach.cmx \
@@ -5656,6 +5701,13 @@ driver/optmain.cmx : \
     asmcomp/arch.cmx \
     driver/optmain.cmi
 driver/optmain.cmi :
+driver/optmain_entrypoint.cmo : \
+    driver/optmain.cmi \
+    driver/optmain_entrypoint.cmi
+driver/optmain_entrypoint.cmx : \
+    driver/optmain.cmx \
+    driver/optmain_entrypoint.cmi
+driver/optmain_entrypoint.cmi :
 driver/pparse.cmo : \
     utils/warnings.cmi \
     utils/profile.cmi \

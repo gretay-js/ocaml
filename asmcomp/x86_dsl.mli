@@ -81,7 +81,7 @@ module D : sig
   val global: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
-  val loc: file_num:int -> line:int -> col:int -> unit
+  val loc: file_num:int -> line:int -> col:int -> discriminator:int -> unit
   val long: constant -> unit
   val mode386: unit -> unit
   val model: string -> unit
