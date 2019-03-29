@@ -126,6 +126,8 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ pass_dump_linear_if ppf dump_linear "Linearized code"
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf dump_scheduling "After instruction scheduling"
+  ++ Profile.record ~accumulate:true "reorder" Reorder.fundecl
+  ++ pass_dump_linear_if ppf dump_reorder "After block reordering"
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl
 
 let compile_phrase ppf p =
