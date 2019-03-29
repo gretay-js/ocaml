@@ -175,6 +175,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dalloc = option "-dalloc"
   let _dreload = option "-dreload"
   let _dscheduling = option "-dscheduling"
+  let _dreorder = option "-dreorder"
   let _dlinear = option "-dlinear"
   let _dstartup = option "-dstartup"
   let _dinterval = option "-dinterval"

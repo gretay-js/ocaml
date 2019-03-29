@@ -124,8 +124,12 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf dump_linear "Linearized code"
+  ++ Profile.record ~accumulate:true "invariants check" Linear_invariants.check
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf dump_scheduling "After instruction scheduling"
+  ++ Profile.record ~accumulate:true "reorder" Reorder.fundecl
+  ++ Profile.record ~accumulate:true "invariants check" Linear_invariants.check
+  ++ pass_dump_linear_if ppf dump_reorder "After block reordering"
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl
 
 let compile_phrase ppf p =

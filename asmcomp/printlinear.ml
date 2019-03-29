@@ -54,7 +54,7 @@ let instr ppf i =
   | Lswitch lblv ->
       fprintf ppf "switch %a" reg i.arg.(0);
       for i = 0 to Array.length lblv - 1 do
-       fprintf ppf "case %i: goto %a" i label lblv.(i)
+       fprintf ppf "@,case %i: goto %a" i label lblv.(i)
       done;
       fprintf ppf "@,endswitch"
   | Lentertrap ->

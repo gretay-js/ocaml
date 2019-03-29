@@ -144,6 +144,17 @@ let reinit_reg r =
 let reinit() =
   List.iter reinit_reg !reg_list
 
+let equal r1 r2 =
+  r1.stamp = r2.stamp
+
+exception Not_equal
+let array_equal ra1 ra2 =
+  try
+    Array.iter2 (fun r1 r2 -> if not (equal r1 r2) then raise Not_equal)
+      ra1 ra2;
+    true
+  with Not_equal -> false
+
 module RegOrder =
   struct
     type t = reg
