@@ -99,6 +99,17 @@ let rec regalloc ppf round fd =
     Reg.reinit(); Liveness.fundecl ppf newfd; regalloc ppf (round + 1) newfd
   end else newfd
 
+(* Block reordering within a function *)
+let reorder f =
+  if f.fun_fast then begin
+    let old_layout = CFG.from_linear f.fun_body in
+    let new_layout = CFG.reorder in
+    let new_body = CFG.to_linear new_layout in
+    {f with fun_body = new_body.i}
+  end
+  else
+    f
+
 let (++) x f = f x
 
 let compile_fundecl (ppf : formatter) fd_cmm =
@@ -124,10 +135,12 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf dump_linear "Linearized code"
+  ++ Profile.record ~accumulate:true "linear check" Linear_invariants.check
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf dump_scheduling "After instruction scheduling"
-  ++ Profile.record ~accumulate:true "reorder" Reorder.fundecl
+  ++ Profile.record ~accumulate:true "reorder" (reorder)
   ++ pass_dump_linear_if ppf dump_reorder "After block reordering"
+  ++ Profile.record ~accumulate:true "linear check" Linear_invariants.check
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl
 
 let compile_phrase ppf p =
