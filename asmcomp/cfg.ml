@@ -5,16 +5,19 @@ module Int = Numbers.Int
 
 type label = Linearize.label
 
+(* CR gyorsh: update label after? *)
 type call_operation =
   | Indirect of { label_after : label; }
   | Immediate of { func : string; label_after : label; }
   | External of { func : string; alloc : bool; label_after : label; }
   | Alloc of { words : int; label_after_call_gc : label option;
                spacetime_index : int; }
-  | Checkbounds
+  | Checkbounds of int option *
+                   { label_after_error : label option;
+                     spacetime_index : int; }
 
 type operation =
-    Move
+  | Move
   | Spill
   | Reload
   | Const_int of nativeint
@@ -25,8 +28,7 @@ type operation =
   | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Intop of Mach.integer_operation
   | Intop_imm of Mach.integer_operation * int
-  | Negf | Absf | Addf | Subf | Mulf | Divf
-  | Floatofint | Intoffloat
+  | Negf | Absf | Addf | Subf | Mulf | Divf | Floatofint | Intoffloat
   | Specific of Arch.specific_operation
   | Name_for_debugger of { ident : Ident.t; which_parameter : int option;
                            provenance : unit option; is_assignment : bool; }
@@ -85,19 +87,19 @@ type t = {
 let create_empty_instruction desc =
   { desc; arg = [||]; res = [||]; Debuginfo.none; live = Reg.Set.empty; }
 
-let create_empty_block start =
+let create_empty_block t start =
   let terminator = create_empty_instruction Branch([]) in
   let block = { start; body = []; terminator; } in
-  if Hashtbl.mem blocks lbl then
+  if Hashtbl.mem t.blocks lbl then
     Misc.fatal_error("Cannot create block, label exists: " ^ lbl);
   block
 
-let register block =
-  if Hashtbl.mem blocks block.start then
+let register t block =
+  if Hashtbl.mem t.blocks block.start then
     Misc.fatal_error("Cannot create block, label exists: " ^ block.start);
   (* Body is constructed in reverse, fix it now: *)
   block.body <- List.rev block.body;
-  Hashtble.add block.start block
+  Hashtble.add t.blocks block.start block
 
 let create_instr desc i =
   {
@@ -114,7 +116,7 @@ let add_instr desc i block =
 let add_terminator desc i block =
   check_terminator i;
   block.terminator <- create_instr desc i;
-  register block
+  register t block
 
 (* Collect used labels *)
 let used_labels = Int.Set.empty ()
@@ -148,15 +150,34 @@ let to_basic = function
       Call(External {func; alloc; label_after})
     | Iintop(op) -> begin match op with
       | Icheckbound {label_after_error; spacetime_index} ->
-        Call(Checkbound {label_after_error; spacetime_index})
+        Call(Checkbound(None, {label_after_error; spacetime_index}))
       |_ -> Intop(op)
     end
-    | Iintop_imm(op,i) -> Intop_imm(op,i) ...
+    | Iintop_imm(op,i) -> begin match op with
+      | Icheckbound {label_after_error; spacetime_index} ->
+        Call(Checkbound(Some i, {label_after_error; spacetime_index}))
+      |_ -> Intop_imm(op, i)
+    end
+    | Ialloc r -> Call(Alloc r) (* {words;label_after_call_gc;spacetime_index} *)
     | Istackoffset(i) -> Stackoffset(i)
     | Iload(c,a) -> Load(c,a)
-    | Istore(c,a,b)->Store(c,a,b)
-    | Ialloc r -> Call(Alloc r) (* {words;label_after_call_gc;spacetime_index} *)
-    | _ -> add_instr Op(op) i block
+    | Istore(c,a,b)-> Store(c,a,b)
+    | Imove -> Move
+    | Ispill -> Spill
+    | Ireload -> Reload
+    | Iconst_int n -> const_int n
+    | Iconst_float n -> const_float n
+    | Iconst_symbol n -> const_symbol n
+    | Inegf -> Negf
+    | Iabsf -> Absf
+    | Iaddf -> Addf
+    | Isubf -> Subf
+    | Imulf -> Mulf
+    | Idivf -> Divf
+    | Ifloatofint -> Floatofint
+    | Iintoffloat -> Intoffloat
+    | Ispecific op -> Specific op
+    | Iname_for_debugger r -> Name_for_debugger r
   end
 
 let from_basic = function
@@ -165,70 +186,87 @@ let from_basic = function
   | Adjust_trap_depth delta_traps -> Ladjust_trap_depth delta_traps
   | Pushtrap lbl_handler -> Lpushtrap lbl_handler
   | Poptrap -> Lpoptrap
-  | Lop(op) -> begin match op with
-    | Lop(Icall_ind label_after -> Call(Indirect label_after)
-    | Lop(Icall_imm {func; label_after} -> Call(Immediate {func;label_after})
-    | Lop(Iextcall {func; alloc; label_after} ->
-      Call(External {func; alloc; label_after})
-    | Lop(Iintop(op) -> begin match op with
-      | Lop(Iintop(Icheckbound {label_after_error; spacetime_index} ->
-        Call(Checkbound {label_after_error; spacetime_index})
-      |_ -> Lop(Intop(op)
-    end
-    | Iintop_imm(op,i) -> Intop_imm(op,i) ..
-    | Istackoffset(i) -> Stackoffset(i)
-    | Iload(c,a) -> Load(c,a)
-    | Istore(c,a,b)->Store(c,a,b)
-    | Ialloc r -> Call(Alloc r)
-    | _ -> add_instr Op(op) i block
-  end
+  | Call(Indirect label_after) -> Lop(Icall_ind label_after))
+  | Call(Immediate {func;label_after}) -> Lop(Icall_imm {func; label_after})
+  | Call(External {func; alloc; label_after}) -> Lop(Iextcall {func; alloc; label_after})
+  | Call(Checkbounds(None, {label_after_error; spacetime_index})) ->
+    Lop(Iintop(Icheckbound {label_after_error; spacetime_index}))
+  | Call(Checkbounds(Some i, {label_after_error; spacetime_index})) ->
+    Lop(Iintop_imm(Icheckbound {label_after_error; spacetime_index},i))
+  | Call(Alloc r) -> Lop(Ialloc r)
+  | Op(op) ->
+    let iop =
+      match op with
+      | Move -> Imove
+      | Spill -> Ispill
+      | Reload -> Ireload
+      | Const_int n -> IConst_int n
+      | Const_float n -> IConst_float n
+      | Const_symbol n -> IConst_symbol n
+      | Stackoffset n -> IStackoffset n
+      | Load(c,m) -> ILoad(c,m)
+      | Store(c,m,b) -> IStore(c,m,b)
+      | Intop op -> Iintop op
+      | Intop_imm(op, i) -> Iintop_imm(op, i)
+      | Negf -> Inegf
+      | Absf -> Iabsf
+      | Addf -> Iaddf
+      | Subf -> Isubf
+      | Mulf -> Imulf
+      | Divf -> Idivf
+      | Floatofint -> Ifloatofint
+      | Intoffloat -> Iintoffloat
+      | Specific op -> Ispecific op
+      | Name_for_debugger of r -> Iname_for_debugger
+    in
+    Lop(iop)
 
-let rec create_blocks i block =
+let rec create_blocks t i block =
     match i.desc with
     | Lend ->
       (* End of the function. Last block's successor is a self-loop successor. *)
       (* CR gyorsh: is there always another terminator before Lend? *)
-      register block
+      register t block
     | Llabel start ->
       (* Add the previos block, if it did not have an explicit terminator. *)
-      if not Hashtbl.mem block.start then begin
+      if not Hashtbl.mem t.blocks block.start then begin
         (* Previous block falls through. Add start as explicit successor. *)
         let fallthrough = Branch ([(Always,start)]) in
         block.terminator <- create_empty_instruction fallthrough;
-        register block
+        register t block
       end;
       (* Start a new block *)
       let new_block = create_empty_block start in
-      create_blocks i.next new_block
+      create_blocks t i.next new_block
 
     | Lop(Itailcall_ind label_after) ->
       let desc = Tailcall(Indirect(label_after)) in
-      add_terminator desc i block;
-      create_blocks i.next block
+      add_terminator t desc i block;
+      create_blocks t i.next block
 
     | Lop(Itailcall_imm(func; label_after)) ->
       let desc = Tailcall(Indirect(label_after)) in
-      add_terminator desc i block;
-      create_blocks i.next block
+      add_terminator t desc i block;
+      create_blocks t i.next block
 
     | Lreturn ->
-      add_terminator Return(kind) i block;
-      create_blocks i.next block
+      add_terminator t Return(kind) i block;
+      create_blocks t i.next block
 
     | Lraise(kind) ->
-      add_terminator Raise(kind) i block;
-      create_blocks i.next block
+      add_terminator t Raise(kind) i block;
+      create_blocks t i.next block
 
     | Lbranch lbl ->
       let successors = [(Always,lbl)] in
-      add_terminator Branch(successors) i block;
-      create_blocks i.next block
+      add_terminator t Branch(successors) i block;
+      create_blocks t i.next block
 
     | Lcondbranch(cond,lbl) ->
       let fallthrough = get_label (i.next) in
       let successors = [(cond,lbl); (invert_test cond,fallthrough)] in
-      add_terminator Branch(successors) i block;
-      create_blocks i.next block
+      add_terminator t Branch(successors) i block;
+      create_blocks t i.next block
 
     | Lcondbranch3(lbl0,lbl1,lbl2) ->
       let fallthrough = get_label (i.next) in
@@ -240,8 +278,8 @@ let rec create_blocks i block =
       let s0 = (Iinttest_imm(Iunsigned Clt, 1), get_dest lbl0) in
       let s1 = (Iinttest_imm(Iunsigned Ceq, 1), get_dest lbl1) in
       let s2 = (Iinttest_imm(Isigned   Cgt, 1), get_dest lbl2) in
-      add_terminator Branch([s0;s1;s2]) i block;
-      create_blocks i.next block
+      add_terminator t Branch([s0;s1;s2]) i block;
+      create_blocks t i.next block
 
     | Lswitch labels ->
       let successors =
@@ -249,16 +287,16 @@ let rec create_blocks i block =
           (fun i label ->
              (Iinttest(Iunsigned Ceq, i), get_dest lbl1))
           labels in
-      add_terminator Branch(Array.to_list successors) i block;
-      create_blocks i.next block
+      add_terminator t Branch(Array.to_list successors) i block;
+      create_blocks t i.next block
 
     | _ ->
       add_instr (to_basic i.desc) i body;
-      create_blocks i.next block
+      create_blocks t i.next block
 
 let from_linear i =
   trap_depths = Linear_invariants.compute_trap_depths i;
-  blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
+  blocks = Hashtbl.create 31 : (label, block) Hashtbl.t);
   Int.Set.reset used_labels;
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
@@ -267,7 +305,7 @@ let from_linear i =
   let func_start_lbl = 0 in
   let entry_block = create_empty_block func_start_lbl in
   mark_used_label func_start_lbl;
-  create_blocks i entry_block;
+  create_blocks blocks i entry_block;
   (* check that all labels are used. *)
   let unused_labels = Int.Set.diff (Hashtble.keys blocks) used_labels in
   if not (Int.Set.is_empty unused_labels) then begin
@@ -279,9 +317,43 @@ let from_linear i =
   end;
   { blocks; trap_depths; }
 
-let to_linear_block { blocks; layout } =
-  { Lend }
+let instr_cons d a r n =
+  { desc = d; next = n; arg = a; res = r;
+    dbg = Debuginfo.none; live = Reg.Set.empty }
 
-let to_linear layout =
-  List.fold_left to_linear_block Linear.end_insr layout
+let linearize_terminator terminator next =
+  let desc =
+    match terminator.desc with
+    | Branch successors ->
+    | Return -> Lreturn
+    | Raise kind -> Lraise kind
+    | Tailcall call -> Lop(Itailcall ..)
+  in to_linear_instr desc next i
 
+let to_linear_instr desc next i =
+  { desc; next; arg = i.arg; res = i.res;
+    dbg = i.dbg; live = i.live }
+
+let basic_to_linear i next =
+  let desc = from_basic i.desc in
+  to_linear_instr desc next i
+
+(* Cons a simple instruction (arg, res, live empty) *)
+let make_simple_linear d n =
+  { desc = d; next = n; arg = [||]; res = [||];
+    dbg = Debuginfo.none; live = Reg.Set.empty }
+
+let rec linearize t layout =
+  match layout with
+  | [] -> -1, end_instr
+  | label::tail ->
+    let next = linearize t tail in
+    let block = Hashtbl.find t.blocks label in
+    let terminator = linearize_terminator block.terminator next  in
+    let body = List.fold_right basic_to_linear block.body terminator in
+    let insn = make_simple_linear (Label label) body in
+    { label; insn }
+
+let to_linear t layout =
+  let lin = linearize t layout in
+  lin.insn

@@ -5,7 +5,7 @@
 open Linearize
 
 module Layout  = sig
-  type t
+  type t = label list
   val from_linear : Linear.instruction -> t
   val reorder : t -> t
 end
