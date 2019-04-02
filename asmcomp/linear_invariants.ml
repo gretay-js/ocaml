@@ -56,21 +56,21 @@ let check_instruction (insn : Linearize.instruction) ~state =
         Printlinear.instr insn
     end;
   match insn.desc with
-  | Lend | Lop _ | Lreloadretaddr | Lraise _ | Lentertrap -> state
-  | Lreturn ->
-    if state.trap_depth <> 0 then begin
-      Misc.fatal_error "Trap depth must be zero at Lreturn"
-    end;
-    state
-  | Llabel label | Lbranch label | Lcondbranch (_, label) ->
+    | Lend | Lop _ | Lreloadretaddr | Lraise _ | Lentertrap -> state
+    | Lreturn ->
+      if state.trap_depth <> 0 then begin
+        Misc.fatal_error "Trap depth must be zero at Lreturn"
+      end;
+      state
+    | Llabel label | Lbranch label | Lcondbranch (_, label) ->
     record_trap_depth_at_label ~state ~insn ~label
-  | Lcondbranch3 (label1, label2, label3) ->
+    | Lcondbranch3 (label1, label2, label3) ->
     let state = record_trap_depth_at_label_opt ~state ~insn ~label:label1 in
     let state = record_trap_depth_at_label_opt ~state ~insn ~label:label2 in
     record_trap_depth_at_label_opt ~state ~insn ~label:label3
   | Lswitch labels ->
     Array.fold_left (fun state label ->
-        record_trap_depth_at_label ~state ~insn ~label)
+      record_trap_depth_at_label ~state ~insn ~label)
       state
       labels
   | Ladjust_trap_depth delta ->
@@ -79,7 +79,7 @@ let check_instruction (insn : Linearize.instruction) ~state =
       { state with trap_depth; }
     else
       Misc.fatal_errorf "Ladjust_trap_depth %d moves the trap depth %d \
-          below zero"
+                         below zero"
         delta
         state.trap_depth
   | Lpushtrap { handler; } ->
@@ -98,12 +98,19 @@ let rec check_instructions (insn : Linearize.instruction) ~state =
   if not (insn.next == insn) then begin
     check_instructions insn.next ~state
   end
+  else
+    state
 
-let check (fundecl : Linearize.fundecl) =
+let compute_trap_depths (fundecl : Linearize.fundecl) =
   let state =
     { trap_depth = 0;
       trap_depth_at_labels = Int.Map.empty;
     }
   in
-  check_instructions fundecl.fun_body ~state;
+  let state = check_instructions fundecl.fun_body ~state in
+  state.trap_depth_at_labels
+
+
+let check (fundecl : Linearize.fundecl) =
+  compute_trap_depths fundecl;
   fundecl

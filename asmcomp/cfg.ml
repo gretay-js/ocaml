@@ -1,5 +1,4 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open Linearize
 
 module Int = Numbers.Int
@@ -12,6 +11,7 @@ type call_operation =
   | External of { func : string; alloc : bool; label_after : label; }
   | Alloc of { words : int; label_after_call_gc : label option;
                spacetime_index : int; }
+  | Checkbounds
 
 type operation =
     Move
@@ -23,14 +23,13 @@ type operation =
   | Stackoffset of int
   | Load of Cmm.memory_chunk * Arch.addressing_mode
   | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
-  | Intop of integer_operation
-  | Intop_imm of integer_operation * int
+  | Intop of Mach.integer_operation
+  | Intop_imm of Mach.integer_operation * int
   | Negf | Absf | Addf | Subf | Mulf | Divf
   | Floatofint | Intoffloat
   | Specific of Arch.specific_operation
   | Name_for_debugger of { ident : Ident.t; which_parameter : int option;
                            provenance : unit option; is_assignment : bool; }
-
 
 type condition =
   | Always
@@ -57,13 +56,13 @@ and 'a instruction = {
 }
 
 and basic =
-  | Op of Mach.operation
+  | Op of operation
+  | Call of call_operation
   | Reloadretaddr
   | Entertrap
   | Adjust_trap_depth of { delta_traps : int }
   | Pushtrap of { lbl_handler : label }
   | Poptrap
-  | Call of call_operation
 
 and terminator =
   | Branch of successor list
@@ -80,27 +79,25 @@ let successors block =
 
 type t = {
   blocks : (label, block) Hashtbl.t;    (* Map labels to blocks *)
-  layout : label list;
+  trap_depths : (label, int) Map.t
 }
-
-(* Original layout *)
-let layout = ref []
-
-(* Collect used labels *)
-let used_labels = Int.Set.empty ()
-
-let mark_used_label lbl = Int.Set.add lbl used_labels
 
 let create_empty_instruction desc =
   { desc; arg = [||]; res = [||]; Debuginfo.none; live = Reg.Set.empty; }
 
-let create_empty_block start terminator =
-  let terminator = create_empty_instruction terminator in
+let create_empty_block start =
+  let terminator = create_empty_instruction Branch([]) in
   let block = { start; body = []; terminator; } in
   if Hashtbl.mem blocks lbl then
-    Misc.fatal_error("Cannot add block, label exists: " ^ lbl);
-  Hashtbl.add blocks lbl block;
+    Misc.fatal_error("Cannot create block, label exists: " ^ lbl);
   block
+
+let register block =
+  if Hashtbl.mem blocks block.start then
+    Misc.fatal_error("Cannot create block, label exists: " ^ block.start);
+  (* Body is constructed in reverse, fix it now: *)
+  block.body <- List.rev block.body;
+  Hashtble.add block.start block
 
 let create_instr desc i =
   {
@@ -111,111 +108,158 @@ let create_instr desc i =
     live = i.live;
   }
 
-(* Ensure that terminator is followed by a new block. *)
+let add_instr desc i block =
+  block.body <- (create_instr desc i)::block.body
+
+let add_terminator desc i block =
+  check_terminator i;
+  block.terminator <- create_instr desc i;
+  register block
+
+(* Collect used labels *)
+let used_labels = Int.Set.empty ()
+
+let mark_used_label lbl = Int.Set.add lbl used_labels
+
+(* Ensure that terminator [i] is followed by a new block. *)
 let check_terminator i =
   match i.next.desc with
-  | Lend | Llabel -> ();
-  | _ -> Misc.fata_error("Unexpected instruction after terminator");
+  | Lend | Llabel _ -> ();
+  | _ -> Misc.fatal_error("Unexpected instruction after terminator")
 
-let rec from_linear i layout =
-  let block = List.hd !layout in
+let get_label = function
+  | Llabel lbl -> lbl
+  | Lbranch lbl -> Misc.fatal_error("Unexpected branch instead of label")
+  | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
+  | _ -> Misc.fatal_error("Unexpected instruction instead of label")
+
+let to_basic = function
+  | Lreloadretaddr -> Reloadretaddr
+  | Lentertrap -> Entertrap
+  | Ladjust_trap_depth delta_traps -> Adjust_trap_depth delta_traps
+  | Lpushtrap lbl_handler ->
+    Int.Set.add lbl_hanlder used_labels;
+    Pushtrap lbl_handler
+  | Lpoptrap -> Poptrap
+  | Lop(op) -> begin match op with
+    | Icall_ind label_after -> Call(Indirect label_after)
+    | Icall_imm {func; label_after} -> Call(Immediate {func;label_after})
+    | Iextcall {func; alloc; label_after} ->
+      Call(External {func; alloc; label_after})
+    | Iintop(op) -> begin match op with
+      | Icheckbound {label_after_error; spacetime_index} ->
+        Call(Checkbound {label_after_error; spacetime_index})
+      |_ -> Intop(op)
+    end
+    | Iintop_imm(op,i) -> Intop_imm(op,i) ...
+    | Istackoffset(i) -> Stackoffset(i)
+    | Iload(c,a) -> Load(c,a)
+    | Istore(c,a,b)->Store(c,a,b)
+    | Ialloc r -> Call(Alloc r) (* {words;label_after_call_gc;spacetime_index} *)
+    | _ -> add_instr Op(op) i block
+  end
+
+let from_basic = function
+  | Reloadretaddr -> Lreloadretaddr
+  | Entertrap -> Lentertrap
+  | Adjust_trap_depth delta_traps -> Ladjust_trap_depth delta_traps
+  | Pushtrap lbl_handler -> Lpushtrap lbl_handler
+  | Poptrap -> Lpoptrap
+  | Lop(op) -> begin match op with
+    | Lop(Icall_ind label_after -> Call(Indirect label_after)
+    | Lop(Icall_imm {func; label_after} -> Call(Immediate {func;label_after})
+    | Lop(Iextcall {func; alloc; label_after} ->
+      Call(External {func; alloc; label_after})
+    | Lop(Iintop(op) -> begin match op with
+      | Lop(Iintop(Icheckbound {label_after_error; spacetime_index} ->
+        Call(Checkbound {label_after_error; spacetime_index})
+      |_ -> Lop(Intop(op)
+    end
+    | Iintop_imm(op,i) -> Intop_imm(op,i) ..
+    | Istackoffset(i) -> Stackoffset(i)
+    | Iload(c,a) -> Load(c,a)
+    | Istore(c,a,b)->Store(c,a,b)
+    | Ialloc r -> Call(Alloc r)
+    | _ -> add_instr Op(op) i block
+  end
+
+let rec create_blocks i block =
     match i.desc with
-    | Lend -> ()
+    | Lend ->
+      (* End of the function. Last block's successor is a self-loop successor. *)
+      (* CR gyorsh: is there always another terminator before Lend? *)
+      register block
     | Llabel start ->
-      let new_block = create_empty_block start  in
-      layout := new_block::!layout;
-      from_linear i.next layout
-    | Lop(op) -> begin
-        match op with
-        | Itailcall_imm label_after
-        | Itailcall_ind(func; label_after)
-          ->
-          check_terminator i;
-          let desc = { action = Call op; [] } in
-          block.terminator <- create_instr desc i;
-          from_linear i.next layout
-
-        | Icall_ind label_after
-        | Icall_imm(func; label_after)
-        | Iextcall(func; alloc; label_after)
-        | Iintop(Iinto_imm(
-            Icheckbound of { label_after_error : label option;
-                             spacetime_index : int; }
-
-        | Iextcall of { func : string; alloc : bool; label_after : label; }
-        | Istackoffset of int
-        | Iload of Cmm.memory_chunk * Arch.addressing_mode
-        | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
-        (* false = initialization, true = assignment *)
-        | Ialloc of { words : int; label_after_call_gc : label option;
-                      spacetime_index : int; }
-
-        | _ ->
-          block.body <- (create_instr Op(op) i)::block.body;
+      (* Add the previos block, if it did not have an explicit terminator. *)
+      if not Hashtbl.mem block.start then begin
+        (* Previous block falls through. Add start as explicit successor. *)
+        let fallthrough = Branch ([(Always,start)]) in
+        block.terminator <- create_empty_instruction fallthrough;
+        register block
       end;
-      from_linear i.next layout
+      (* Start a new block *)
+      let new_block = create_empty_block start in
+      create_blocks i.next new_block
 
-    | Lreloadretaddr ->
-      block.body <- (create_instr Reloadretaddr i)::block.body;
-      from_linear i.next layout
+    | Lop(Itailcall_ind label_after) ->
+      let desc = Tailcall(Indirect(label_after)) in
+      add_terminator desc i block;
+      create_blocks i.next block
 
-    | Lentertrap ->
-      block.body <- (create_instr Entertrap  i)::block.body;
-      from_linear i.next layout
-
-    | Ladjust_trap_depth delta_traps ->
-      cons_instr Adjust_trap_depth(delta_traps) i block;
-      from_linear i.next layout
-
-    | Lpushtrap lbl_handler->
-      Int.Set.add lbl_hanlder used_labels;
-      cons_basic_instr Pushtrap(lbl_handler) i block;
-      record_trap_depth_at_label ~label:handler ;
-      let new_trap_depth = trap_depth + 1 in
-      from_linear i.next layout :new_trap_depth
-
-    | Lpoptrap ->
-      cons_basic_instr Poptrap i block;
-      from_linear i.next layout
+    | Lop(Itailcall_imm(func; label_after)) ->
+      let desc = Tailcall(Indirect(label_after)) in
+      add_terminator desc i block;
+      create_blocks i.next block
 
     | Lreturn ->
-      check_terminator i;
-      let desc = { action = Return; successors = [] } in
-      block.terminator <- create_instr desc i;
-      from_linear i.next layout
+      add_terminator Return(kind) i block;
+      create_blocks i.next block
+
+    | Lraise(kind) ->
+      add_terminator Raise(kind) i block;
+      create_blocks i.next block
 
     | Lbranch lbl ->
-      check_terminator i;
-      let desc = { action = Nothing; [(Always,lbl)] } in
-      block.terminator <- create_instr desc i;
-      from_linear i.next layout
+      let successors = [(Always,lbl)] in
+      add_terminator Branch(successors) i block;
+      create_blocks i.next block
 
     | Lcondbranch(cond,lbl) ->
-      let desc = { action = Nothing; [(Always,lbl)] } in
-      block.terminator <- create_instr desc i;
-      from_linear i.next layout
+      let fallthrough = get_label (i.next) in
+      let successors = [(cond,lbl); (invert_test cond,fallthrough)] in
+      add_terminator Branch(successors) i block;
+      create_blocks i.next block
 
-    | Lcondbranch3 of
-        label option * label option * label option
+    | Lcondbranch3(lbl0,lbl1,lbl2) ->
+      let fallthrough = get_label (i.next) in
+      let get_label_all_fallthrough label fallthrough =
+        match label with
+        | None -> fallthrough
+        | Some lbl ->  lbl
+      in
+      let s0 = (Iinttest_imm(Iunsigned Clt, 1), get_dest lbl0) in
+      let s1 = (Iinttest_imm(Iunsigned Ceq, 1), get_dest lbl1) in
+      let s2 = (Iinttest_imm(Isigned   Cgt, 1), get_dest lbl2) in
+      add_terminator Branch([s0;s1;s2]) i block;
+      create_blocks i.next block
 
-    | Lswitch label array ->
-      Array.fold_left (fun state label ->
-        record_trap_depth_at_label ~state ~insn ~label)
-        state
-        labels
+    | Lswitch labels ->
+      let successors =
+        Array.mapi
+          (fun i label ->
+             (Iinttest(Iunsigned Ceq, i), get_dest lbl1))
+          labels in
+      add_terminator Branch(Array.to_list successors) i block;
+      create_blocks i.next block
 
-    | Lraise(raise_kind) ->
-
-
-let reset () =
-  Hashtbl.reset blocks;
-  Hashtbl.reset trap_depths;
-  Int.Set.reset used_labels;
-  ()
+    | _ ->
+      add_instr (to_basic i.desc) i body;
+      create_blocks i.next block
 
 let from_linear i =
-  blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t)
-
+  trap_depths = Linear_invariants.compute_trap_depths i;
+  blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
+  Int.Set.reset used_labels;
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
      An alternative is to create a new type for label here,
@@ -223,27 +267,21 @@ let from_linear i =
   let func_start_lbl = 0 in
   let entry_block = create_empty_block func_start_lbl in
   mark_used_label func_start_lbl;
-  let layout = ref [ entry_block ] in
-  from_linear_block i layout;
-  layout := List.rev !layout;
-
+  create_blocks i entry_block;
   (* check that all labels are used. *)
   let unused_labels = Int.Set.diff (Hashtble.keys blocks) used_labels in
   if not (Int.Set.is_empty unused_labels) then begin
-    (* CR gyorsh: remove unused labels and unreachable blocks transitively. *)
+    (* CR gyorsh: add a separate pass remove unused labels
+       and unreachable blocks transitively. *)
     Misc.fatal_error("Found "^
                      Int.Set.cardinal unusued_labels
                      ^" unused labels in function " ^ f.func_name)
   end;
-  { blocks; layout; }
+  { blocks; trap_depths; }
 
 let to_linear_block { blocks; layout } =
-  Lend
+  { Lend }
 
 let to_linear layout =
   List.fold_left to_linear_block Linear.end_insr layout
 
-(* CR gyorsh: some parameters to determine new order *)
-let reorder { blocks; layout }  =
-  let new_layout =
-  { blocks; layout }
