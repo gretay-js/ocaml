@@ -31,7 +31,14 @@ let fundecl f =
     let old_layout = Layout.from_linear f.fun_body in
     let new_layout = Layout.reorder old_layout in
     let new_body = Cfg.to_linear cfg new_layout in
-    assert (f.fun_body = new_body);
+    if f.fun_body <> new_body then begin
+      Misc.fatal_errorf "Conversion from linear to cfg and back to linear \
+                         is not an indentity function.\n\
+                         \nBefore:@;%a\
+                         \nAfter:@;%a"
+      Printlinear.fundecl f
+      Printlinear.fundecl {f with fun_body = new_body};
+    end;
     {f with fun_body = new_body}
   end
   else

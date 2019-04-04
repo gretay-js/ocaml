@@ -49,6 +49,7 @@ type block = {
   start : label;
   mutable body : basic instruction list;
   mutable terminator : terminator instruction;
+  mutable predecessors : label list;
 }
 
 and 'a instruction = {
@@ -94,13 +95,19 @@ type t = {
   used_labels : (label, unit) Hashtbl.t;        (* Set of used labels *)
 }
 
+let no_label = (-1)
+type labelled_insn =
+  { label : label;
+    insn : Linearize.instruction;
+  }
+
 let create_empty_instruction desc =
   { desc;
     arg = [||]; res = [||]; dbg = Debuginfo.none; live = Reg.Set.empty; }
 
 let create_empty_block t start =
   let terminator = create_empty_instruction (Branch []) in
-  let block = { start; body = []; terminator; } in
+  let block = { start; body = []; terminator; predecessors = [] } in
   if Hashtbl.mem t.blocks start then
     Misc.fatal_error("Cannot create block, label exists: " ^
                      (string_of_int start));
@@ -108,8 +115,11 @@ let create_empty_block t start =
 
 let register t block =
   if Hashtbl.mem t.blocks block.start then
-    Misc.fatal_error("Cannot create block, label exists: "
-                     ^ (string_of_int block.start));
+    Misc.fatal_error("Cannot register block, label exists: "
+                     ^ (string_of_int block.start))
+  else
+    Printf.printf "registering block %d\n" block.start
+  ;
   (* Body is constructed in reverse, fix it now: *)
   block.body <- List.rev block.body;
   Hashtbl.add t.blocks block.start block
@@ -123,12 +133,24 @@ let create_instr desc (i:Linearize.instruction) =
     live = i.live;
   }
 
-let add_terminator t desc i block =
-  (* Ensure that terminator [i] is followed by a label to start a new block. *)
-  begin match i.next.desc with
-  | Lend | Llabel _ -> ()
+let get_or_make_label (i : Linearize.instruction) =
+  match i.desc with
+  | Llabel label -> { label; insn = i; }
+  | Lbranch _ -> Misc.fatal_error("Unexpected branch instead of label")
+  | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
+  | _ -> let label = Cmm.new_label () in
+    { label;
+      insn = Linearize.instr_cons (Llabel label) [||] [||] i;
+    }
+
+(* Is [i] an existing label? *)
+let has_label (i : Linearize.instruction) =
+  begin match i.desc with
+  | Lend | Llabel _ -> true
   | _ -> Misc.fatal_error("Unexpected instruction after terminator")
-  end;
+  end
+
+let add_terminator t desc i block =
   block.terminator <- create_instr desc i;
   register t block
 
@@ -148,18 +170,11 @@ let check_used_labels t =
       t.blocks
       []
   in
-  if unused_labels = [] then
+  if unused_labels <> [] then
     (* CR gyorsh: add a separate pass remove unused labels
        and unreachable blocks transitively. *)
     Misc.fatal_error("Found " ^ string_of_int (List.length unused_labels)
                      ^ " unused labels")
-
-let get_label (i : Linearize.instruction) =
-  match i.desc with
-  | Llabel lbl -> lbl
-  | Lbranch _ -> Misc.fatal_error("Unexpected branch instead of label")
-  | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
-  | _ -> Misc.fatal_error("Unexpected instruction instead of label")
 
 let from_basic = function
   | Reloadretaddr -> Lreloadretaddr
@@ -205,15 +220,18 @@ let from_basic = function
 let rec create_blocks t (i : Linearize.instruction) block =
     match i.desc with
     | Lend ->
-      (* End of the function. Last block's successor is a self-loop successor. *)
-      (* CR gyorsh: is there always another terminator before Lend? *)
-      register t block
+      (* End of the function. Make sure the previous block is registered. *)
+      if not (Hashtbl.mem t.blocks block.start) then
+        Misc.fatal_errorf
+          "End of function without terminator for block %d\n"
+          block.start
     | Llabel start ->
       (* Add the previos block, if it did not have an explicit terminator. *)
       if not (Hashtbl.mem t.blocks block.start) then begin
         (* Previous block falls through. Add start as explicit successor. *)
         let fallthrough = Branch [(Always,start)] in
         block.terminator <- create_empty_instruction fallthrough;
+        mark_used_label t start;
         register t block
       end;
       (* Start a new block *)
@@ -223,49 +241,61 @@ let rec create_blocks t (i : Linearize.instruction) block =
     | Lop(Itailcall_ind {label_after}) ->
       let desc = Tailcall(Indirect {label_after}) in
       add_terminator t desc i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lop(Itailcall_imm {func; label_after}) ->
       let desc = Tailcall(Immediate{func;label_after}) in
       add_terminator t desc i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lreturn ->
       add_terminator t Return i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lraise(kind) ->
       add_terminator t (Raise kind) i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lbranch lbl ->
       let successors = [(Always,lbl)] in
+      mark_used_label t lbl;
       add_terminator t (Branch successors) i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lcondbranch(cond,lbl) ->
-      let fallthrough = get_label i.next in
+      let fallthrough = get_or_make_label i.next in
       let successors = [(Test cond,lbl);
-                        (Test (invert_test cond),fallthrough)] in
+                        (Test (invert_test cond),fallthrough.label)] in
       add_terminator t (Branch successors) i block;
-      create_blocks t i.next block
+      mark_used_label t lbl;
+      mark_used_label t fallthrough.label;
+      create_blocks t fallthrough.insn block
 
     | Lcondbranch3(lbl0,lbl1,lbl2) ->
-      let fallthrough = get_label i.next in
+      let fallthrough = get_or_make_label i.next in
       let get_dest label =
-        match label with
-        | None -> fallthrough
-        | Some lbl ->  lbl
+        let res = match label with
+          | None -> fallthrough.label
+          | Some lbl -> lbl
+        in
+        mark_used_label t res;
+        res
       in
       let s0 = (Test(Iinttest_imm(Iunsigned Clt, 1)), get_dest lbl0) in
       let s1 = (Test(Iinttest_imm(Iunsigned Ceq, 1)), get_dest lbl1) in
       let s2 = (Test(Iinttest_imm(Isigned   Cgt, 1)), get_dest lbl2) in
       add_terminator t (Branch [s0;s1;s2]) i block;
-      create_blocks t i.next block
+      create_blocks t fallthrough.insn block
 
     | Lswitch labels ->
       Array.iter (mark_used_label t) labels;
       add_terminator t (Switch labels) i block;
+      assert (has_label i.next);
       create_blocks t i.next block
 
     | d ->
@@ -360,12 +390,6 @@ let to_linear_instr ~i desc next =
 let basic_to_linear i next =
   let desc = from_basic i.desc in
   to_linear_instr desc next ~i
-
-let no_label = (-1)
-type linearize_result =
-  { label : label;
-    insn : Linearize.instruction;
-  }
 
 let linearize_terminator terminator next =
   let desc_list =
