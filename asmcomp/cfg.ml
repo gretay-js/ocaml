@@ -317,35 +317,94 @@ let from_linear i =
   end;
   { blocks; trap_depths; }
 
-let instr_cons d a r n =
-  { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty }
+(* Set desc and next from inputs and the rest is empty *)
+let make_simple_linear desk next =
+  { desc; next;
+    arg = [||]; res = [||]; dbg = Debuginfo.none; live = Reg.Set.empty }
 
-let linearize_terminator terminator next =
-  let desc =
-    match terminator.desc with
-    | Branch successors ->
-    | Return -> Lreturn
-    | Raise kind -> Lraise kind
-    | Tailcall call -> Lop(Itailcall ..)
-  in to_linear_instr desc next i
-
-let to_linear_instr desc next i =
-  { desc; next; arg = i.arg; res = i.res;
-    dbg = i.dbg; live = i.live }
+(* Set desc and next from inputs and copy the rest from i *)
+let to_linear_instr ~i desc next =
+  { desc; next;
+    arg = i.arg; res = i.res; dbg = i.dbg; live = i.live }
 
 let basic_to_linear i next =
   let desc = from_basic i.desc in
-  to_linear_instr desc next i
+  to_linear_instr desc next ~i
 
-(* Cons a simple instruction (arg, res, live empty) *)
-let make_simple_linear d n =
-  { desc = d; next = n; arg = [||]; res = [||];
-    dbg = Debuginfo.none; live = Reg.Set.empty }
+let linearize_terminator terminator next =
+  let desc_list =
+    match terminator.desc with
+    | Return -> [Lreturn]
+    | Raise kind -> [Lraise kind]
+    | Tailcall(Indirect {label_after}) ->
+      [Lop(Itailcall_ind(label_after))]
+    | Tailcall(Immediate {func;label_after}) ->
+      [Lop(Itailcall_imm(func,label_after))]
+    | Branch successors ->
+      match successors with
+      | [] -> Misc.fatal_error ("Branch without successors");
+      | [(Always,label)] ->
+        if next.label = label then []
+        else [Lbranch(lbl)]
+      | [(cond_p,label_p); (cond_q,label_q)] ->
+        if cond_p <> invert_test cond_q then
+          Misc.fatal_error ("Illegal successors")
+        else if label_p = next.label && label_q = next.label then
+          []
+        else if label_p <> next.label && label_q <> next.label then
+          (* CR gyorsh: if both label are not fall through, then arrangement
+             should depend on the relative position of the target labels
+             and the current block: whether the jumps are forward or back.
+             This information can be obtained from layout but it needs
+             to be made accessible here.
+          *)
+          [Lcondbranch(cond_p,label_p); Lbranch_cond(cond_q,label_q)]
+        else if label_p = next.label then
+          [Lcondbranch(cond_q,label_q)]
+        else if label_q = next.label then
+          [Lcondbranch(cond_p,label_p)]
+        else assert false
+      | [(Iinttest_imm(Iunsigned Clt, 1),label0);
+         (Iinttest_imm(Iunsigned Ceq, 1),label1);
+         (Iinttest_imm(Isigned   Cgt, 1),label2)] ->
+        let find_label l =
+          if next.label = l then None
+          else Some l
+        in
+        [Lcondbranch3(find_label label0,
+                      find_label label1,
+                      find_label label2)]
+      | _ ->
+        (* It is more general than strictly necessary for reordering. *)
+        exception Not_switch
+        try
+        let check_switch_case (cond, _) i
+              match cond with
+              | Iinttest(Iunsigned Ceq, i) -> i + 1
+              | _ -> raise Notswitch
+        in
+        List.fold_left check_switch_case 0 successors;
+        let (_, successor_labels) = List.split successors
+        [Lswitch(Array.of_list successor_labels)]
+        with Not_switch ->
+          let create_branch (cond, label) tail =
+            if (label = next.label) then tail
+            else Lcondbranch(cond,label)::tail
+          in
+          List.fold_right create_branch successors []
+  in
+  List.fold_right (to_linear_instr ~terminator) desc_list next.insn
+
+let no_label = (-1)
+
+type lin_record =
+  { label : label;
+    insn = Linearize.instruction;
+  }
 
 let rec linearize t layout =
   match layout with
-  | [] -> -1, end_instr
+  | [] -> no_label, end_instr
   | label::tail ->
     let next = linearize t tail in
     let block = Hashtbl.find t.blocks label in
