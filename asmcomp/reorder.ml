@@ -21,4 +21,3 @@ let fundecl f =
   end
   else
     f
-
