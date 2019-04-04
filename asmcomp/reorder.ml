@@ -4,12 +4,13 @@
 
 open Linearize
 
-module Layout  = sig
-  type t = label list
-  val from_linear : Linear.instruction -> t
-  val reorder : t -> t
-end
-struct
+(* module Layout : sig
+ *   type t = label list
+ *   val from_linear : Linear.instruction -> t
+ *   val reorder : t -> t
+ * end *)
+
+module Layout = struct
   type t = label list
 
   let rec from_linear i =
@@ -29,6 +30,7 @@ let fundecl f =
     let old_layout = Layout.from_linear f.fun_body in
     let new_layout = Layout.reorder old_layout in
     let new_body = CFG.to_linear cfg new_layout in
+    assert f.fun_body = new_body;
     {f with fun_body = new_body.i}
   end
   else

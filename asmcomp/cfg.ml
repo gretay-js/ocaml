@@ -12,9 +12,10 @@ type call_operation =
   | External of { func : string; alloc : bool; label_after : label; }
   | Alloc of { words : int; label_after_call_gc : label option;
                spacetime_index : int; }
-  | Checkbounds of int option *
-                   { label_after_error : label option;
-                     spacetime_index : int; }
+  | Checkbounds of {
+      immediate : int option;
+      label_after_error : label option;
+      spacetime_index : int; }
 
 type operation =
   | Move
@@ -186,7 +187,7 @@ let from_basic = function
   | Adjust_trap_depth delta_traps -> Ladjust_trap_depth delta_traps
   | Pushtrap lbl_handler -> Lpushtrap lbl_handler
   | Poptrap -> Lpoptrap
-  | Call(Indirect label_after) -> Lop(Icall_ind label_after))
+  | Call(Indirect label_after) -> Lop(Icall_ind { label_after })
   | Call(Immediate {func;label_after}) -> Lop(Icall_imm {func; label_after})
   | Call(External {func; alloc; label_after}) -> Lop(Iextcall {func; alloc; label_after})
   | Call(Checkbounds(None, {label_after_error; spacetime_index})) ->
@@ -217,7 +218,7 @@ let from_basic = function
       | Floatofint -> Ifloatofint
       | Intoffloat -> Iintoffloat
       | Specific op -> Ispecific op
-      | Name_for_debugger of r -> Iname_for_debugger
+      | Name_for_debugger r -> Iname_for_debugger r
     in
     Lop(iop)
 
@@ -239,12 +240,12 @@ let rec create_blocks t i block =
       let new_block = create_empty_block start in
       create_blocks t i.next new_block
 
-    | Lop(Itailcall_ind label_after) ->
+    | Lop(Itailcall_ind {label_after}) ->
       let desc = Tailcall(Indirect(label_after)) in
       add_terminator t desc i block;
       create_blocks t i.next block
 
-    | Lop(Itailcall_imm(func; label_after)) ->
+    | Lop(Itailcall_imm {func; label_after}) ->
       let desc = Tailcall(Indirect(label_after)) in
       add_terminator t desc i block;
       create_blocks t i.next block
@@ -296,7 +297,7 @@ let rec create_blocks t i block =
 
 let from_linear i =
   trap_depths = Linear_invariants.compute_trap_depths i;
-  blocks = Hashtbl.create 31 : (label, block) Hashtbl.t);
+  blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
   Int.Set.reset used_labels;
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
@@ -330,6 +331,18 @@ let to_linear_instr ~i desc next =
 let basic_to_linear i next =
   let desc = from_basic i.desc in
   to_linear_instr desc next ~i
+
+exception Not_switch of unit
+let is_switch successors =
+  try
+    let check_switch_case (cond, _) i =
+          match cond with
+          | Iinttest(Iunsigned Ceq, i) -> i + 1
+          | _ -> raise Notswitch
+    in
+    List.fold_left check_switch_case 0 successors;
+    true
+  with Not_switch -> false
 
 let linearize_terminator terminator next =
   let desc_list =
@@ -375,18 +388,12 @@ let linearize_terminator terminator next =
                       find_label label1,
                       find_label label2)]
       | _ ->
-        (* It is more general than strictly necessary for reordering. *)
-        exception Not_switch
-        try
-        let check_switch_case (cond, _) i
-              match cond with
-              | Iinttest(Iunsigned Ceq, i) -> i + 1
-              | _ -> raise Notswitch
-        in
-        List.fold_left check_switch_case 0 successors;
-        let (_, successor_labels) = List.split successors
-        [Lswitch(Array.of_list successor_labels)]
-        with Not_switch ->
+        (* It is more general than strictly necessary for reordering,
+           where it must be a switch. *)
+        if is_switch successors then
+          let (_, successor_labels) = List.split successors in
+          [Lswitch(Array.of_list successor_labels)]
+        else
           let create_branch (cond, label) tail =
             if (label = next.label) then tail
             else Lcondbranch(cond,label)::tail
@@ -399,7 +406,7 @@ let no_label = (-1)
 
 type lin_record =
   { label : label;
-    insn = Linearize.instruction;
+    insn : Linearize.instruction;
   }
 
 let rec linearize t layout =

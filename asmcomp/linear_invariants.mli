@@ -18,4 +18,4 @@
 
 val check : Linearize.fundecl -> Linearize.fundecl
 
-val compute_trap_depths : Linearize.funcdecl -> (Linear.label, int) Map.t;
+val compute_trap_depths : Linearize.fundecl -> int Numbers.Int.Map.t
