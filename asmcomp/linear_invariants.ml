@@ -104,16 +104,15 @@ let rec check_instructions (insn : Linearize.instruction) ~state =
   else
     state
 
-let compute_trap_depths (fundecl : Linearize.fundecl) =
+let compute_trap_depths i =
   let state =
     { trap_depth = 0;
       trap_depth_at_labels = LabelMap.empty;
     }
   in
-  let state = check_instructions fundecl.fun_body ~state in
+  let state = check_instructions i ~state in
   state.trap_depth_at_labels
 
-
 let check (fundecl : Linearize.fundecl) =
-  ignore (compute_trap_depths fundecl);
+  ignore (compute_trap_depths fundecl.fun_body);
   fundecl

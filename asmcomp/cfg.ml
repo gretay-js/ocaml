@@ -1,14 +1,14 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 open Linearize
 
-module Int = Numbers.Int
-
 type label = Linearize.label
 
 (* CR gyorsh: update label after? *)
-type call_operation =
+type func_call_operation =
   | Indirect of { label_after : label; }
   | Immediate of { func : string; label_after : label; }
+
+type prim_call_operation =
   | External of { func : string; alloc : bool; label_after : label; }
   | Alloc of { words : int; label_after_call_gc : label option;
                spacetime_index : int; }
@@ -16,6 +16,10 @@ type call_operation =
       immediate : int option;
       label_after_error : label option;
       spacetime_index : int; }
+
+type call_operation =
+  | P of prim_call_operation
+  | F of func_call_operation
 
 type operation =
   | Move
@@ -69,14 +73,19 @@ and terminator =
   | Switch of label array
   | Return
   | Raise of Cmm.raise_kind
-  | Tailcall of call_operation
+  | Tailcall of func_call_operation
 
-let successors block =
+let _successors block =
   match block.terminator.desc with
   | Branch successors -> successors
   | Return -> []
   | Raise _ -> []
-  | Tailcall(op) -> []
+  | Tailcall _ -> []
+  | Switch labels ->
+    Array.mapi (fun i label ->
+      (Test(Iinttest_imm(Iunsigned Ceq, i)), label))
+      labels
+    |> Array.to_list
 
 
 type t = {
@@ -148,7 +157,7 @@ let check_used_labels t =
 let get_label (i : Linearize.instruction) =
   match i.desc with
   | Llabel lbl -> lbl
-  | Lbranch lbl -> Misc.fatal_error("Unexpected branch instead of label")
+  | Lbranch _ -> Misc.fatal_error("Unexpected branch instead of label")
   | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
   | _ -> Misc.fatal_error("Unexpected instruction instead of label")
 
@@ -158,15 +167,15 @@ let from_basic = function
   | Adjust_trap_depth { delta_traps } -> Ladjust_trap_depth { delta_traps }
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
-  | Call(Indirect {label_after}) -> Lop(Icall_ind {label_after})
-  | Call(Immediate {func;label_after}) -> Lop(Icall_imm {func; label_after})
-  | Call(External {func; alloc; label_after}) ->
+  | Call(F(Indirect {label_after})) -> Lop(Icall_ind {label_after})
+  | Call(F(Immediate {func;label_after})) -> Lop(Icall_imm {func; label_after})
+  | Call(P(External {func; alloc; label_after})) ->
     Lop(Iextcall {func; alloc; label_after})
-  | Call(Checkbound({immediate=None; label_after_error; spacetime_index})) ->
+  | Call(P(Checkbound({immediate=None; label_after_error; spacetime_index}))) ->
     Lop(Iintop(Icheckbound {label_after_error; spacetime_index}))
-  | Call(Checkbound({immediate = Some i;label_after_error;spacetime_index})) ->
+  | Call(P(Checkbound({immediate = Some i;label_after_error;spacetime_index}))) ->
     Lop(Iintop_imm(Icheckbound {label_after_error; spacetime_index},i))
-  | Call(Alloc {words;label_after_call_gc;spacetime_index}) ->
+  | Call(P(Alloc {words;label_after_call_gc;spacetime_index})) ->
     Lop(Ialloc {words;label_after_call_gc;spacetime_index})
   | Op(op) ->
     match op with
@@ -255,12 +264,8 @@ let rec create_blocks t (i : Linearize.instruction) block =
       create_blocks t i.next block
 
     | Lswitch labels ->
-      let successors =
-        Array.mapi
-          (fun i label ->
-             (Test(Iinttest_imm(Iunsigned Ceq, i)), label))
-          labels in
-      add_terminator t (Branch (Array.to_list successors)) i block;
+      Array.iter (mark_used_label t) labels;
+      add_terminator t (Switch labels) i block;
       create_blocks t i.next block
 
     | d ->
@@ -273,24 +278,26 @@ let rec create_blocks t (i : Linearize.instruction) block =
           Pushtrap { lbl_handler }
         | Lpoptrap -> Poptrap
         | Lop(op) -> begin match op with
-          | Icall_ind { label_after} -> Call(Indirect {label_after})
-          | Icall_imm {func; label_after} -> Call(Immediate {func;label_after})
+          | Icall_ind { label_after} -> Call(F(Indirect {label_after}))
+          | Icall_imm {func; label_after} -> Call(F(Immediate {func;label_after}))
           | Iextcall {func; alloc; label_after} ->
-            Call(External {func; alloc; label_after})
+            Call(P(External {func; alloc; label_after}))
           | Iintop(op) -> begin match op with
             | Icheckbound {label_after_error; spacetime_index} ->
-              Call(Checkbound{ immediate = None; label_after_error; spacetime_index})
+              Call(P(Checkbound{ immediate = None;
+                                 label_after_error;
+                                 spacetime_index}))
             | _ -> Op(Intop(op))
           end
           | Iintop_imm(op,i) -> begin match op with
             | Icheckbound {label_after_error; spacetime_index} ->
-              Call(Checkbound ({immediate = Some i;
+              Call(P(Checkbound ({immediate = Some i;
                                 label_after_error;
-                                spacetime_index; }))
+                                spacetime_index; })))
             |_ -> Op(Intop_imm(op, i))
           end
           | Ialloc {words;label_after_call_gc;spacetime_index} ->
-            Call(Alloc {words;label_after_call_gc;spacetime_index})
+            Call(P(Alloc {words;label_after_call_gc;spacetime_index}))
           | Istackoffset i -> Op(Stackoffset i)
           | Iload(c,a) -> Op(Load(c,a))
           | Istore(c,a,b)-> Op(Store(c,a,b))
@@ -327,8 +334,8 @@ let make_empty_cfg i =
   let used_labels = (Hashtbl.create 17 : (label, unit) Hashtbl.t) in
   { trap_depths; blocks; used_labels; }
 
-let from_linear f =
-  let t = make_empty_cfg f in
+let from_linear i =
+  let t = make_empty_cfg i in
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
      An alternative is to create a new type for label here,
@@ -336,7 +343,7 @@ let from_linear f =
   let func_start_lbl = 0 in
   let entry_block = create_empty_block t func_start_lbl in
   mark_used_label t func_start_lbl;
-  create_blocks t f.fun_body entry_block;
+  create_blocks t i entry_block;
   check_used_labels t;
   t
 
@@ -354,18 +361,7 @@ let basic_to_linear i next =
   let desc = from_basic i.desc in
   to_linear_instr desc next ~i
 
-exception Not_switch
-let is_switch successors =
-  try
-    let check_switch_case i (cond, _) =
-      match cond with
-      | Test(Iinttest_imm(Iunsigned Ceq, i)) -> i + 1
-      | _ -> raise Not_switch
-    in
-    ignore (List.fold_left check_switch_case 0 successors);
-    true
-  with Not_switch -> false
-
+let no_label = (-1)
 type linearize_result =
   { label : label;
     insn : Linearize.instruction;
@@ -380,13 +376,14 @@ let linearize_terminator terminator next =
       [Lop(Itailcall_ind {label_after})]
     | Tailcall(Immediate {func;label_after}) ->
       [Lop(Itailcall_imm {func;label_after})]
+    | Switch labels -> [Lswitch labels]
     | Branch successors ->
       match successors with
       | [] -> Misc.fatal_error ("Branch without successors")
       | [(Always,label)] ->
         if next.label = label then []
         else [Lbranch(label)]
-      | [(Test c, label)] -> Misc.fatal_error ("Successors not exhastive");
+      | [(Test _, _)] -> Misc.fatal_error ("Successors not exhastive");
       | [(Test cond_p,label_p); (Test cond_q,label_q)] ->
         if cond_p <> invert_test cond_q then
           Misc.fatal_error ("Illegal successors")
@@ -399,7 +396,7 @@ let linearize_terminator terminator next =
              This information can be obtained from layout but it needs
              to be made accessible here.
           *)
-          [Lcondbranch(cond_p,label_p); Lbranch_cond(cond_q,label_q)]
+          [Lcondbranch(cond_p,label_p); Lcondbranch(cond_q,label_q)]
         else if label_p = next.label then
           [Lcondbranch(cond_q,label_q)]
         else if label_q = next.label then
@@ -415,34 +412,21 @@ let linearize_terminator terminator next =
         [Lcondbranch3(find_label label0,
                       find_label label1,
                       find_label label2)]
-      | _ ->
-        (* It is more general than strictly necessary for reordering,
-           where it must be a switch. *)
-        if is_switch successors then
-          let (_, successor_labels) = List.split successors in
-          [Lswitch(Array.of_list successor_labels)]
-        else
-          let create_branch (cond, label) tail =
-            if (label = next.label) then tail
-            else Lcondbranch(cond,label)::tail
-          in
-          List.fold_right create_branch successors []
+      | _ -> assert (false)
   in
-  List.fold_right (to_linear_instr ~terminator) desc_list next.insn
-
-let no_label = (-1)
+  List.fold_right (to_linear_instr ~i:terminator) desc_list next.insn
 
 let rec linearize t layout =
   match layout with
-  | [] -> no_label, end_instr
+  | [] -> { label = no_label; insn = end_instr; }
   | label::tail ->
     let next = linearize t tail in
     let block = Hashtbl.find t.blocks label in
     let terminator = linearize_terminator block.terminator next  in
     let body = List.fold_right basic_to_linear block.body terminator in
-    let insn = make_simple_linear (Label label) body in
+    let insn = make_simple_linear (Llabel label) body in
     { label; insn }
 
-let linearize t layout =
+let to_linear t layout =
   let lin = linearize t layout in
   lin.insn
