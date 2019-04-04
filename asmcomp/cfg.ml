@@ -3,6 +3,13 @@ open Linearize
 
 type label = Linearize.label
 
+module Layout = struct
+  type t = label list
+
+  (* CR gyorsh: missing cfg and parameters to determine new order *)
+  let reorder t = t
+end
+
 (* CR gyorsh: update label after? *)
 type func_call_operation =
   | Indirect of { label_after : label; }
@@ -49,7 +56,7 @@ type block = {
   start : label;
   mutable body : basic instruction list;
   mutable terminator : terminator instruction;
-  mutable predecessors : label list;
+  mutable predecessors : label Set.t;
 }
 
 and 'a instruction = {
@@ -76,7 +83,7 @@ and terminator =
   | Raise of Cmm.raise_kind
   | Tailcall of func_call_operation
 
-let _successors block =
+let successors block =
   match block.terminator.desc with
   | Branch successors -> successors
   | Return -> []
@@ -93,6 +100,7 @@ type t = {
   blocks : (label, block) Hashtbl.t;            (* Map labels to blocks *)
   trap_depths : int Linear_invariants.LabelMap.t;(* Map labels to trap depths *)
   used_labels : (label, unit) Hashtbl.t;        (* Set of used labels *)
+  mutable layout : Layout.t;                    (* Linear order of blocks *)
 }
 
 let no_label = (-1)
@@ -107,22 +115,30 @@ let create_empty_instruction desc =
 
 let create_empty_block t start =
   let terminator = create_empty_instruction (Branch []) in
-  let block = { start; body = []; terminator; predecessors = [] } in
+  let block = { start; body = []; terminator; predecessors = Set.empty } in
   if Hashtbl.mem t.blocks start then
     Misc.fatal_error("Cannot create block, label exists: " ^
                      (string_of_int start));
+  t.layout <- start::t.layout;
   block
 
 let register t block =
   if Hashtbl.mem t.blocks block.start then
     Misc.fatal_error("Cannot register block, label exists: "
-                     ^ (string_of_int block.start))
-  else
-    Printf.printf "registering block %d\n" block.start
-  ;
+                     ^ (string_of_int block.start));
+  (* Printf.printf "registering block %d\n" block.start *)
   (* Body is constructed in reverse, fix it now: *)
   block.body <- List.rev block.body;
   Hashtbl.add t.blocks block.start block
+
+let register_predecessors t =
+  Hashtbl.iter (fun label _ ->
+    let (_,targets) = List.split (successors block.terminator) in
+    List.iter (fun target ->
+      let target_block = Hashtbl.find target t.blocks in
+      target_block.predecessors <- Set.add target_block.predecessors target)
+      targets
+  ) t.blocks
 
 let create_instr desc (i:Linearize.instruction) =
   {
@@ -188,7 +204,9 @@ let from_basic = function
     Lop(Iextcall {func; alloc; label_after})
   | Call(P(Checkbound({immediate=None; label_after_error; spacetime_index}))) ->
     Lop(Iintop(Icheckbound {label_after_error; spacetime_index}))
-  | Call(P(Checkbound({immediate = Some i;label_after_error;spacetime_index}))) ->
+  | Call(P(Checkbound({immediate = Some i;
+                       label_after_error;
+                       spacetime_index}))) ->
     Lop(Iintop_imm(Icheckbound {label_after_error; spacetime_index},i))
   | Call(P(Alloc {words;label_after_call_gc;spacetime_index})) ->
     Lop(Ialloc {words;label_after_call_gc;spacetime_index})
@@ -230,8 +248,8 @@ let rec create_blocks t (i : Linearize.instruction) block =
       if not (Hashtbl.mem t.blocks block.start) then begin
         (* Previous block falls through. Add start as explicit successor. *)
         let fallthrough = Branch [(Always,start)] in
-        block.terminator <- create_empty_instruction fallthrough;
         mark_used_label t start;
+        block.terminator <- create_empty_instruction fallthrough;
         register t block
       end;
       (* Start a new block *)
@@ -240,31 +258,31 @@ let rec create_blocks t (i : Linearize.instruction) block =
 
     | Lop(Itailcall_ind {label_after}) ->
       let desc = Tailcall(Indirect {label_after}) in
-      add_terminator t desc i block;
       assert (has_label i.next);
+      add_terminator t desc i block;
       create_blocks t i.next block
 
     | Lop(Itailcall_imm {func; label_after}) ->
       let desc = Tailcall(Immediate{func;label_after}) in
-      add_terminator t desc i block;
       assert (has_label i.next);
+      add_terminator t desc i block;
       create_blocks t i.next block
 
     | Lreturn ->
-      add_terminator t Return i block;
       assert (has_label i.next);
+      add_terminator t Return i block;
       create_blocks t i.next block
 
     | Lraise(kind) ->
-      add_terminator t (Raise kind) i block;
       assert (has_label i.next);
+      add_terminator t (Raise kind) i block;
       create_blocks t i.next block
 
     | Lbranch lbl ->
       let successors = [(Always,lbl)] in
+      assert (has_label i.next);
       mark_used_label t lbl;
       add_terminator t (Branch successors) i block;
-      assert (has_label i.next);
       create_blocks t i.next block
 
     | Lcondbranch(cond,lbl) ->
@@ -302,14 +320,16 @@ let rec create_blocks t (i : Linearize.instruction) block =
       let desc = begin match d with
         | Lreloadretaddr -> Reloadretaddr
         | Lentertrap -> Entertrap
-        | Ladjust_trap_depth { delta_traps } -> Adjust_trap_depth { delta_traps }
+        | Ladjust_trap_depth { delta_traps } ->
+          Adjust_trap_depth { delta_traps }
         | Lpushtrap { lbl_handler } ->
           mark_used_label t lbl_handler;
           Pushtrap { lbl_handler }
         | Lpoptrap -> Poptrap
         | Lop(op) -> begin match op with
           | Icall_ind { label_after} -> Call(F(Indirect {label_after}))
-          | Icall_imm {func; label_after} -> Call(F(Immediate {func;label_after}))
+          | Icall_imm {func; label_after} ->
+            Call(F(Immediate {func;label_after}))
           | Iextcall {func; alloc; label_after} ->
             Call(P(External {func; alloc; label_after}))
           | Iintop(op) -> begin match op with
@@ -346,8 +366,14 @@ let rec create_blocks t (i : Linearize.instruction) block =
           | Ifloatofint -> Op(Floatofint)
           | Iintoffloat -> Op(Intoffloat)
           | Ispecific op -> Op(Specific op)
-          | Iname_for_debugger {ident;which_parameter;provenance;is_assignment;} ->
-            Op(Name_for_debugger {ident;which_parameter;provenance;is_assignment;})
+          | Iname_for_debugger {ident;
+                                which_parameter;
+                                provenance;
+                                is_assignment;} ->
+            Op(Name_for_debugger {ident;
+                                  which_parameter;
+                                  provenance;
+                                  is_assignment;})
           | Itailcall_ind _ | Itailcall_imm _ -> assert (false)
         end
         | Lend| Lreturn| Llabel _
@@ -362,7 +388,8 @@ let make_empty_cfg i =
   let trap_depths = Linear_invariants.compute_trap_depths i in
   let blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t) in
   let used_labels = (Hashtbl.create 17 : (label, unit) Hashtbl.t) in
-  { trap_depths; blocks; used_labels; }
+  let layout = [] in
+  { trap_depths; blocks; used_labels; layout; }
 
 let from_linear i =
   let t = make_empty_cfg i in
@@ -375,7 +402,14 @@ let from_linear i =
   mark_used_label t func_start_lbl;
   create_blocks t i entry_block;
   check_used_labels t;
-  t
+  (* Register predecessors. The main reason for doing in now rather than
+     earlier, during cfg construction, is that for forward jumps
+     the blocks are not created yet when the predecessors are found.
+     Also, it should be combined with dead block elimination. *)
+  register_predecessors t;
+  (* Layout was constructed in reverse, fix it now: *)
+  t.layout <- List.rev t.layout;
+  (t, t.layout)
 
 (* Set desc and next from inputs and the rest is empty *)
 let make_simple_linear desc next =
@@ -405,7 +439,7 @@ let linearize_terminator terminator next =
       match successors with
       | [] -> Misc.fatal_error ("Branch without successors")
       | [(Always,label)] ->
-        if next.label = label then []
+        if next.label = Some l && l = label then []
         else [Lbranch(label)]
       | [(Test _, _)] -> Misc.fatal_error ("Successors not exhastive");
       | [(Test cond_p,label_p); (Test cond_q,label_q)] ->
@@ -440,17 +474,23 @@ let linearize_terminator terminator next =
   in
   List.fold_right (to_linear_instr ~i:terminator) desc_list next.insn
 
-let rec linearize t layout =
+let rec linearize t layout ~predecessor =
   match layout with
-  | [] -> { label = no_label; insn = end_instr; }
+  | [] -> { label = None; insn = end_instr; }
   | label::tail ->
-    let next = linearize t tail in
+    let next = linearize t tail ~predecessor:(Some label) in
     let block = Hashtbl.find t.blocks label in
     let terminator = linearize_terminator block.terminator next  in
     let body = List.fold_right basic_to_linear block.body terminator in
-    let insn = make_simple_linear (Llabel label) body in
-    { label; insn }
+    let insn =
+      if predecessor = Some p &&
+         block.predecessors = Set.singleton predecessor then
+        body
+      else
+        make_simple_linear (Llabel label) body
+    in
+    { label = Some label; insn }
 
 let to_linear t layout =
-  let lin = linearize t layout in
+  let lin = linearize t layout None in
   lin.insn
