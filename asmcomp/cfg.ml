@@ -66,6 +66,7 @@ and basic =
 
 and terminator =
   | Branch of successor list
+  | Switch of label array
   | Return
   | Raise of Cmm.raise_kind
   | Tailcall of call_operation
@@ -356,14 +357,19 @@ let basic_to_linear i next =
 exception Not_switch
 let is_switch successors =
   try
-    let check_switch_case (cond, _) i =
+    let check_switch_case i (cond, _) =
       match cond with
       | Test(Iinttest_imm(Iunsigned Ceq, i)) -> i + 1
       | _ -> raise Not_switch
     in
-    List.fold_left check_switch_case 0 successors;
+    ignore (List.fold_left check_switch_case 0 successors);
     true
   with Not_switch -> false
+
+type linearize_result =
+  { label : label;
+    insn : Linearize.instruction;
+  }
 
 let linearize_terminator terminator next =
   let desc_list =
@@ -371,16 +377,17 @@ let linearize_terminator terminator next =
     | Return -> [Lreturn]
     | Raise kind -> [Lraise kind]
     | Tailcall(Indirect {label_after}) ->
-      [Lop(Itailcall_ind(label_after))]
+      [Lop(Itailcall_ind {label_after})]
     | Tailcall(Immediate {func;label_after}) ->
-      [Lop(Itailcall_imm(func,label_after))]
+      [Lop(Itailcall_imm {func;label_after})]
     | Branch successors ->
       match successors with
-      | [] -> Misc.fatal_error ("Branch without successors");
+      | [] -> Misc.fatal_error ("Branch without successors")
       | [(Always,label)] ->
         if next.label = label then []
-        else [Lbranch(lbl)]
-      | [(cond_p,label_p); (cond_q,label_q)] ->
+        else [Lbranch(label)]
+      | [(Test c, label)] -> Misc.fatal_error ("Successors not exhastive");
+      | [(Test cond_p,label_p); (Test cond_q,label_q)] ->
         if cond_p <> invert_test cond_q then
           Misc.fatal_error ("Illegal successors")
         else if label_p = next.label && label_q = next.label then
@@ -398,9 +405,9 @@ let linearize_terminator terminator next =
         else if label_q = next.label then
           [Lcondbranch(cond_p,label_p)]
         else assert false
-      | [(Iinttest_imm(Iunsigned Clt, 1),label0);
-         (Iinttest_imm(Iunsigned Ceq, 1),label1);
-         (Iinttest_imm(Isigned   Cgt, 1),label2)] ->
+      | [(Test(Iinttest_imm(Iunsigned Clt, 1)),label0);
+         (Test(Iinttest_imm(Iunsigned Ceq, 1)),label1);
+         (Test(Iinttest_imm(Isigned   Cgt, 1)),label2)] ->
         let find_label l =
           if next.label = l then None
           else Some l
@@ -424,11 +431,6 @@ let linearize_terminator terminator next =
   List.fold_right (to_linear_instr ~terminator) desc_list next.insn
 
 let no_label = (-1)
-
-type lin_record =
-  { label : label;
-    insn : Linearize.instruction;
-  }
 
 let rec linearize t layout =
   match layout with
