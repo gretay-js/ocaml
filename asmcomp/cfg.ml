@@ -95,12 +95,21 @@ let successors block =
       labels
     |> Array.to_list
 
-
+(* Control Flow Graph of a function. *)
 type t = {
-  blocks : (label, block) Hashtbl.t;            (* Map labels to blocks *)
+  blocks : (label, block) Hashtbl.t;             (* Map labels to blocks *)
   trap_depths : int Linear_invariants.LabelMap.t;(* Map labels to trap depths *)
-  used_labels : (label, unit) Hashtbl.t;        (* Set of used labels *)
-  mutable layout : Layout.t;                    (* Linear order of blocks *)
+  used_labels : (label, unit) Hashtbl.t;         (* Set of used labels *)
+  trap_labels : (label, label) Hashtbl.t;
+  (* Maps trap handler block label [L] to the label of the block where the
+     Lpushtrap L reference it. Used for dead block elimination. *)
+  new_labels : (label, label list) Hashtbl.t;
+  (* Maps label [L] to the sequence of labels of blocks
+     that represent block [L] in the cfg. Spares. Only contains information
+     for blocks that were split during cfg construction. Used for mapping
+     information about original blocks (such as exection counts or new layout)
+     to cfg blocks. *)
+  mutable layout : Layout.t;     (* Original layout: linear order of blocks. *)
 }
 
 let no_label = (-1)
@@ -176,6 +185,14 @@ let mark_used_label t lbl =
     Hashtbl.add t.used_labels lbl ()
   end;
   ()
+
+let mark_trap_label t ~lbl_hanlder ~pushtrap_block_lbl =
+  if (Hashtbl.mem t.trap_handlers lbl_handler) then
+    Misc.fatal_errorf "Trap hanlder label already exists: \
+                       Lpushtrap %d from block label %d\n"
+      lbl_handler
+      pushtrap_block_lbl;
+  Hashtbl.add t.trap_handlers lbl pushtrap_block_lbl
 
 (* check that all labels are used. *)
 let check_used_labels t =
@@ -324,6 +341,7 @@ let rec create_blocks t (i : Linearize.instruction) block =
           Adjust_trap_depth { delta_traps }
         | Lpushtrap { lbl_handler } ->
           mark_used_label t lbl_handler;
+          mark_trap_label t lbl_handler;
           Pushtrap { lbl_handler }
         | Lpoptrap -> Poptrap
         | Lop(op) -> begin match op with
@@ -385,11 +403,15 @@ let rec create_blocks t (i : Linearize.instruction) block =
       create_blocks t i.next block
 
 let make_empty_cfg i =
-  let trap_depths = Linear_invariants.compute_trap_depths i in
-  let blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t) in
-  let used_labels = (Hashtbl.create 17 : (label, unit) Hashtbl.t) in
-  let layout = [] in
-  { trap_depths; blocks; used_labels; layout; }
+  {
+    trap_depths = Linear_invariants.compute_trap_depths i;
+    blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
+    used_labels = (Hashtbl.create 17 : (label, unit) Hashtbl.t);
+    trap_labels = (Hashtbl.create 3 : (label, label) Hashtbl.t);
+    new_labels = (Hashtbl.create 7 : (label, layout) Hashtbl.t);
+    entry_label = 0;
+    layout = [];
+  }
 
 let from_linear i =
   let t = make_empty_cfg i in
@@ -397,9 +419,8 @@ let from_linear i =
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
      An alternative is to create a new type for label here,
      but it is less efficient because label is used as a key to Hashtble. *)
-  let func_start_lbl = 0 in
-  let entry_block = create_empty_block t func_start_lbl in
-  mark_used_label t func_start_lbl;
+  let entry_block = create_empty_block t t.entry_label in
+  mark_used_label t t.entry_label;
   create_blocks t i entry_block;
   check_used_labels t;
   (* Register predecessors. The main reason for doing in now rather than
