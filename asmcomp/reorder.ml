@@ -6,7 +6,7 @@ open Linearize
 
 let fundecl f =
   if f.fun_fast then begin
-    let cfg, old_layout = Cfg.from_linear f.fun_body in
+    let cfg, old_layout = Cfg.from_linear f in
     let new_layout = Cfg.Layout.reorder old_layout in
     let new_body = Cfg.to_linear cfg new_layout in
     if f.fun_body <> new_body then begin
@@ -14,8 +14,8 @@ let fundecl f =
                          is not an indentity function.\n\
                          \nBefore:@;%a\
                          \nAfter:@;%a"
-      Printlinear.fundecl f
-      Printlinear.fundecl {f with fun_body = new_body};
+        Printlinear.fundecl f
+        Printlinear.fundecl {f with fun_body = new_body};
     end;
     {f with fun_body = new_body}
   end
