@@ -10,12 +10,6 @@ module Layout = struct
   let reorder t = t
 end
 
-module LabelMap = Map.Make(
-struct
-  type t = label
-  let compare (x:t) y = compare x y
-end)
-
 module LabelSet = Set.Make(
 struct
   type t = label
@@ -118,18 +112,24 @@ type t = {
   fun_name : string;             (* Function name, used for printing messages *)
   entry_label : label;           (* Must be first in all layouts of this cfg. *)
   mutable layout : Layout.t;      (* Original layout: linear order of blocks. *)
-  trap_depths : int LabelMap.t;   (* Map labels to trap depths for linearize. *)
+  mutable new_labels : LabelSet.t;
+  (* Labels added by cfg construction, except entry. Used for split_labels. *)
+
+  split_labels : (label, Layout.t) Hashtbl.t;
+  (* Maps original label [L] to the sequence of labels of blocks
+     that represent block [L] in the cfg. Sparse: only contains information
+     for blocks that were split or eliminated during cfg construction.
+     Used for mapping information about original blocks,
+     such as perf annotations, exection counts or new layout, to cfg blocks. *)
+
+  trap_depths : int Linear_invariants.LabelMap.t;
+  (* Map labels to trap depths for linearize. *)
+
   trap_labels : (label, label) Hashtbl.t;
   (* Maps trap handler block label [L] to the label of the block where the
      Lpushtrap L reference it. Used for dead block elimination.
      This mapping is one to one, but the reverse is not, because
      a block might contain multiple Lpushtrap, which is not a terminator. *)
-  new_labels : (label, Layout.t) Hashtbl.t;
-  (* Maps original label [L] to the sequence of labels of blocks
-     that represent block [L] in the cfg. Sparse: only contains information
-     for blocks that were split during cfg construction. Used for mapping
-     information about original blocks, such as perf annoations,
-     exection counts or new layout, to cfg blocks. *)
 }
 
 let no_label = (-1)
@@ -177,55 +177,77 @@ let register_predecessors t =
 let is_live_trap_handler t label =
   Hashtbl.mem t.trap_labels label
 
-(* Must be called after predecessors are registered. *)
+let register_split_labels t =
+  List.fold_right (fun label new_labels_layout ->
+    if (LabelSet.mem label t.new_labels) then
+      (* Add a new label to accumulated layout *)
+      label::new_labels_layout
+    else begin (* Original label found *)
+      if new_labels_layout <> [] then begin
+        (* The original label was followed by some new ones,
+           which we have gathers in new_labels_layout.
+           Tuck on original label and register the split layout. *)
+        Hashtbl.add t.split_labels label (label::new_labels_layout)
+      end;
+      []
+    end)
+    t.layout
+    []
+  |> ignore
+
+(* Must be called after predecessors are registered
+   and split labels are registered. *)
 exception Dead_block of label * block
 
 let eliminate_dead_blocks t =
 
   let dead_blocks = ref [] in
-  let rec loop () =
+  let eliminate_dead_block label block =
+    dead_blocks := (label,block)::!dead_blocks;
+    Hashtbl.remove t.blocks label;
+    (* Update successor blocks of the dead block *)
+    List.iter (fun target ->
+      let target_block = Hashtbl.find t.blocks target in
+      (* Remove label from predecessors of target. *)
+      target_block.predecessors <- LabelSet.remove
+                                     label
+                                     target_block.predecessors)
+      (successor_labels block);
+    (* Remove from layout and other data-structures that track labels. *)
+    t.layout <- List.filter (fun l -> l = label) t.layout;
+    (* If the dead block contains Lpushtrap, its handler becomes dead.
+       Find all occurrences of label as values of trap_labels
+       and remove them, because is_live_trap_handler depends on it. *)
+    Hashtbl.filter_map_inplace
+      (fun _ lbl_pushtrap_block ->
+         if label = lbl_pushtrap_block then None
+         else Some lbl_pushtrap_block)
+      t.trap_labels;
+
+    (* If dead block's label is not new, add it to split_labels,
+       mapped to the empty layout!
+       Needed for mapping annotations that may refer to dead blocks. *)
+    if not (LabelSet.mem label t.new_labels) then
+      Hashtbl.add t.split_labels label [];
+
+    (* No need to update trap_depths,
+       which is only referenced with live labels. *)
+    (* LabelMap.remove label t.trap_depths; *)
+  in
+  let rec find_dead_block () =
     try
-      let find_dead_block t =
-        Hashtbl.iter (fun label block ->
-          if (LabelSet.is_empty block.predecessors) &&
-             (not (is_live_trap_handler t label)) &&
-             (t.entry_label <> label) then
-            raise (Dead_block (label, block)))
-          t.blocks;
-      in ()
+      Hashtbl.iter (fun label block ->
+        if (LabelSet.is_empty block.predecessors) &&
+           (not (is_live_trap_handler t label)) &&
+           (t.entry_label <> label) then
+          raise (Dead_block (label, block)))
+        t.blocks;
     with Dead_block (label,block) -> begin
-        dead_blocks := (label,block)::!dead_blocks;
-        Hashtbl.remove t.blocks label;
-        (* Update successor blocks of the dead block *)
-        List.iter (fun target ->
-          let target_block = Hashtbl.find t.blocks target in
-          (* Remove label from predecessors of target. *)
-          target_block.predecessors <- LabelSet.remove
-                                         label
-                                         target_block.predecessors)
-          (successor_labels block);
-        (* Remove from layout and other data-structures that track labels. *)
-        t.layout <- List.filter (fun l -> l = label) t.layout;
-        (* If the dead block contains Lpushtrap, its handler becomes dead.
-           Find all occurrences of label as values of trap_labels
-           and remove them, because is_live_trap_handler depends on it. *)
-        Hashtbl.filter_map_inplace
-          (fun lbl_handler lbl_pushtrap_block ->
-             if label = lbl_pushtrap_block then None
-             else Some lbl_pushtrap_block)
-          t.trap_labels;
-
-        (* Add to new labels! Map to empty layout.
-           Needed for mapping annotations that may refer to dead blocks. *)
-        Hashtbl.add t.new_labels label [];
-
-        (* No need to update trap_depths,
-           which is always referenced with live labels. *)
-        (* LabelMap.remove label t.trap_depths; *)
-        loop ()
+        eliminate_dead_block label block;
+        find_dead_block ()
       end
   in
-  loop ();
+  find_dead_block ();
   let num_dead_blocks = List.length !dead_blocks in
   if num_dead_blocks > 0 && !Clflags.verbose then begin
     Printf.printf "Found %d dead blocks in function %s:"
@@ -243,13 +265,13 @@ let create_instr desc (i:Linearize.instruction) =
     live = i.live;
   }
 
-let get_or_make_label (i : Linearize.instruction) =
+let get_or_make_label t (i : Linearize.instruction) =
   match i.desc with
   | Llabel label -> { label; insn = i; }
   | Lbranch _ -> Misc.fatal_error("Unexpected branch instead of label")
   | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
   | _ -> let label = Cmm.new_label () in
-    Hashtbl.add t.new_labels original label;
+    t.new_labels <- LabelSet.add label t.new_labels;
     { label;
       insn = Linearize.instr_cons (Llabel label) [||] [||] i;
     }
@@ -266,27 +288,12 @@ let add_terminator t desc i block =
   register t block
 
 let mark_trap_label t ~lbl_handler ~lbl_pushtrap_block =
-  if (Hashtbl.mem t.trap_labels handler_lbl) then
+  if (Hashtbl.mem t.trap_labels lbl_handler) then
     Misc.fatal_errorf "Trap hanlder label already exists: \
                        Lpushtrap %d from block label %d\n"
       lbl_handler
       lbl_pushtrap_block;
   Hashtbl.add t.trap_labels lbl_handler lbl_pushtrap_block
-
-(* check that all labels are used. *)
-let check_used_labels t =
-  let unused_labels =
-    Hashtbl.fold (fun label  _ unused ->
-      if Hashtbl.mem t.used_labels label then unused
-      else label::unused)
-      t.blocks
-      []
-  in
-  if unused_labels <> [] then
-    (* CR gyorsh: add a separate pass remove unused labels
-       and unreachable blocks transitively. *)
-    Misc.fatal_error("Found " ^ string_of_int (List.length unused_labels)
-                     ^ " unused labels")
 
 let from_basic = function
   | Reloadretaddr -> Lreloadretaddr
@@ -348,6 +355,7 @@ let rec create_blocks t (i : Linearize.instruction) block =
         register t block
       end;
       (* Start a new block *)
+      (* CR gyorsh: check for multpile consecutive labels *)
       let new_block = create_empty_block t start in
       create_blocks t i.next new_block
 
@@ -380,14 +388,14 @@ let rec create_blocks t (i : Linearize.instruction) block =
       create_blocks t i.next block
 
     | Lcondbranch(cond,lbl) ->
-      let fallthrough = get_or_make_label i.next in
+      let fallthrough = get_or_make_label t i.next in
       let successors = [(Test cond,lbl);
                         (Test (invert_test cond),fallthrough.label)] in
       add_terminator t (Branch successors) i block;
       create_blocks t fallthrough.insn block
 
     | Lcondbranch3(lbl0,lbl1,lbl2) ->
-      let fallthrough = get_or_make_label i.next in
+      let fallthrough = get_or_make_label t i.next in
       let get_dest = function
         | None -> fallthrough.label
         | Some lbl -> lbl
@@ -471,31 +479,32 @@ let rec create_blocks t (i : Linearize.instruction) block =
       block.body <- (create_instr desc i)::block.body;
       create_blocks t i.next block
 
-let make_empty_cfg f =
+let make_empty_cfg (f : Linearize.fundecl) =
   {
     fun_name = f.fun_name;
-    trap_depths = Linear_invariants.compute_trap_depths f.fun_body;
     blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
-    used_labels = (Hashtbl.create 17 : (label, unit) Hashtbl.t);
+    trap_depths = Linear_invariants.compute_trap_depths f;
     trap_labels = (Hashtbl.create 7 : (label, label) Hashtbl.t);
-    new_labels = (Hashtbl.create 7 : (label, Layout.t) Hashtbl.t);
+    new_labels = LabelSet.empty;
+    split_labels = (Hashtbl.create 7 : (label, Layout.t) Hashtbl.t);
     entry_label = 0;
     layout = [];
   }
 
-let from_linear f =
+let from_linear (f : Linearize.fundecl) =
   let t = make_empty_cfg f in
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
      An alternative is to create a new type for label here,
      but it is less efficient because label is used as a key to Hashtble. *)
   let entry_block = create_empty_block t t.entry_label in
-  create_blocks t f.body entry_block;
+  create_blocks t f.fun_body entry_block;
   (* Register predecessors now rather than during cfg construction,
      because of forward jumps: the blocks do not exist when the jump
      that reference them is processed.
      CR gyorsh: combine with dead block elimination. *)
   register_predecessors t;
+  register_split_labels t;
   eliminate_dead_blocks t;
   (* Layout was constructed in reverse, fix it now: *)
   t.layout <- List.rev t.layout;
@@ -529,7 +538,7 @@ let linearize_terminator terminator next =
       match successors with
       | [] -> Misc.fatal_error ("Branch without successors")
       | [(Always,label)] ->
-        if next.label = Some l && l = label then []
+        if next.label = label then []
         else [Lbranch(label)]
       | [(Test _, _)] -> Misc.fatal_error ("Successors not exhastive");
       | [(Test cond_p,label_p); (Test cond_q,label_q)] ->
@@ -564,28 +573,34 @@ let linearize_terminator terminator next =
   in
   List.fold_right (to_linear_instr ~i:terminator) desc_list next.insn
 
-let rec linearize t layout ~predecessor =
-  match layout with
-  | [] -> { label = None; insn = end_instr; }
-  | label::tail ->
-    let next = linearize t tail ~predecessor:(Some label) in
+let to_linear t layout =
+  let layout = Array.of_list layout in
+  let len = Array.length layout in
+  let next = ref { label = no_label; insn = end_instr; } in
+  for i = len - 1 downto 0 do
+    let label = layout.(i) in
     let block = Hashtbl.find t.blocks label in
-    let terminator = linearize_terminator block.terminator next  in
+    let terminator = linearize_terminator block.terminator !next  in
     let body = List.fold_right basic_to_linear block.body terminator in
-    let insn =
-      if predecessor = Some p &&
-         block.predecessors = LabelSet.singleton predecessor
-      then begin
+    if i = 0 then begin (* First block, don't add label. *)
+      next := { label; insn=body; }
+    end
+    else begin
+      let pred = layout.(i-1) in
+      if block.predecessors = LabelSet.singleton pred then begin
         if is_live_trap_handler t block.start then
           Misc.fatal_errorf "Fallthrough from %d to trap handler %d\n"
-            p block.start;
-        body
-       end
-      else
-        make_simple_linear (Llabel label) body
-    in
-    { label = Some label; insn }
-
-let to_linear t layout =
-  let lin = linearize t layout None in
-  lin.insn
+            pred block.start;
+        (* Single predecessor is immediately prior to this block,
+           no need for the label. *)
+        (* CR gyorsh: is this correct with label_after for calls? *)
+        next := { label; insn=body; }
+      end
+      else begin
+        next := { label;
+                  insn = make_simple_linear (Llabel label) body;
+                }
+      end
+    end
+  done;
+  !next.insn

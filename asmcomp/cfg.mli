@@ -9,4 +9,4 @@ end
 type t
 
 val from_linear : Linearize.fundecl -> t * Layout.t
-val to_linear : t -> Layout.t -> Linearize.fundecl
+val to_linear : t -> Layout.t -> Linearize.instruction
