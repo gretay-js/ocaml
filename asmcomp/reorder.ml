@@ -25,12 +25,23 @@ let rec equal i1 i2 =
   else
     false
 
+let rec add_discriminator i d =
+  let next =
+    match i.desc with
+    | Lend -> i.next
+    | _ -> add_discriminators i.next (d + 1)
+  in { i with next and discriminator = d }
+
+let add_discriminators f =
+  { f with fun_body = add_discriminators f.fun_body 1 }
+
 let fundecl f =
   if !reorder && f.fun_fast then begin
     if !verbose then begin
       Printf.printf "Processing %s\n" f.fun_name;
       Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
     end;
+    let f = add_discriminators f in
     let cfg = Cfg.from_linear f in
     (* Cfg.eliminate_dead_blocks cfg; *)
     let old_layout = Cfg.layout cfg in
