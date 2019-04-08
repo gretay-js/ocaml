@@ -253,7 +253,7 @@ let eliminate_dead_blocks t =
   in
   find_dead_block ();
   let num_dead_blocks = List.length !dead_blocks in
-  if num_dead_blocks > 0 (* && !Clflags.verbose *) then begin
+  if num_dead_blocks > 0 then begin
     Printf.printf "Found %d dead blocks in function %s:"
       num_dead_blocks
       t.fun_name;
