@@ -2758,12 +2758,35 @@ and make_shareable_cont mk exp =
   end
 
 and transl_if env cond dbg approx then_ else_ =
+  let is_pure p =
+    let open Semantics_of_primitives in
+    match Semantics_of_primitives.for_primitive p with
+    | (No_effects | Only_generative_effects), _ -> true
+    | Arbitrary_effects, _ -> false
+  in
+  let equal c1 c2 =
+    match c1, c2 with
+    | (Cconst_int n1), (Cconst_int n2) ->
+      n1 = n2
+    | (Cconst_natint n1), (Cconst_natint n2) ->
+      Nativeint.compare n1 n2 = 0
+    | (Cconst_float f1), (Cconst_float f2) ->
+      Int64.compare (Int64.bits_of_float f1) (Int64.bits_of_float f2) = 0
+    | (Cconst_symbol s1), (Cconst_symbol s2) ->
+      String.compare s1 s2 = 0
+    | (Cconst_pointer p1), (Cconst_pointer p2)
+      -> p1 = p2
+    | (Cconst_natpointer p1), (Cconst_natpointer p2)
+      -> Nativeint.compare p1 p2 = 0
+    | _ -> false
+  in
   match cond with
   | Uconst (Uconst_ptr 0) -> else_
   | Uconst (Uconst_ptr 1) -> then_
   | Uifthenelse (arg1, arg2, Uconst (Uconst_ptr 0)) ->
       let dbg' = Debuginfo.none in
       transl_sequand env arg1 dbg' arg2 dbg approx then_ else_
+  | Uprim(prim, _, _) when is_pure prim && equal then_ else_ -> then_
   | Uprim(Psequand, [arg1; arg2], dbg') ->
       transl_sequand env arg1 dbg' arg2 dbg approx then_ else_
   | Uifthenelse (arg1, Uconst (Uconst_ptr 1), arg2) ->

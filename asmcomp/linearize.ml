@@ -141,7 +141,6 @@ let adjust_trap_depth delta_traps next =
 (* Discard all instructions up to the next label.
    This function is to be called before adding a non-terminating
    instruction. *)
-
 let rec discard_dead_code n =
   let adjust trap_depth =
     adjust_trap_depth trap_depth (discard_dead_code n.next)
@@ -229,10 +228,20 @@ let rec linear i n =
   | Iifthenelse(test, ifso, ifnot) ->
       let n1 = linear i.Mach.next n in
       begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
-        Iend, _, Lbranch lbl ->
+      | Iend, Iend, _ -> n1
+      | (Iexit n, Iend, Llabel lbl | Iend, Iexit n, Llabel lbl |
+         Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
+        when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
+      | Iend, _, Lbranch lbl ->
           copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
       | _, Iend, Lbranch lbl ->
           copy_instr (Lcondbranch(invert_test test, lbl)) i (linear ifso n1)
+      | Iexit nfail1, Iexit nfail2, _ when nfail1 = nfail2 ->
+        linear ifso n1
+      | Iexit nfail1, Iexit nfail2, _
+        when local_exit nfail1 && local_exit nfail2 &&
+             find_exit_label nfail1 = find_exit_label nfail2 ->
+        linear ifso n1
       | Iexit nfail1, Iexit nfail2, _
             when is_next_catch nfail1 && local_exit nfail2 ->
           let lbl2 = find_exit_label nfail2 in
@@ -302,11 +311,11 @@ let rec linear i n =
       let previous_exit_label = !exit_label in
       exit_label := exit_label_add @ !exit_label;
       let n2 = List.fold_left2 (fun n (_nfail, handler) lbl_handler ->
-          match handler.Mach.desc with
-          | Iend -> n
-          | _ -> cons_instr (Llabel lbl_handler)
-                   (linear handler (add_branch lbl_end n)))
-          n1 handlers labels_at_entry_to_handlers
+        match handler.Mach.desc with
+        | Iend -> n
+        | _ -> cons_instr (Llabel lbl_handler)
+                 (linear handler (add_branch lbl_end n)))
+        n1 handlers labels_at_entry_to_handlers
       in
       let n3 = linear body (add_branch lbl_end n2) in
       exit_label := previous_exit_label;
@@ -349,8 +358,76 @@ let add_prologue first_insn =
     live = insn.live;
   }
 
+
+(* Discard useless moves where destination and source are the same.
+   Simplify the CFG. Enables other optimizations during linearize. *)
+let rec discard_moves (i:Mach.instruction) =
+  let mk desc =
+    {i with desc; next = discard_moves i.next;} in
+  match i.desc with
+  | Iend -> i
+  | Iop(Imove | Ireload | Ispill)
+    when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
+    discard_moves i.next
+  | Iop(_) -> mk i.desc
+  | Iraise _ | Iexit _ | Ireturn -> mk i.desc
+  | Iifthenelse(test, ifso, ifnot) ->
+    let ifso' = discard_moves ifso in
+    let ifnot' = discard_moves ifnot in
+    begin
+      match ifso'.Mach.desc, ifnot'.Mach.desc with
+      | Iend, Iend -> discard_moves i.next
+      | Iexit nfail1, Iexit nfail2 when nfail1 = nfail2 ->
+        mk (Iexit nfail1)
+      | _-> mk (Iifthenelse(test, ifso', ifnot'))
+    end
+  | Iswitch(index, cases) ->
+    let cases' = Array.map discard_moves cases in
+    mk (Iswitch(index, cases'))
+  | Iloop(body) ->
+    let body' = discard_moves body in
+    mk (Iloop body')
+  | Icatch(rec_flag, handlers, body) ->
+    let body' = discard_moves body in
+    let handlers' =
+      List.map (fun (n, handler) ->
+        (n, discard_moves handler)) handlers in
+    mk (Icatch(rec_flag, handlers', body'))
+  | Itrywith(body, handler) ->
+    let body' = discard_moves body in
+    let handler' = discard_moves handler in
+    mk (Itrywith(body', handler'))
+
+let rec discard_branch_fallthrough i =
+  let same_target lbl = function
+    | Llabel l | Lbranch l -> lbl = l
+    | _ -> false
+  in
+  let same_target_opt labels = function
+    | Llabel l | Lbranch l
+      -> List.for_all
+           (fun lbl -> match lbl with
+              | None -> true
+              | Some lbl when l = lbl -> true
+              | _ -> false)
+           labels
+    | _ -> false
+  in
+  match i.desc with
+  | Lend -> i
+  | (Lbranch lbl | Lcondbranch (_, lbl))
+    when same_target lbl i.next.desc ->
+    discard_branch_fallthrough i.next
+  | Lcondbranch3 (lbl1,lbl2,lbl3)
+    when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
+    discard_branch_fallthrough i.next
+  | _ -> {i with next = discard_branch_fallthrough i.next }
+
 let fundecl f =
-  let fun_body = add_prologue (linear f.Mach.fun_body end_instr) in
+  let fun_body = discard_branch_fallthrough
+                   (add_prologue
+                      (linear (discard_moves f.Mach.fun_body) end_instr))
+  in
   { fun_name = f.Mach.fun_name;
     fun_body;
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
