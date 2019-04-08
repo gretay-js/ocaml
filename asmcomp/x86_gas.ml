@@ -283,10 +283,11 @@ let print_line b = function
       bprintf b "\t.file\t%d\t\"%s\""
         file_num (X86_proc.string_of_string_literal file_name)
   | Indirect_symbol s -> bprintf b "\t.indirect_symbol %s" s
-  | Loc (file_num, line, col) ->
+  | Loc (file_num, line, col, discriminator) ->
       (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
       if col >= 0 then bprintf b "\t.loc\t%d\t%d\t%d" file_num line col
-      else bprintf b "\t.loc\t%d\t%d" file_num line
+      else bprintf b "\t.loc\t%d\t%d" file_num line;
+      if discriminator > 0 then bprintf b "\tdiscriminator %d" discriminator
   | Private_extern s -> bprintf b "\t.private_extern %s" s
   | Set (arg1, arg2) -> bprintf b "\t.set %s, %a" arg1 cst arg2
   | Size (s, c) -> bprintf b "\t.size %s,%a" s cst c

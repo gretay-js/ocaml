@@ -14,16 +14,30 @@ let rec equal i1 i2 =
   if i1 == i2 then true
   else
   if i1.desc = i2.desc &&
+     i1.id = i2.id &&
      Reg.array_equal i1.arg i2.arg &&
      Reg.array_equal i1.res i2.res &&
-     (Debuginfo.compare i1.dbg i2.dbg) = 0 &&
-     Reg.Set.equal i1.live i2.live
+     Reg.Set.equal i1.live i2.live &&
+     (Debuginfo.compare i1.dbg i2.dbg) = 0
   then begin
     if i1.desc = Lend then true
     else equal i1.next i2.next
   end
-  else
+  else begin
+    Format.kasprintf prerr_endline "Equality failed on:@;%a@;%a"
+      Printlinear.instr i1
+      Printlinear.instr i2;
     false
+  end
+let rec add_discriminator i d =
+  match i.desc with
+  | Lend -> { i with next = i.next }
+  | Llabel _ | Ladjust_trap_depth _
+    -> { i with next = add_discriminator i.next d }
+  | _ -> { i with next = add_discriminator i.next (d + 1); id = d }
+
+let add_discriminators f =
+  { f with fun_body = add_discriminator f.fun_body 1 }
 
 let fundecl f =
   if !reorder && f.fun_fast then begin
@@ -31,6 +45,7 @@ let fundecl f =
       Printf.printf "Processing %s\n" f.fun_name;
       Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
     end;
+    let f = add_discriminators f in
     let cfg = Cfg.from_linear f in
     (* Cfg.eliminate_dead_blocks cfg; *)
     let old_layout = Cfg.layout cfg in
