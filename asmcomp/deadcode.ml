@@ -60,11 +60,19 @@ let rec deadcode i =
       let ifso' = deadcode ifso in
       let ifnot' = deadcode ifnot in
       let s = deadcode i.next in
-      { i = {i with desc = Iifthenelse(test, ifso'.i, ifnot'.i); next = s.i};
-        regs = Reg.add_set_array i.live arg;
-        exits = IntSet.union s.exits
-                  (IntSet.union ifso'.exits ifnot'.exits);
-      }
+      let mk desc =
+        { i = {i with desc; next = s.i};
+          regs = Reg.add_set_array i.live arg;
+          exits = IntSet.union s.exits
+                    (IntSet.union ifso'.exits ifnot'.exits);
+        }
+      in begin
+        match ifso'.i.desc, ifnot'.i.desc with
+        | Iend, Iend -> s
+        | Iexit nfail1, Iexit nfail2 when nfail1 = nfail2 ->
+          mk (Iexit nfail1)
+        | _-> mk (Iifthenelse(test, ifso'.i, ifnot'.i))
+      end
   | Iswitch(index, cases) ->
       let dc = Array.map deadcode cases in
       let cases' = Array.map (fun c -> c.i) dc in
