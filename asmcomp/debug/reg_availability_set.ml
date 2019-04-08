@@ -83,14 +83,10 @@ let canonicalise availability =
                  they probably give longer available ranges (less likely to
                  be clobbered). *)
               match RD.location reg, RD.location reg' with
-              | Reg _, Stack _
-              | Reg _, Reg _
-              | Stack _, Stack _
-              | _, Unknown
-              | Unknown, _ -> ()
               | Stack _, Reg _ ->
                 Ident.Tbl.remove regs_by_ident name;
                 Ident.Tbl.add regs_by_ident name reg
+              | _ -> ()
           end)
       availability;
     let result =
