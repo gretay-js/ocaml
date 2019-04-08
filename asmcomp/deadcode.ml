@@ -60,7 +60,13 @@ let rec deadcode i =
       let ifso' = deadcode ifso in
       let ifnot' = deadcode ifnot in
       let s = deadcode i.next in
-      { i = {i with desc = Iifthenelse(test, ifso'.i, ifnot'.i); next = s.i};
+      let desc =
+      match ifso'.i.desc, ifnot'.i.desc with
+      | Iexit nfail1, Iexit nfail2 when nfail1 = nfail2 ->
+        Iexit nfail1
+      | _ -> Iifthenelse(test, ifso'.i, ifnot'.i)
+      in
+      { i = {i with desc; next = s.i};
         regs = Reg.add_set_array i.live arg;
         exits = IntSet.union s.exits
                   (IntSet.union ifso'.exits ifnot'.exits);
