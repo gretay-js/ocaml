@@ -4,7 +4,9 @@
 
 open Linearize
 
-let reorder = ref false
+let reorder = ref true
+
+let verbose = ref false
 
 let rec equal i1 i2 =
   (* Format.kasprintf prerr_endline "@;%a" Printlinear.instr i1;
@@ -25,20 +27,26 @@ let rec equal i1 i2 =
 
 let fundecl f =
   if !reorder && f.fun_fast then begin
+    if !verbose then begin
       Printf.printf "Processing %s\n" f.fun_name;
-      Format.kasprintf prerr_endline "\nBefore:@;%a" Printlinear.fundecl f;
-      let cfg = Cfg.from_linear f in
-      (* Cfg.eliminate_dead_blocks cfg; *)
-      let old_layout = Cfg.layout cfg in
-      let new_layout = Cfg.Layout.reorder old_layout in
-      let new_body = Cfg.to_linear cfg new_layout in
+      Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
+    end;
+    let cfg = Cfg.from_linear f in
+    (* Cfg.eliminate_dead_blocks cfg; *)
+    let old_layout = Cfg.layout cfg in
+    let new_layout = Cfg.Layout.reorder old_layout in
+    let new_body = Cfg.to_linear cfg new_layout in
+    if !verbose then
       Format.kasprintf prerr_endline "\nAfter:@;%a"
         Printlinear.fundecl {f with fun_body = new_body};
-      if not (equal f.fun_body new_body) then begin
-        Misc.fatal_errorf "Conversion from linear to cfg and back to linear \
-                           is not an indentity function.\n"
-      end;
-      {f with fun_body = new_body}
-    end
+    if not (equal f.fun_body new_body) then begin
+      Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f;
+      Format.kasprintf prerr_endline "\nAfter:@;%a"
+        Printlinear.fundecl {f with fun_body = new_body};
+      Misc.fatal_errorf "Conversion from linear to cfg and back to linear \
+                         is not an indentity function.\n"
+    end;
+    {f with fun_body = new_body}
+  end
   else
     f
