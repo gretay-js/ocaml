@@ -417,10 +417,15 @@ let rec create_blocks t (i : Linearize.instruction) block ~trap_depth =
       create_blocks t i.next block ~trap_depth
 
     | Lcondbranch(cond,lbl) ->
-      (* CR gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
-         single terminator? The main problem is representing
-         the boolean combination of conditionals of type Mach.test
+      (* CR gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+
+         into a single terminator when the argments are the same.
+         Enables reordering of branch instructions and save cmp instructions.
+         The main problem is that it involves
+         boolean combination of conditionals of type Mach.test
          that can arise from a sequence of branches.
+         When all conditions in the combination are integer comparisons,
+         we can simplify them into a single condition, but it doesn't work for
+         Ieventest and Ioddtest (which come from the primitive "is integer").
          The advantage is that it will enable us to reorder branch
          instructions to avoid generating jmp to fallthrough location
          in the new order.
@@ -669,32 +674,33 @@ let to_linear t layout =
       end
       else begin
         let pred = layout.(i-1) in
+        let body =
+          if block.predecessors = LabelSet.singleton pred then begin
+            if is_live_trap_handler t block.start then
+              Misc.fatal_errorf "Fallthrough from %d to trap handler %d\n"
+                pred block.start;
+            (* Single predecessor is immediately prior to this block,
+               no need for the label. *)
+            (* CR gyorsh: is this correct with label_after for calls? *)
+            (* If label is original,
+               print it for linear to cfg and back to be identity. *)
+            if LabelSet.mem label t.new_labels then
+              body
+            else
+              make_simple_linear (Llabel label) body
+          end
+          else begin
+            make_simple_linear (Llabel label) body
+          end
+        in
+        (* Adjust trap depth *)
         let pred_block = Hashtbl.find t.blocks pred in
         let block_trap_depth = Hashtbl.find t.trap_depths label in
         let pred_trap_depth = pred_block.terminator.trap_depth in
-        let body =
-          if block_trap_depth != pred_trap_depth then
-            let delta_traps = block_trap_depth - pred_trap_depth in
-            make_simple_linear (Ladjust_trap_depth { delta_traps }) body
-          else body
-        in
-        if block.predecessors = LabelSet.singleton pred then begin
-          if is_live_trap_handler t block.start then
-            Misc.fatal_errorf "Fallthrough from %d to trap handler %d\n"
-              pred block.start;
-          (* Single predecessor is immediately prior to this block,
-             no need for the label. *)
-          (* CR gyorsh: is this correct with label_after for calls? *)
-          (* If label is original,
-             print it for linear to cfg and back to be identity. *)
-          if LabelSet.mem label t.new_labels then
-            body
-          else
-            make_simple_linear (Llabel label) body
-        end
-        else begin
-          make_simple_linear (Llabel label) body
-        end
+        if block_trap_depth != pred_trap_depth then
+          let delta_traps = block_trap_depth - pred_trap_depth in
+          make_simple_linear (Ladjust_trap_depth { delta_traps }) body
+        else body
       end in
     next := { label; insn; }
   done;
