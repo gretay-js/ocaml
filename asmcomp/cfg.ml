@@ -79,7 +79,6 @@ and basic =
   | Call of call_operation
   | Reloadretaddr
   | Entertrap
-  | Adjust_trap_depth of { delta_traps : int }
   | Pushtrap of { lbl_handler : label }
   | Poptrap
 
@@ -122,7 +121,7 @@ type t = {
      Used for mapping information about original blocks,
      such as perf annotations, exection counts or new layout, to cfg blocks. *)
 
-  trap_depths : int Linear_invariants.LabelMap.t;
+  trap_depths : (label, int) Hashtbl.t;
   (* Map labels to trap depths for linearize. *)
 
   trap_labels : (label, label) Hashtbl.t;
@@ -187,7 +186,12 @@ let register_split_labels t =
         (* The original label was followed by some new ones,
            which we have gathers in new_labels_layout.
            Tuck on original label and register the split layout. *)
-        Hashtbl.add t.split_labels label (label::new_labels_layout)
+        Hashtbl.add t.split_labels label (label::new_labels_layout);
+        (* Update trap_depths of new labels from their original.  *)
+        let d = Hashtbl.find t.trap_depths label in
+        List.iter (fun new_label ->
+          Hashtbl.add t.trap_depths new_label d)
+          new_labels_layout
       end;
       []
     end)
@@ -230,9 +234,9 @@ let eliminate_dead_blocks t =
     if not (LabelSet.mem label t.new_labels) then
       Hashtbl.add t.split_labels label [];
 
-    (* No need to update trap_depths,
-       which is only referenced with live labels. *)
-    (* LabelMap.remove label t.trap_depths; *)
+    (* No need to remove it from trap_depths, because it will
+       only be accessed. *)
+    (* Hashtbl.remove t.trap_depths label; *)
   in
   let rec find_dead_block () =
     try
@@ -268,8 +272,11 @@ let create_instr desc (i:Linearize.instruction) =
 let get_or_make_label t (i : Linearize.instruction) =
   match i.desc with
   | Llabel label -> { label; insn = i; }
-  | Lbranch _ -> Misc.fatal_error("Unexpected branch instead of label")
-  | Lend -> Misc.fatal_error("Unexpected end of function instead of label")
+  (* | Lbranch _ | Lcondbranch (_,_) | Lcondbranch3(_,_,_)
+   *   -> Misc.fatal_errorf "Unexpected branch instead of label @;%a"
+   *                  Printlinear.instr i; *)
+  | Lend -> Misc.fatal_errorf "Unexpected end of function instead of label@;%a"
+      Printlinear.instr i
   | _ -> let label = Cmm.new_label () in
     t.new_labels <- LabelSet.add label t.new_labels;
     { label;
@@ -280,7 +287,10 @@ let get_or_make_label t (i : Linearize.instruction) =
 let has_label (i : Linearize.instruction) =
   begin match i.desc with
   | Lend | Llabel _ -> true
-  | _ -> Misc.fatal_error("Unexpected instruction after terminator")
+  | _ ->
+    Misc.fatal_errorf
+      "Unexpected instruction after terminator @;%a"
+      Printlinear.instr i
   end
 
 let add_terminator t desc i block =
@@ -298,7 +308,6 @@ let mark_trap_label t ~lbl_handler ~lbl_pushtrap_block =
 let from_basic = function
   | Reloadretaddr -> Lreloadretaddr
   | Entertrap -> Lentertrap
-  | Adjust_trap_depth { delta_traps } -> Ladjust_trap_depth { delta_traps }
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
   | Call(F(Indirect {label_after})) -> Lop(Icall_ind {label_after})
@@ -388,6 +397,17 @@ let rec create_blocks t (i : Linearize.instruction) block =
       create_blocks t i.next block
 
     | Lcondbranch(cond,lbl) ->
+      (* CR gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
+         single terminator? The main problem is representing
+         the boolean combination of conditionals of type Mach.test
+         that can arise from a sequence of branches.
+         The advantage is that it will enable us to reorder branch
+         instructions to avoid generating jmp to fallthrough location
+         in the new order.
+         Also, for linear to cfg and back will be
+         harder to generate exactly the same layout.
+         How do we map execution counts about branches
+         onto this terminator? *)
       let fallthrough = get_or_make_label t i.next in
       let successors = [(Test cond,lbl);
                         (Test (invert_test cond),fallthrough.label)] in
@@ -411,14 +431,23 @@ let rec create_blocks t (i : Linearize.instruction) block =
       assert (has_label i.next);
       create_blocks t i.next block
 
+    | Ladjust_trap_depth _ ->
+      (* We do not emit any executable code for this,
+         and therefore do not have an insn in cfg.
+         This information was taken into
+         account when we computed trap_depths of blocks.
+         Delta_traps can change when blocks are reordered,
+         so we regenerate it when converting back to linear.
+         CR gyorsh: Lsetstackoffset similarly does not emit.
+         Ensure we treat it correctly. *)
+      create_blocks t i.next block
+
     | d ->
       let desc = begin match d with
         | Lpushtrap { lbl_handler } ->
           mark_trap_label t ~lbl_handler ~lbl_pushtrap_block:block.start;
           Pushtrap { lbl_handler }
         | Lentertrap -> Entertrap
-        | Ladjust_trap_depth { delta_traps } ->
-          Adjust_trap_depth { delta_traps }
         | Lpoptrap -> Poptrap
         | Lreloadretaddr -> Reloadretaddr
         | Lop(op) -> begin match op with
@@ -446,20 +475,20 @@ let rec create_blocks t (i : Linearize.instruction) block =
           | Istackoffset i -> Op(Stackoffset i)
           | Iload(c,a) -> Op(Load(c,a))
           | Istore(c,a,b)-> Op(Store(c,a,b))
-          | Imove -> Op(Move)
-          | Ispill -> Op(Spill)
-          | Ireload -> Op(Reload)
+          | Imove -> Op Move
+          | Ispill -> Op Spill
+          | Ireload -> Op Reload
           | Iconst_int n -> Op(Const_int n)
           | Iconst_float n -> Op(Const_float n)
           | Iconst_symbol n -> Op(Const_symbol n)
-          | Inegf -> Op(Negf)
-          | Iabsf -> Op(Absf)
-          | Iaddf -> Op(Addf)
-          | Isubf -> Op(Subf)
-          | Imulf -> Op(Mulf)
-          | Idivf -> Op(Divf)
-          | Ifloatofint -> Op(Floatofint)
-          | Iintoffloat -> Op(Intoffloat)
+          | Inegf -> Op Negf
+          | Iabsf -> Op Absf
+          | Iaddf -> Op Addf
+          | Isubf -> Op Subf
+          | Imulf -> Op Mulf
+          | Idivf -> Op Divf
+          | Ifloatofint -> Op Floatofint
+          | Iintoffloat -> Op Intoffloat
           | Ispecific op -> Op(Specific op)
           | Iname_for_debugger {ident;
                                 which_parameter;
@@ -473,26 +502,34 @@ let rec create_blocks t (i : Linearize.instruction) block =
         end
         | Lend| Lreturn| Llabel _
         | Lbranch _| Lcondbranch (_, _)| Lcondbranch3 (_, _, _)
-        | Lswitch _| Lraise _ -> assert (false)
+        | Lswitch _| Lraise _ | Ladjust_trap_depth _ -> assert (false)
       end
       in
       block.body <- (create_instr desc i)::block.body;
       create_blocks t i.next block
 
-let make_empty_cfg (f : Linearize.fundecl) =
+let make_empty_cfg name =
   {
-    fun_name = f.fun_name;
+    fun_name = name;
     blocks = (Hashtbl.create 31 : (label, block) Hashtbl.t);
-    trap_depths = Linear_invariants.compute_trap_depths f;
     trap_labels = (Hashtbl.create 7 : (label, label) Hashtbl.t);
+    trap_depths = (Hashtbl.create 31 : (label, int) Hashtbl.t);
     new_labels = LabelSet.empty;
     split_labels = (Hashtbl.create 7 : (label, Layout.t) Hashtbl.t);
     entry_label = 0;
     layout = [];
   }
 
+let compute_trap_depths t f =
+  Hashtbl.add t.trap_depths t.entry_label 0;
+  let open Linear_invariants in
+  LabelMap.iter (fun label depth ->
+    Hashtbl.add t.trap_depths label depth)
+    (compute_trap_depths f)
+
 let from_linear (f : Linearize.fundecl) =
-  let t = make_empty_cfg f in
+  let t = make_empty_cfg f.fun_name in
+  compute_trap_depths t f;
   (* CR gyorsh: label of the function entry must not conflict with existing
      labels. Relies on the invariant: Cmm.new_label() is int > 99.
      An alternative is to create a new type for label here,
@@ -582,25 +619,38 @@ let to_linear t layout =
     let block = Hashtbl.find t.blocks label in
     let terminator = linearize_terminator block.terminator !next  in
     let body = List.fold_right basic_to_linear block.body terminator in
-    if i = 0 then begin (* First block, don't add label. *)
-      next := { label; insn=body; }
-    end
-    else begin
-      let pred = layout.(i-1) in
-      if block.predecessors = LabelSet.singleton pred then begin
-        if is_live_trap_handler t block.start then
-          Misc.fatal_errorf "Fallthrough from %d to trap handler %d\n"
-            pred block.start;
-        (* Single predecessor is immediately prior to this block,
-           no need for the label. *)
-        (* CR gyorsh: is this correct with label_after for calls? *)
-        next := { label; insn=body; }
+    let insn =
+      if i = 0 then begin (* First block, don't add label. *)
+        body
       end
       else begin
-        next := { label;
-                  insn = make_simple_linear (Llabel label) body;
-                }
-      end
-    end
+        let pred = layout.(i-1) in
+        let block_trap_depth = Hashtbl.find t.trap_depths label in
+        let pred_trap_depth = Hashtbl.find t.trap_depths pred in
+        let body =
+          if block_trap_depth != pred_trap_depth then
+            let delta_traps = block_trap_depth - pred_trap_depth in
+            make_simple_linear (Ladjust_trap_depth { delta_traps }) body
+          else body
+        in
+        if block.predecessors = LabelSet.singleton pred then begin
+          if is_live_trap_handler t block.start then
+            Misc.fatal_errorf "Fallthrough from %d to trap handler %d\n"
+              pred block.start;
+          (* Single predecessor is immediately prior to this block,
+             no need for the label. *)
+          (* CR gyorsh: is this correct with label_after for calls? *)
+          (* If label is original,
+             print it for linear to cfg and back to be identity. *)
+          if LabelSet.mem label t.new_labels then
+            body
+          else
+            make_simple_linear (Llabel label) body
+        end
+        else begin
+          make_simple_linear (Llabel label) body
+        end
+      end in
+    next := { label; insn; }
   done;
   !next.insn
