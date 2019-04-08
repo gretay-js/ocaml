@@ -25,7 +25,9 @@ let fundecl f =
   if f.fun_fast then begin
     Printf.printf "Processing %s\n" f.fun_name;
     Format.kasprintf prerr_endline "\nBefore:@;%a" Printlinear.fundecl f;
-    let cfg, old_layout = Cfg.from_linear f in
+    let cfg = Cfg.from_linear f in
+    (* Cfg.eliminate_dead_blocks cfg; *)
+    let old_layout = Cfg.layout cfg in
     let new_layout = Cfg.Layout.reorder old_layout in
     let new_body = Cfg.to_linear cfg new_layout in
     Format.kasprintf prerr_endline "\nAfter:@;%a"
