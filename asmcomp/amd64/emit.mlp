@@ -60,8 +60,8 @@ let cfi_endproc () =
 let cfi_adjust_cfa_offset n =
   if Config.asm_cfi_supported then D.cfi_adjust_cfa_offset n
 
-let emit_debug_info dbg =
-  emit_debug_info_gen dbg D.file D.loc
+let emit_debug_info ?(discriminator=0) dbg =
+  emit_debug_info_gen dbg ~discriminator D.file D.loc
 
 let fp = Config.with_frame_pointers
 
@@ -503,7 +503,7 @@ let tailrec_entry_point = ref 0
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
-  emit_debug_info i.dbg;
+  emit_debug_info ~discriminator:i.id i.dbg;
   match i.desc with
   | Lend -> ()
   | Lop(Imove | Ispill | Ireload) ->

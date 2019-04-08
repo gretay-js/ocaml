@@ -21,7 +21,6 @@ type item = {
   dinfo_line: int;
   dinfo_char_start: int;
   dinfo_char_end: int;
-  dinfo_discriminator: int;
 }
 
 type t = item list
@@ -53,7 +52,6 @@ let item_from_location loc =
       if loc.loc_end.pos_fname = loc.loc_start.pos_fname
       then loc.loc_end.pos_cnum - loc.loc_start.pos_bol
       else loc.loc_start.pos_cnum - loc.loc_start.pos_bol;
-    dinfo_discriminator = 0;
   }
 
 let from_location loc =

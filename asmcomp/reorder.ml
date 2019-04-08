@@ -14,10 +14,11 @@ let rec equal i1 i2 =
   if i1 == i2 then true
   else
   if i1.desc = i2.desc &&
+     i1.id = i2.id &&
      Reg.array_equal i1.arg i2.arg &&
      Reg.array_equal i1.res i2.res &&
-     (Debuginfo.compare i1.dbg i2.dbg) = 0 &&
-     Reg.Set.equal i1.live i2.live
+     Reg.Set.equal i1.live i2.live &&
+     (Debuginfo.compare i1.dbg i2.dbg) = 0
   then begin
     if i1.desc = Lend then true
     else equal i1.next i2.next
@@ -26,14 +27,13 @@ let rec equal i1 i2 =
     false
 
 let rec add_discriminator i d =
-  let next =
-    match i.desc with
-    | Lend -> i.next
-    | _ -> add_discriminators i.next (d + 1)
-  in { i with next and discriminator = d }
+  match i.desc with
+  | Lend -> { i with next = i.next; id = d }
+  | Llabel _ -> { i with next = add_discriminator i.next d; id = 0 }
+  | _ -> { i with next = add_discriminator i.next (d + 1); id = d }
 
 let add_discriminators f =
-  { f with fun_body = add_discriminators f.fun_body 1 }
+  { f with fun_body = add_discriminator f.fun_body 1 }
 
 let fundecl f =
   if !reorder && f.fun_fast then begin

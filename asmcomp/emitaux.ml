@@ -275,7 +275,7 @@ let reset_debug_info () =
 
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
-let emit_debug_info_gen dbg file_emitter loc_emitter =
+let emit_debug_info_gen dbg ~discriminator file_emitter loc_emitter =
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with
@@ -294,17 +294,18 @@ let emit_debug_info_gen dbg file_emitter loc_emitter =
             file_emitter ~file_num ~file_name;
             file_pos_nums := (file_name,file_num) :: !file_pos_nums;
             file_num in
-        loc_emitter ~file_num ~line ~col;
+        loc_emitter ~file_num ~line ~col ~discriminator;
       end
   end
 
 let emit_debug_info ?(discriminator=0) dbg =
-  emit_debug_info_gen dbg (fun ~file_num ~file_name ->
+  emit_debug_info_gen dbg ~discriminator
+    (fun ~file_num ~file_name ->
       emit_string "\t.file\t";
       emit_int file_num; emit_char '\t';
       emit_string_literal file_name; emit_char '\n';
     )
-    (fun ~file_num ~line ~col:_ ->
+    (fun ~file_num ~line ~col:_ ~discriminator->
       emit_string "\t.loc\t";
       emit_int file_num; emit_char '\t';
       emit_int line;

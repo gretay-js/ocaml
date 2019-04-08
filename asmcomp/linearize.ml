@@ -27,7 +27,7 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     live: Reg.Set.t;
-    discriminator: int;
+    id: int;
   }
 
 and instruction_desc =
@@ -82,19 +82,21 @@ let rec end_instr =
     arg = [||];
     res = [||];
     dbg = Debuginfo.none;
-    live = Reg.Set.empty }
+    live = Reg.Set.empty;
+    id = 0;
+  }
 
 (* Cons an instruction (live, debug empty) *)
 
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty }
+    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
 
 (* Cons a simple instruction (arg, res, live empty) *)
 
 let cons_instr d n =
   { desc = d; next = n; arg = [||]; res = [||];
-    dbg = Debuginfo.none; live = Reg.Set.empty }
+    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
 
 (* Build an instruction with arg, res, dbg, live taken from
    the given Mach.instruction *)
@@ -102,7 +104,7 @@ let cons_instr d n =
 let copy_instr d i n =
   { desc = d; next = n;
     arg = i.Mach.arg; res = i.Mach.res;
-    dbg = i.Mach.dbg; live = i.Mach.live }
+    dbg = i.Mach.dbg; live = i.Mach.live; id = 0; }
 
 (*
    Label the beginning of the given instruction sequence.

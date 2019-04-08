@@ -73,6 +73,7 @@ and 'a instruction = {
   dbg : Debuginfo.t;
   live : Reg.Set.t;
   trap_depth : int;
+  id : int;
 }
 
 and basic =
@@ -144,14 +145,15 @@ let create_empty_instruction ?(trap_depth=0) desc =
   { desc;
     arg = [||]; res = [||]; dbg = Debuginfo.none; live = Reg.Set.empty;
     trap_depth;
+    id = 0;
   }
 
 let create_empty_block t start =
-  let terminator = create_empty_instruction (Branch []) in
   let block = { start;
                 body = [];
-                terminator;
-                predecessors = LabelSet.empty } in
+                terminator = create_empty_instruction (Branch []);
+                predecessors = LabelSet.empty;
+              } in
   if Hashtbl.mem t.blocks start then
     Misc.fatal_error("Cannot create block, label exists: " ^
                      (string_of_int start));
@@ -269,6 +271,7 @@ let create_instr desc ~trap_depth (i:Linearize.instruction) =
     dbg = i.dbg;
     live = i.live;
     trap_depth;
+    id = i.id;
   }
 
 let get_or_make_label t (i : Linearize.instruction) =
@@ -597,12 +600,16 @@ let from_linear (f : Linearize.fundecl) =
 (* Set desc and next from inputs and the rest is empty *)
 let make_simple_linear desc next =
   { desc; next;
-    arg = [||]; res = [||]; dbg = Debuginfo.none; live = Reg.Set.empty }
+    arg = [||]; res = [||]; dbg = Debuginfo.none; live = Reg.Set.empty;
+    id = 0;
+  }
 
 (* Set desc and next from inputs and copy the rest from i *)
 let to_linear_instr ~i desc next =
   { desc; next;
-    arg = i.arg; res = i.res; dbg = i.dbg; live = i.live }
+    arg = i.arg; res = i.res; dbg = i.dbg; live = i.live;
+    id = i.id
+  }
 
 let basic_to_linear i next =
   let desc = from_basic i.desc in
