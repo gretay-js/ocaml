@@ -232,6 +232,8 @@ let rec linear i n =
           copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
       | _, Iend, Lbranch lbl ->
           copy_instr (Lcondbranch(invert_test test, lbl)) i (linear ifso n1)
+      | Iexit nfail1, Iexit nfail2, _ when nfail1 = nfail2 ->
+        linear ifso n1
       | Iexit nfail1, Iexit nfail2, _
             when is_next_catch nfail1 && local_exit nfail2 ->
           let lbl2 = find_exit_label nfail2 in
