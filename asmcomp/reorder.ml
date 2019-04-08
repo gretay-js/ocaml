@@ -23,13 +23,17 @@ let rec equal i1 i2 =
     if i1.desc = Lend then true
     else equal i1.next i2.next
   end
-  else
+  else begin
+    Format.kasprintf prerr_endline "Equality failed on:@;%a@;%a"
+      Printlinear.instr i1
+      Printlinear.instr i2;
     false
-
+  end
 let rec add_discriminator i d =
   match i.desc with
-  | Lend -> { i with next = i.next; id = d }
-  | Llabel _ -> { i with next = add_discriminator i.next d; id = 0 }
+  | Lend -> { i with next = i.next }
+  | Llabel _ | Ladjust_trap_depth _
+    -> { i with next = add_discriminator i.next d }
   | _ -> { i with next = add_discriminator i.next (d + 1); id = d }
 
 let add_discriminators f =

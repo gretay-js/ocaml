@@ -24,6 +24,7 @@ let label ppf l =
   Format.fprintf ppf "L%i" l
 
 let instr ppf i =
+  fprintf ppf " {id=%d}" i.id;
   begin match i.desc with
   | Lend -> ()
   | Lop op ->
@@ -69,9 +70,7 @@ let instr ppf i =
       fprintf ppf "%a %a" Printcmm.raise_kind k reg i.arg.(0)
   end;
   if not (Debuginfo.is_none i.dbg) then
-    fprintf ppf " %s" (Debuginfo.to_string i.dbg);
-  if i.id > 0 then
-    fprintf ppf " %d" i.id
+    fprintf ppf " %s" (Debuginfo.to_string i.dbg)
 
 let rec all_instr ppf i =
   match i.desc with

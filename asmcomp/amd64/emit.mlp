@@ -62,6 +62,10 @@ let cfi_adjust_cfa_offset n =
 
 let emit_debug_info ?(discriminator=0) dbg =
   emit_debug_info_gen dbg ~discriminator D.file D.loc
+  (* let emit_loc =
+   *   (fun ~file_num ~line:_ ~col ~discriminator
+   *     -> D.loc ~file_num ~line:discriminator ~col ~discriminator) in
+   * emit_debug_info_gen dbg ~discriminator D.file emit_loc *)
 
 let fp = Config.with_frame_pointers
 
