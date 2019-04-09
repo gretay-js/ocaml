@@ -166,6 +166,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _remove_unused_arguments = set remove_unused_arguments
   let _runtime_variant s = runtime_variant := s
   let _safe_string = clear unsafe_string
+  let _save_ir = Save_ir.should_save
   let _short_paths = clear real_paths
   let _strict_sequence = set strict_sequence
   let _no_strict_sequence = clear strict_sequence

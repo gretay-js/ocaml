@@ -66,6 +66,7 @@ let print_if ppf flag printer arg =
 let (++) x f = f x
 
 let implementation ppf sourcefile outputprefix =
+  let open Save_ir.Language in
   Profile.record_call sourcefile (fun () ->
     Compmisc.init_path false;
     let modulename = module_of_filename ppf sourcefile outputprefix in
@@ -77,12 +78,12 @@ let implementation ppf sourcefile outputprefix =
         ++ print_if ppf Clflags.dump_parsetree Printast.implementation
         ++ print_if ppf Clflags.dump_source Pprintast.structure
         ++ Save_ir.save Parsetree ~output_prefix:outputprefix
-             Pprintast.implementation
+             Printast.implementation
         ++ Profile.(record typing)
             (Typemod.type_implementation sourcefile outputprefix modulename env)
         ++ print_if ppf Clflags.dump_typedtree
-          Printtyped.implementation_with_coercion
-        ++ Save_ir.save Save_ir.Typedtree ~output_prefix:outputprefix
+             Printtyped.implementation_with_coercion
+        ++ Save_ir.save Typedtree ~output_prefix:outputprefix
              Printtyped.implementation_with_coercion
      in
       if !Clflags.print_types then begin
@@ -96,11 +97,11 @@ let implementation ppf sourcefile outputprefix =
           ++ Profile.(record ~accumulate:true generate)
               (fun { Lambda.code = lambda; required_globals } ->
                 print_if ppf Clflags.dump_rawlambda Printlambda.lambda lambda
-                ++ Save_ir.save (Lambda Before_simplif)
+                ++ Save_ir.save (Lambda(Before Simplif))
                      ~output_prefix:outputprefix Printlambda.lambda
                 ++ Simplif.simplify_lambda sourcefile
                 ++ print_if ppf Clflags.dump_lambda Printlambda.lambda
-                ++ Save_ir.save (Lambda After_simplif)
+                ++ Save_ir.save (Lambda(After Simplif))
                      ~output_prefix:outputprefix Printlambda.lambda
                 ++ Bytegen.compile_implementation modulename
                 ++ print_if ppf Clflags.dump_instr Printinstr.instrlist

@@ -84,6 +84,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _no_rectypes = unset recursive_types
   let _runtime_variant s = runtime_variant := s
   let _safe_string = unset unsafe_string
+  let _save_ir = Save_ir.should_save
   let _short_paths = unset real_paths
   let _strict_sequence = set strict_sequence
   let _no_strict_sequence = unset strict_sequence
@@ -112,7 +113,7 @@ module Options = Main_args.Make_bytecomp_options (struct
   let _verbose = set verbose
   let _nopervasives = set nopervasives
   let _dno_unique_ids = unset unique_ids
-  let _dunique_ids = set unique_ids  
+  let _dunique_ids = set unique_ids
   let _dsource = set dump_source
   let _dparsetree = set dump_parsetree
   let _dtypedtree = set dump_typedtree

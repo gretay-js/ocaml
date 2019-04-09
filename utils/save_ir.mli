@@ -49,14 +49,18 @@ module Language : sig
     | Regalloc
     | Reload
     | Liveness_during_regalloc
+    | Available_regs
 
   type linear =
     | Linearize
+    | Linear_invariants
     | Scheduling
+    | Block_reorder
 
   type 'a pass =
     | After_all_passes
     | After of 'a
+    | Before of 'a
 
   type t =
     | Parsetree
@@ -67,13 +71,20 @@ module Language : sig
     | Cmm
     | Mach of mach pass
     | Linear of linear pass
+    | Bytecode
 
-  val mach_to_string : mach pass -> string
-  val mach_to_human_string : mach pass -> string
+  val all : t list
+
+  (** Names of passes. *)
+  val to_string : t -> string
+
+  (** Human-readable descriptions of passes. *)
+  val to_string_hum : t -> string
+
 end
 
 (** Mark that the given language should be saved at a particular stage. *)
-val should_save : Language.t -> unit
+val should_save : string -> unit
 
 (** Mark that all languages should be saved prior to them being converted
     into the next language. *)
@@ -93,6 +104,10 @@ val save
   -> output_prefix:string
   -> (Format.formatter -> 'a -> unit)
   -> 'a
-  -> unit
+  -> 'a
 
-val passes_finished : ...
+val passes_finished
+  : Language.t
+  -> (Format.formatter -> 'a -> unit)
+  -> 'a
+  -> 'a
