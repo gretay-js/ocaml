@@ -34,7 +34,8 @@ let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
 
 let pass_dump_if ppf flag message phrase =
-  dump_if ppf flag message phrase; phrase
+  if !flag then Printmach.phase message ppf phrase;
+  phrase
 
 let pass_dump_linear_if ppf flag message phrase =
   if !flag then fprintf ppf "*** %s@.%a@." message Printlinear.fundecl phrase;
@@ -101,40 +102,38 @@ let rec regalloc ppf round fd =
 
 module L = Save_ir.Language
 
-let run_pass ~output_prefix ?dump_if (lang : L.t) ~print ~to_string
-      ~to_human_string f term =
-  let name = to_string lang in
-  let term = Profile.record ~accumulate:true name f term in
-  Save_ir.save lang ~output_prefix print term;
-  match dump_if with
-  | None -> term
-  | Some dump_if ->
-    let name = to_human_string pass in
-    pass_dump_if ppf dump_if name term
+let run_pass ~output_prefix ~ppf ?dump_if lang ~print ~pass_dump_if f term =
+    let name = L.to_string lang in
+    let term = Profile.record ~accumulate:true name f term in
+    let _ = Save_ir.save lang ~output_prefix print term in
+    match dump_if with
+    | None -> term
+    | Some flag ->
+    let name = L.to_string_hum lang in
+    pass_dump_if ppf flag name term
 
-let mach_pass ~output_prefix ?dump_if (pass : L.mach_pass) f term =
-  run_pass ~output_prefix ?dump_if (Mach pass)
-    ~print:Printmach.fundecl
-    ~to_string:L.mach_to_string
-    ~to_human_string:L.mach_to_human_string
-
-let linear_pass ~output_prefix ?dump_if (pass : L.linear_pass) f term =
-  run_pass ~output_prefix ?dump_if (Linear pass)
+let to_linear_pass ~output_prefix ~ppf ?dump_if pass f term =
+  run_pass ~output_prefix ~ppf ?dump_if (Linear (After pass))
     ~print:Printlinear.fundecl
-    ~to_string:L.linear_to_string
-    ~to_human_string:L.linear_to_human_string
+    ~pass_dump_if:pass_dump_linear_if
+    f term
 
-
+let to_mach_pass ~output_prefix ~ppf ?dump_if pass f term =
+  run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
+    ~print:Printmach.fundecl
+    ~pass_dump_if:pass_dump_if
+    f term
 
 let (++) x f = f x
 
 let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
-  let run_pass = run_pass ~output_prefix in
+  let mach_pass = to_mach_pass ~output_prefix ~ppf in
+  let linear_pass = to_linear_pass ~output_prefix ~ppf in
   Proc.init ();
   Reg.reset();
   fd_cmm
-  ++ mach_pass Selection Selection.fundecl ~dump_if:dump_selection
-  ++ mach_pass Combine Comballoc.fundecl ~dump_if:dump_combine
+  ++ to_mach_pass ~output_prefix ~ppf Selection Selection.fundecl ~dump_if:dump_selection
+  ++ mach_pass Comballoc Comballoc.fundecl ~dump_if:dump_combine
   ++ mach_pass CSE CSE.fundecl ~dump_if:dump_cse
   ++ mach_pass Liveness_1 (liveness ppf)
   ++ mach_pass Deadcode Deadcode.fundecl ~dump_if:dump_live
@@ -144,20 +143,17 @@ let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
   ++ mach_pass Liveness_3 (liveness ppf)
   ++ mach_pass Regalloc (regalloc ppf 1)
   ++ mach_pass Available_regs Available_regs.fundecl
-  ++ Save_ir.passes_finished Mach Printmach.fundecl
-  ++ linear_pass Linearize Linearize.fundecl ~dump_if:dump_linear
-  ++ linear_pass Linear_invariants Linear_invariants.check
+  ++ Save_ir.passes_finished (Mach After_all_passes) Printmach.fundecl
+  ++ to_linear_pass  ~output_prefix ~ppf Linearize Linearize.fundecl ~dump_if:dump_linear
   ++ linear_pass Scheduling Scheduling.fundecl ~dump_if:dump_scheduling
-  ++ linear_pass Linear_invariants Linear_invariants.check
-  ++ Save_ir.passes_finished Linear Printlinear.fundecl
+  ++ Save_ir.passes_finished (Linear After_all_passes) Printlinear.fundecl
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl
 
 let compile_phrase ppf p =
   if !dump_cmm then fprintf ppf "%a@." Printcmm.phrase p;
   match p with
-  | Cfunction fd -> compile_fundecl ppf fd
+  | Cfunction fd -> compile_fundecl ~output_prefix:"" ppf fd
   | Cdata dl -> Emit.data dl
-
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
