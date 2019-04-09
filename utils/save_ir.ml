@@ -71,9 +71,12 @@ module Language = struct
       | Mach of mach pass
       | Linear of linear pass
 
+    let to_string t = assert false (* Not implemented *)
     let compare = Pervasives.compare
     let equal t1 t2 = (compare t1 t2 = 0)
     let hash = Hashtbl.hash
+    let output oc t = Printf.fprintf oc "%s"  (to_string t)
+    let print ppf t = Format.fprintf ppf "%s" (to_string t)
   end)
 
   let all = [
@@ -156,12 +159,12 @@ module Language = struct
   let extension = function
     | Parsetree -> "parsetree"
     | Typedtree -> "typedtree"
-    | Lambda of _ -> "lambda"
-    | Clambda of _ -> "clambda"
-    | Flambda of _ -> "flambda"
+    | Lambda _ -> "lambda"
+    | Clambda _ -> "clambda"
+    | Flambda _ -> "flambda"
     | Cmm -> "cmm"
-    | Mach of _ -> "mach"
-    | Linear of _ -> "linear"
+    | Mach _ -> "mach"
+    | Linear  _ -> "linear"
 end
 
 let should_save = ref Language.Set.empty
@@ -193,4 +196,27 @@ let save lang ~output_prefix f term =
       let formatter = Format.formatter_of_out_channel chan in
       f formatter term;
       close_out chan
+  end
+
+let passes_finished lang f term =
+  if Language.Set.mem lang !should_save then begin
+  let output_prefix  = "" in
+  let lang = Language.to_string lang in
+  let filename =
+      Printf.sprintf "%s.%s."
+        output_prefix
+        (Language.number_of_pass lang)
+        (Language.to_string lang)
+        (Language.extension lang)
+  in
+  match open_out filename with
+  | exception exn ->
+    Printf.eprintf "Cannot open intermediate language file \
+                    for writing: %s (%s)\n"
+      filename (Printexc.to_string exn);
+    exit 1
+  | chan ->
+    let formatter = Format.formatter_of_out_channel chan in
+    f formatter term;
+    close_out chan
   end

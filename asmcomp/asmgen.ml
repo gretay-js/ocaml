@@ -124,8 +124,6 @@ let linear_pass ~output_prefix ?dump_if (pass : L.linear_pass) f term =
     ~to_string:L.linear_to_string
     ~to_human_string:L.linear_to_human_string
 
-
-
 let (++) x f = f x
 
 let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
@@ -158,7 +156,6 @@ let compile_phrase ppf p =
   match p with
   | Cfunction fd -> compile_fundecl ppf fd
   | Cdata dl -> Emit.data dl
-
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)

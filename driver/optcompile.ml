@@ -80,9 +80,9 @@ let implementation ~backend ppf sourcefile outputprefix =
       let (typedtree, coercion) =
         ast
         ++ print_if ppf Clflags.dump_parsetree Printast.implementation
-        ++ print_if ppf Clflags.dump_source Pprintast.structure
+        ++ print_if ppf Clflags.dump_source Printast.structure
         ++ Save_ir.save Parsetree ~output_prefix:outputprefix
-             Pprintast.implementation
+             Printast.implementation
         ++ Profile.(record typing)
             (Typemod.type_implementation sourcefile outputprefix modulename env)
         ++ print_if ppf Clflags.dump_typedtree

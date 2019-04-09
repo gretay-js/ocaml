@@ -95,4 +95,8 @@ val save
   -> 'a
   -> unit
 
-val passes_finished : ...
+val passes_finished
+  : Language.t
+  -> (Format.formatter -> 'a -> unit)
+  -> 'a
+  -> unit
