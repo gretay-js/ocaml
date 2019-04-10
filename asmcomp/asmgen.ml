@@ -122,6 +122,14 @@ let linear_pass ~output_prefix ~ppf ?dump_if (pass : L.linear)
     ~pass_dump_if:pass_dump_linear_if
     f term
 
+let cmm_to_mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach)
+      (f:'a -> Mach.fundecl) (term:'a) : Mach.fundecl =
+  run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
+    ~print:Printmach.fundecl
+    ~pass_dump_if:pass_dump_if
+    f term
+
+
 let mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach)
       (f:'a -> Mach.fundecl) (term:'a) : Mach.fundecl =
   run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
@@ -132,12 +140,13 @@ let mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach)
 let (++) x f = f x
 
 let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
+  let cmm_to_mach_pass = cmm_to_mach_pass ~output_prefix ~ppf in
   let mach_pass = mach_pass ~output_prefix ~ppf in
   let linear_pass = linear_pass ~output_prefix ~ppf in
   Proc.init ();
   Reg.reset();
   fd_cmm
-  ++ mach_pass Selection Selection.fundecl ~dump_if:dump_selection
+  ++ cmm_to_mach_pass Selection Selection.fundecl ~dump_if:dump_selection
   ++ mach_pass Comballoc Comballoc.fundecl ~dump_if:dump_combine
   ++ mach_pass CSE CSE.fundecl ~dump_if:dump_cse
   ++ mach_pass Liveness_1 (liveness ppf)
