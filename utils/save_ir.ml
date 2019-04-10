@@ -49,9 +49,11 @@ module Language = struct
     | Regalloc
     | Reload
     | Liveness_during_regalloc
+    | Available_regs
 
   type linear =
     | Linearize
+    | Linear_invariants
     | Scheduling
     | Block_reorder
 
@@ -85,6 +87,7 @@ module Language = struct
     | Regalloc -> "register allocation"
     | Liveness_during_regalloc -> "liveness analysis (during reg. alloc)"
     | Reload -> "insertion of remaining spills and reloads"
+    | Available_regs -> "available_regs"
 
   let lambda_pass_name (l:lambda) =
     match l with
@@ -124,10 +127,12 @@ module Language = struct
     | Regalloc -> "regalloc"
     | Reload -> "reload"
     | Liveness_during_regalloc -> "liveness_during_regalloc"
+    | Available_regs -> "available_regs"
 
   let linear_pass_name (lin:linear) =
     match lin with
     | Linearize -> "linearize"
+    | Linear_invariants -> "linear_invariants"
     | Scheduling -> "scheduling"
     | Block_reorder -> "block_reorder"
 
@@ -282,20 +287,21 @@ let save lang ~output_prefix f term =
 
 let passes_finished lang f term =
   if Language.Set.mem lang !shoud_save_languages then begin
-  let output_prefix  = "" in
-  let filename =
+    let output_prefix  = "" in
+    let filename =
       Printf.sprintf "%s.%s"
         output_prefix
         (Language.extension lang)
-  in
-  match open_out filename with
-  | exception exn ->
-    Printf.eprintf "Cannot open intermediate language file \
-                    for writing: %s (%s)\n"
-      filename (Printexc.to_string exn);
-    exit 1
-  | chan ->
-    let formatter = Format.formatter_of_out_channel chan in
-    f formatter term;
-    close_out chan
-  end
+    in
+    match open_out filename with
+    | exception exn ->
+      Printf.eprintf "Cannot open intermediate language file \
+                      for writing: %s (%s)\n"
+        filename (Printexc.to_string exn);
+      exit 1
+    | chan ->
+      let formatter = Format.formatter_of_out_channel chan in
+      f formatter term;
+      close_out chan
+  end;
+  term

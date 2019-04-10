@@ -49,9 +49,11 @@ module Language : sig
     | Regalloc
     | Reload
     | Liveness_during_regalloc
+    | Available_regs
 
   type linear =
     | Linearize
+    | Linear_invariants
     | Scheduling
     | Block_reorder
 
@@ -108,4 +110,4 @@ val passes_finished
   : Language.t
   -> (Format.formatter -> 'a -> unit)
   -> 'a
-  -> unit
+  -> 'a
