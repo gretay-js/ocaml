@@ -82,7 +82,7 @@ let implementation ppf sourcefile outputprefix =
         ++ Profile.(record typing)
             (Typemod.type_implementation sourcefile outputprefix modulename env)
         ++ print_if ppf Clflags.dump_typedtree
-          Printtyped.implementation_with_coercion
+             Printtyped.implementation_with_coercion
         ++ Save_ir.save Typedtree ~output_prefix:outputprefix
              Printtyped.implementation_with_coercion
      in

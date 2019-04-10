@@ -68,6 +68,7 @@ let (++) x f = f x
 let (+++) (x, y) f = (x, f y)
 
 let implementation ~backend ppf sourcefile outputprefix =
+  let open Save_ir.Language in
   Profile.record_call sourcefile (fun () ->
     Compmisc.init_path true;
     let modulename = module_of_filename ppf sourcefile outputprefix in
@@ -80,14 +81,14 @@ let implementation ~backend ppf sourcefile outputprefix =
       let (typedtree, coercion) =
         ast
         ++ print_if ppf Clflags.dump_parsetree Printast.implementation
-        ++ print_if ppf Clflags.dump_source Printast.structure
+        ++ print_if ppf Clflags.dump_source Pprintast.structure
         ++ Save_ir.save Parsetree ~output_prefix:outputprefix
              Printast.implementation
         ++ Profile.(record typing)
             (Typemod.type_implementation sourcefile outputprefix modulename env)
         ++ print_if ppf Clflags.dump_typedtree
             Printtyped.implementation_with_coercion
-        ++ Save_ir.save Save_ir.Typedtree ~output_prefix:outputprefix
+        ++ Save_ir.save Typedtree ~output_prefix:outputprefix
              Printtyped.implementation_with_coercion
       in
       if not !Clflags.print_types then begin
