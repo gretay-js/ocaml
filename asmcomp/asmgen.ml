@@ -101,33 +101,38 @@ let rec regalloc ppf round fd =
 
 module L = Save_ir.Language
 
-let run_pass ~output_prefix ?dump_if (lang : L.t) ~print ~to_string
-      ~to_human_string f term =
+let run_pass ~output_prefix ~ppf ?dump_if (lang : L.t)
+      ~print:()
+      ~to_string
+      ~to_human_string ~pass_dump_if f term =
   let name = to_string lang in
   let term = Profile.record ~accumulate:true name f term in
   Save_ir.save lang ~output_prefix print term;
   match dump_if with
   | None -> term
   | Some dump_if ->
-    let name = to_human_string pass in
+    let name = to_human_string lang in
     pass_dump_if ppf dump_if name term
 
-let mach_pass ~output_prefix ?dump_if (pass : L.mach_pass) f term =
-  run_pass ~output_prefix ?dump_if (Mach pass)
+let mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach) f term =
+  run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
     ~print:Printmach.fundecl
     ~to_string:L.mach_to_string
     ~to_human_string:L.mach_to_human_string
+    ~pass_dump_if:pass_dump_if
 
-let linear_pass ~output_prefix ?dump_if (pass : L.linear_pass) f term =
-  run_pass ~output_prefix ?dump_if (Linear pass)
+let linear_pass ~output_prefix ~ppf ?dump_if (pass : L.linear) f term =
+  run_pass ~output_prefix ~ppf ?dump_if (Linear (After pass))
     ~print:Printlinear.fundecl
     ~to_string:L.linear_to_string
-    ~to_human_string:L.linear_to_human_string
+    ~to_human_string:L.linear_to_human_string term
+    ~pass_dump_if:pass_dump_linear_if
 
 let (++) x f = f x
 
 let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
-  let run_pass = run_pass ~output_prefix in
+  let mach_pass = mach_pass ~output_prefix ~ppf in
+  let linear_pass = linear_pass ~output_prefix ~ppf in
   Proc.init ();
   Reg.reset();
   fd_cmm

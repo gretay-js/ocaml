@@ -106,12 +106,12 @@ let implementation ~backend ppf sourcefile outputprefix =
             (fun { Lambda.module_ident; main_module_block_size;
                    required_globals; code } ->
             ((module_ident, main_module_block_size), code)
-            +++ Save_ir.save (Lambda Before_simplif)
+            +++ Save_ir.save (Lambda (Before Simplif))
                   ~output_prefix:outputprefix Printlambda.lambda
             +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
             +++ Simplif.simplify_lambda sourcefile
             +++ print_if ppf Clflags.dump_lambda Printlambda.lambda
-            +++ Save_ir.save (Lambda After_simplif)
+            +++ Save_ir.save (Lambda (After Simplif))
                   ~output_prefix:outputprefix Printlambda.lambda
             ++ (fun ((module_ident, size), lam) ->
                 Middle_end.middle_end ppf
