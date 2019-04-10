@@ -131,16 +131,16 @@ let implementation ~backend ppf sourcefile outputprefix =
           ++ Profile.(record transl)
               (Translmod.transl_store_implementation modulename)
           ++ print_if ppf Clflags.dump_rawlambda Printlambda.program
-          ++ Save_ir.save (Lambda Before_simplif)
-               ~output_prefix:outputprefix Printlambda.lambda
+          ++ Save_ir.save (Lambda (Before Simplif))
+               ~output_prefix:outputprefix Printlambda.program
           ++ Profile.(record generate)
               (fun program ->
                 { program with
                   Lambda.code = Simplif.simplify_lambda sourcefile
                     program.Lambda.code }
                 ++ print_if ppf Clflags.dump_lambda Printlambda.program
-                ++ Save_ir.save (Lambda After_simplif)
-                     ~output_prefix:outputprefix Printlambda.lambda
+                ++ Save_ir.save (Lambda (After Simplif))
+                     ~output_prefix:outputprefix Printlambda.program
                 ++ Asmgen.compile_implementation_clambda
                   outputprefix ppf;
                 Compilenv.save_unit_info cmxfile)

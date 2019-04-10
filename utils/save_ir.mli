@@ -72,6 +72,13 @@ module Language : sig
     | Bytecode
 
   val all : t list
+
+  (** Names of passes. *)
+  val to_string : t -> string
+
+  (** Human-readable descriptions of passes. *)
+  val to_string_hum : t -> string
+
 end
 
 (** Mark that the given language should be saved at a particular stage. *)

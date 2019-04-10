@@ -102,31 +102,32 @@ let rec regalloc ppf round fd =
 module L = Save_ir.Language
 
 let run_pass ~output_prefix ~ppf ?dump_if (lang : L.t)
-      ~print:()
-      ~to_string
-      ~to_human_string ~pass_dump_if f term =
-  let name = to_string lang in
+      ~(print:Format.formatter -> 'b -> unit)
+      ~(pass_dump_if:Format.formatter -> bool ref -> string -> 'b -> 'b)
+      (f:'a->'b) (term: 'a) : 'b =
+  let name = L.to_string lang in
   let term = Profile.record ~accumulate:true name f term in
-  Save_ir.save lang ~output_prefix print term;
-  match dump_if with
-  | None -> term
-  | Some dump_if ->
-    let name = to_human_string lang in
-    pass_dump_if ppf dump_if name term
+  (* Save_ir.save lang ~output_prefix print term; *)
+  (* match dump_if with
+   * | None -> term
+   * | Some dump_if ->
+   *   let name = L.to_string_hum lang in
+   *   pass_dump_if ppf dump_if name term *)
+  term
 
-let mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach) f term =
-  run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
-    ~print:Printmach.fundecl
-    ~to_string:L.mach_to_string
-    ~to_human_string:L.mach_to_human_string
-    ~pass_dump_if:pass_dump_if
-
-let linear_pass ~output_prefix ~ppf ?dump_if (pass : L.linear) f term =
+let linear_pass ~output_prefix ~ppf ?dump_if (pass : L.linear)
+      (f:'a -> Linearize.fundecl) (term:'a) : Linearize.fundecl =
   run_pass ~output_prefix ~ppf ?dump_if (Linear (After pass))
     ~print:Printlinear.fundecl
-    ~to_string:L.linear_to_string
-    ~to_human_string:L.linear_to_human_string term
     ~pass_dump_if:pass_dump_linear_if
+    f term
+
+let mach_pass ~output_prefix ~ppf ?dump_if (pass : L.mach)
+      (f:'a -> Mach.fundecl) (term:'a) : Mach.fundecl =
+  run_pass ~output_prefix ~ppf ?dump_if (Mach (After pass))
+    ~print:Printmach.fundecl
+    ~pass_dump_if:pass_dump_if
+    f term
 
 let (++) x f = f x
 
@@ -137,7 +138,7 @@ let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
   Reg.reset();
   fd_cmm
   ++ mach_pass Selection Selection.fundecl ~dump_if:dump_selection
-  ++ mach_pass Combine Comballoc.fundecl ~dump_if:dump_combine
+  ++ mach_pass Comballoc Comballoc.fundecl ~dump_if:dump_combine
   ++ mach_pass CSE CSE.fundecl ~dump_if:dump_cse
   ++ mach_pass Liveness_1 (liveness ppf)
   ++ mach_pass Deadcode Deadcode.fundecl ~dump_if:dump_live

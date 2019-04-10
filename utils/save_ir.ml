@@ -71,7 +71,7 @@ module Language = struct
     | Linear of linear pass
     | Bytecode
 
-  let _mach_pass_name_human (m:mach) =
+  let mach_pass_name_human (m:mach) =
     match m with
     | Selection -> "instruction selection"
     | Comballoc -> "allocation combining"
@@ -158,9 +158,13 @@ module Language = struct
     | Linear  _ -> "linear"
     | Bytecode -> "bytecode"
 
+  let to_string_hum = function
+    | Mach (After pass) -> mach_pass_name_human pass
+    | pass -> to_string pass
+
   include Identifiable.Make (struct
       type nonrec t = t
-      let to_string _t = assert false (* Not implemented *)
+      let to_string t = to_string t
       let compare = Pervasives.compare
       let equal t1 t2 = (compare t1 t2 = 0)
       let hash = Hashtbl.hash
