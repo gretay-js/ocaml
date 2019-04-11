@@ -68,11 +68,7 @@ let raw_clambda_dump_if ppf
     end;
   if !dump_cmm then Format.fprintf ppf "@.cmm:@."
 
-let rec regalloc ppf round fd =
-  if round > 50 then
-    fatal_error(fd.Mach.fun_name ^
-                ": function too complex, cannot complete register allocation");
-  dump_if ppf dump_live "Liveness analysis" fd;
+let regalloc ppf fd =
   if !use_linscan then begin
     (* Linear Scan *)
     Interval.build_intervals fd;
@@ -80,76 +76,99 @@ let rec regalloc ppf round fd =
     Linscan.allocate_registers()
   end else begin
     (* Graph Coloring *)
+    Reg.reinit();
     Interf.build_graph fd;
     if !dump_interf then Printmach.interferences ppf ();
     if !dump_prefer then Printmach.preferences ppf ();
     Coloring.allocate_registers()
   end;
-  dump_if ppf dump_regalloc "After register allocation" fd;
-  let (newfd, redo_regalloc) = Reload.fundecl fd in
-  dump_if ppf dump_reload "After insertion of reloading code" newfd;
-  if redo_regalloc then begin
-    Reg.reinit(); Liveness.fundecl ppf newfd; regalloc ppf (round + 1) newfd
-  end else newfd
+  fd
 
-module L = Save_ir.Language
+let do_regalloc = ref true;
+let reload fd =
+  need_regalloc := ref false;
+  let (newfd, redo_regalloc) = Reload.fundecl fd in
+  do_regalloc := ref redo_regalloc;
+  newfd
 
 let (++) x f = f x
 
+let mk_pass name f = Pass_manager.make_pass ~name ~f:(fun _ppf -> f)
 
+let mk_pass_d name f = Pass_manager.make_pass ~name ~f
 
-let compile_fundecl (ppf : formatter) ~output_prefix fd_cmm =
-  let mach_pass = to_mach_pass ~output_prefix ~ppf in
-  let linear_pass = to_linear_pass ~output_prefix ~ppf in
+let mk_pass_dump_if name f pred message =
+  Pass_manager.make_pass ~name
+    ~f:(fun x ->
+      if !pred then f message x
+      else x
+
+let dump_mach_if = mk_pass_dump_if "dump_mach" Printmach.fundecl
+let dump_linear_if = mk_pass_dump_if "dump_linear" Printlinear.fundecl
+
+let selection = mk_pass "selection" Selection.fundecl
+let comballoc = mk_pass "comballoc" Comballoc.fundecl
+let cse = mk_pass "cse" CSE.fundecl
+let liveness = mk_pass_d "liveness" liveness
+let deadcode = mk_pass "deadcode" Deadcode.fundecl
+let spill = mk_pass "spill" Spill.fundecl
+let split = mk_pass "split" Split.fundecl
+let regalloc = mk_pass_d "regalloc" regalloc
+let reload = mk_pass "reload" reload
+let available_regs = mk_pass "available_registers" Available_regs.fundecl
+let linearize = mk_pass "linearize" Linearize.fundecl
+let scheduling = mk_pass "sched" Scheduling.fundecl
+let emit = mk_pass "emit" Emit.fundecl
+
+let redo _ fd =
+  let round = Pass_manager.current_pass_round ()
+  if need_redo && round > 50 then
+    fatal_error(fd.Mach.fun_name ^
+                ": function too complex, cannot complete register allocation");
+  Pass_manager.register_next regalloc_passes;
+  fd
+
+and redo_regalloc = mk_pass "redo_regalloc" redo
+
+and regalloc_passes = [
+  liveness;
+  dump_mach_if dump_live "Liveness analysis";
+  regalloc;
+  dump_mach_if dump_regalloc "After register allocation";
+  reload;
+  dump_if ppf dump_reload "After insertion of reloading code" newfd;
+  redo_regalloc;
+] |> Pass_manager.combine
+
+let passes =
+  [ selection;
+    dump_mach_if dump_selection "After instruction selection";
+    comballoc;
+    dump_mach_if dump_combine "After allocation combining";
+    cse;
+    dump_mach_if dump_cse "After CSE";
+    liveness;
+    deadcode;
+    dump_mach_if dump_live "Liveness analysis";
+    spill;
+    liveness;
+    dump_mach_if dump_spill "After spilling";
+    split;
+    dump_mach_if dump_split "After live range splitting";
+    regalloc_passes;
+    available_regs;
+    linearize;
+    dump_mach_if dump_linear "Linearized code";
+    scheduling;
+    dump_linear_if dump_scheduling "After instruction scheduling";
+    emit;
+  ]
+  |> Pass_manager.register
+
+let compile_fundecl (ppf : formatter) fd_cmm =
   Proc.init ();
   Reg.reset();
-  fd_cmm
-  ++ to_mach_pass ~output_prefix ~ppf Selection Selection.fundecl ~dump_if:dump_selection
-  ++ mach_pass Comballoc Comballoc.fundecl ~dump_if:dump_combine
-  ++ mach_pass CSE CSE.fundecl ~dump_if:dump_cse
-  ++ mach_pass Liveness_1 (liveness ppf)
-  ++ mach_pass Deadcode Deadcode.fundecl ~dump_if:dump_live
-  ++ mach_pass Spill Spill.fundecl
-  ++ mach_pass Liveness_2 (liveness ppf) ~dump_if:dump_spill
-  ++ mach_pass Split Split.fundecl ~dump_if:dump_split
-  ++ mach_pass Liveness_3 (liveness ppf)
-  ++ mach_pass Regalloc (regalloc ppf 1)
-  ++ mach_pass Available_regs Available_regs.fundecl
-  ++ Save_ir.passes_finished (Mach After_all_passes) Printmach.fundecl
-  ++ to_linear_pass ~output_prefix ~ppf Linearize Linearize.fundecl ~dump_if:dump_linear
-  ++ linear_pass Linear_invariants Linear_invariants.check
-  ++ linear_pass Scheduling Scheduling.fundecl ~dump_if:dump_scheduling
-  ++ linear_pass Block_reorder Reorder.fundecl ~dump_if:dump_reorder
-  ++ linear_pass Linear_invariants Linear_invariants.check
-  ++ Save_ir.passes_finished (Linear After_all_passes) Printlinear.fundecl
-  ++ Profile.record ~accumulate:true "emit" Emit.fundecl
-
-
-let Selection = Pass_manager.make Comballoc.fundecl
-  Selection
-)
-let compile_fundecl (ppf : formatter) fd_cmm =
-  let pm = Pass_manager.make ppf
-  let passes =
-  [ Selection;
-    Comballoc;
-    CSE;
-    Liveness;
-    Deadcode;
-    Spill;
-    Liveness;
-    Split;
-    Liveness;
-    Regalloc;
-    Available_regs;
-    Linearize;
-    Linear_invariants;
-    Scheduling;
-    Block_reorder;
-    Linear_invariants;
-    Emit
-  ] in
-  Pass_manager.run pm fd_cmm
+  Pass_manager.run ~ppf fd_cmm
 
 let compile_phrase ppf p =
   if !dump_cmm then fprintf ppf "%a@." Printcmm.phrase p;
@@ -167,8 +186,9 @@ let compile_genfuns ppf f =
        | _ -> ())
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
-let compile_unit _output_prefix asm_filename keep_asm
+let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
+  Emitaux.output_prefix := output_prefix;
   let create_asm = keep_asm || not !Emitaux.binary_backend_available in
   Emitaux.create_asm_file := create_asm;
   try
