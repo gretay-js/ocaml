@@ -74,6 +74,3 @@ val binary_backend_available: bool ref
 
 val create_asm_file: bool ref
     (** Are we actually generating the textual assembly file? *)
-
-val output_prefix: string ref
-    (** for names of dump files generated for a compilation unit *)

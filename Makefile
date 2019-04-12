@@ -89,7 +89,7 @@ UTILS=utils/config.cmo utils/build_path_prefix_map.cmo utils/misc.cmo \
   utils/terminfo.cmo utils/ccomp.cmo utils/warnings.cmo \
   utils/consistbl.cmo \
   utils/strongly_connected_components.cmo \
-  utils/targetint.cmo utils/save_ir.cmo utils/pass_manager.cmo
+  utils/targetint.cmo utils/save_ir.cmo
 
 PARSING=parsing/location.cmo parsing/longident.cmo \
   parsing/docstrings.cmo parsing/syntaxerr.cmo \
