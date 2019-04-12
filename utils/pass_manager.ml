@@ -4,7 +4,8 @@
  *   phrase
  *
  * let pass_dump_linear_if ppf flag message phrase =
- *   if !flag then fprintf ppf "*** %s@.%a@." message Printlinear.fundecl phrase;
+ *   if !flag then fprintf ppf "*** %s@.%a@."
+   message Printlinear.fundecl phrase;
  *   phrase
  *
  * let run_pass : 'a 'b.
@@ -57,17 +58,23 @@
  *     ~pass_dump_if:pass_dump_if
  *     f term *)
 
-(* pass that returns IR of type 'a *)
-type 'a p = {
-  (* dump_if : bool;    (* dump IR after this pass? *)
-   * print : Format.formatter -> 'a -> unit; (* printter for this IR *) *)
-  name : string; (* name of the pass, does not need to be unique. *)
-  mutable round : int; (* incremented every time this pass executes *)
-  f : 'b . Format.formatter -> 'b -> 'a; (* transformation *)
-}
+(* pass that takes IR of type 'a and returns IR of type 'b *)
+type ('a, 'b) internal_pass =
+  {
+    (* dump_if : bool;    (* dump IR after this pass? *)
+     * print : Format.formatter -> 'a -> unit; (* printter for this IR *) *)
+    name : string; (* name of the pass, does not need to be unique. *)
+    mutable round : int; (* incremented every time this pass executes *)
+    f : Format.formatter -> 'a -> 'b; (* transformation *)
+  }
 
-let make_pass ~name ~f =
-  [  { name; f; round = 0; } ]
+type p = Pass : ('a, 'b) internal_pass -> p
+
+let make_pass : 'a 'b .
+  name:string
+  -> f:(Format.formatter -> 'a -> 'b)
+  -> p list =
+  (fun ~name ~f -> [Pass { name; f; round = 0; }])
 
 let combine passes =
   List.concat passes
@@ -82,12 +89,12 @@ let current_pass = ref None
 let current_pass_round () =
   match !current_pass with
   | None -> None
-  | Some p -> p.round
+  | Some Pass p -> Some p.round
 
 let current_pass_name () =
   match !current_pass with
   | None -> None
-  | Some p -> p.name
+  | Some Pass p -> Some p.name
 
 let schedule new_passes =
   pipeline := !pipeline @ (List.concat new_passes)
@@ -97,27 +104,37 @@ let schedule_next pass =
 
 let schedule_before name new_passes =
   let len = List.length
-              (List.filter (fun p -> p.name = name) !pipeline) in
+              (List.filter (fun (Pass p) -> p.name = name) !pipeline) in
   if len <> 1 then begin
     Misc.fatal_errorf
-      "Failed to register pass %s before %s. \
-       Expected 1 occurrence of pass %s, but found %d."
-      p.name name len
+      "Failed to register new passes before pass %s. \
+       Expected 1 occurrence of this pass, but found %d."
+      name len
   end;
+  let new_passes = List.concat new_passes in
   pipeline := List.fold_right
-                (fun p acc ->
+                (fun (Pass p) acc ->
                    let nl =
-                     if p.name = name then List.concat new_passes
+                     if p.name = name then new_passes
                      else []
-                   in nl@(p::acc))
+                   in nl@((Pass p)::acc))
                 !pipeline
                 []
 
 let run ~ppf term =
-  let run_pass p term =
-    p.round <- p.round + 1;
-    current_pass := Some p;
-    Profile.record ~accumulate:true p.name (p.f ppf) term
+  (*   let run_pass (Pass p) term =
+   *   p.round <- p.round + 1;
+   *   current_pass := Some (Pass p);
+   *   Profile.record ~accumulate:true p.name (p.f ppf) term
+   * in *)
+  let run_pass : 'a 'b .
+    ('a, 'b) internal_pass
+    -> 'a
+    -> 'b =
+    fun p term ->
+      p.round <- p.round + 1;
+      current_pass := Some (Pass p);
+      Profile.record ~accumulate:true p.name (p.f ppf) term
   in
   let rec loop term =
     match !pipeline with

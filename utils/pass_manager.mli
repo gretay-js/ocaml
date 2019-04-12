@@ -3,9 +3,9 @@ type ('a,'b) pass
 (** Describes a transformation from 'a to 'b
     that can be applied multiple times. *)
 
-val make_pass
-  : ~name:string
-  -> (Formatter.format -> 'a -> 'b)
+val make_pass 'a 'b .
+  : name:string
+  -> ('a 'b . Format.formatter -> 'a -> 'b)
   -> ('a, 'b) pass
 (** Creates a pass called [name] for applying transformation [f]. *)
 
@@ -43,4 +43,4 @@ val schedule_before : string -> ('a ,'b) pass list -> unit
     which must have already been scheduled exactly once. *)
 
 (** Executes register passes in order. *)
-val run : Formatter.format -> 'a -> 'b
+val run : 'a 'b . Format.formatter -> 'a -> 'b
