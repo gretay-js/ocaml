@@ -132,11 +132,12 @@ let rec print_compact ppf t =
     Format.fprintf ppf ";";
     print_compact ppf t
 
-let make ~file ~discriminator =
+let make ~file ~line ~discriminator =
   [{ dinfo_file = file;
      dinfo_discriminator = discriminator;
-     (* Legal dwarf line=0 for info that is not attached to a source line. *)
-     dinfo_line = 0;
+     (* Legal dwarf line=0 for info that is not attached to a source line,
+        but some assembler versions ignore these lines anyway. *)
+     dinfo_line = line;
      dinfo_char_start = 0;
      dinfo_char_end = 0;
   }]

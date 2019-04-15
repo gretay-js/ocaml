@@ -44,6 +44,6 @@ val hash : t -> int
 val print_compact : Format.formatter -> t -> unit
 
 
-(* CR gyorsh: this is needed for creating debug info for low level IR.
-   We should have a better way to pass in this information. *)
-val make: file:string -> discriminator:int -> t
+(* CR gyorsh: used for creating debug info for low level IR,
+   but we should have a better way to pass in this information. *)
+val make: file:string -> line:int -> discriminator:int -> t
