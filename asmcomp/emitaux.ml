@@ -275,14 +275,16 @@ let reset_debug_info () =
 
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
-let emit_debug_info_gen dbg ~discriminator file_emitter loc_emitter =
+let emit_debug_info_gen dbg file_emitter loc_emitter =
   if is_cfi_enabled () &&
     (!Clflags.debug || Config.with_frame_pointers) then begin
     match List.rev dbg with
     | [] -> ()
     | { Debuginfo.dinfo_line = line;
         dinfo_char_start = col;
-        dinfo_file = file_name } :: _ ->
+        dinfo_file = file_name;
+        dinfo_discriminator = discriminator;
+      } :: _ ->
       if line > 0  (* PR#6243 *) ||
          discriminator > 0
       then begin
@@ -298,14 +300,14 @@ let emit_debug_info_gen dbg ~discriminator file_emitter loc_emitter =
       end
   end
 
-let emit_debug_info ?(discriminator=0) dbg =
-  emit_debug_info_gen dbg ~discriminator
+let emit_debug_info dbg =
+  emit_debug_info_gen dbg
     (fun ~file_num ~file_name ->
       emit_string "\t.file\t";
       emit_int file_num; emit_char '\t';
       emit_string_literal file_name; emit_char '\n';
     )
-    (fun ~file_num ~line ~col:_ ~discriminator->
+    (fun ~file_num ~line ~col:_ ~discriminator ->
       emit_string "\t.loc\t";
       emit_int file_num; emit_char '\t';
       emit_int line;
@@ -322,3 +324,4 @@ let reset () =
 
 let binary_backend_available = ref false
 let create_asm_file = ref true
+

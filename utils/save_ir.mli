@@ -81,6 +81,9 @@ module Language : sig
   (** Human-readable descriptions of passes. *)
   val to_string_hum : t -> string
 
+  val extension : t -> string
+  (** Filename extension for the language. *)
+
 end
 
 (** Mark that the given language should be saved at a particular stage. *)
@@ -101,13 +104,11 @@ val all_languages : string list
     function to do the pretty-printing. *)
 val save
    : Language.t
-  -> output_prefix:string
+  -> ?output_prefix:string
   -> (Format.formatter -> 'a -> unit)
   -> 'a
   -> 'a
 
-val passes_finished
-  : Language.t
-  -> (Format.formatter -> 'a -> unit)
-  -> 'a
-  -> 'a
+val set_output_prefix : string -> unit
+
+val get_output_prefix : unit -> string

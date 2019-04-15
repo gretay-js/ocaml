@@ -75,6 +75,7 @@ let implementation ~backend ppf sourcefile outputprefix =
     Env.set_unit_name modulename;
     let env = Compmisc.initial_env() in
     Compilenv.reset ?packname:!Clflags.for_package modulename;
+    Save_ir.set_output_prefix outputprefix;
     let cmxfile = outputprefix ^ ".cmx" in
     let objfile = outputprefix ^ ext_obj in
     let comp ast =
@@ -82,14 +83,12 @@ let implementation ~backend ppf sourcefile outputprefix =
         ast
         ++ print_if ppf Clflags.dump_parsetree Printast.implementation
         ++ print_if ppf Clflags.dump_source Pprintast.structure
-        ++ Save_ir.save Parsetree ~output_prefix:outputprefix
-             Printast.implementation
+        ++ Save_ir.save Parsetree Printast.implementation
         ++ Profile.(record typing)
             (Typemod.type_implementation sourcefile outputprefix modulename env)
         ++ print_if ppf Clflags.dump_typedtree
             Printtyped.implementation_with_coercion
-        ++ Save_ir.save Typedtree ~output_prefix:outputprefix
-             Printtyped.implementation_with_coercion
+        ++ Save_ir.save Typedtree Printtyped.implementation_with_coercion
       in
       if not !Clflags.print_types then begin
         if Config.flambda then begin
@@ -107,12 +106,12 @@ let implementation ~backend ppf sourcefile outputprefix =
                    required_globals; code } ->
             ((module_ident, main_module_block_size), code)
             +++ Save_ir.save (Lambda (Before Simplif))
-                  ~output_prefix:outputprefix Printlambda.lambda
+                  Printlambda.lambda
             +++ print_if ppf Clflags.dump_rawlambda Printlambda.lambda
             +++ Simplif.simplify_lambda sourcefile
             +++ print_if ppf Clflags.dump_lambda Printlambda.lambda
             +++ Save_ir.save (Lambda (After Simplif))
-                  ~output_prefix:outputprefix Printlambda.lambda
+                  Printlambda.lambda
             ++ (fun ((module_ident, size), lam) ->
                 Middle_end.middle_end ppf
                   ~prefixname:outputprefix
@@ -132,7 +131,7 @@ let implementation ~backend ppf sourcefile outputprefix =
               (Translmod.transl_store_implementation modulename)
           ++ print_if ppf Clflags.dump_rawlambda Printlambda.program
           ++ Save_ir.save (Lambda (Before Simplif))
-               ~output_prefix:outputprefix Printlambda.program
+               Printlambda.program
           ++ Profile.(record generate)
               (fun program ->
                 { program with
@@ -140,7 +139,7 @@ let implementation ~backend ppf sourcefile outputprefix =
                     program.Lambda.code }
                 ++ print_if ppf Clflags.dump_lambda Printlambda.program
                 ++ Save_ir.save (Lambda (After Simplif))
-                     ~output_prefix:outputprefix Printlambda.program
+                     Printlambda.program
                 ++ Asmgen.compile_implementation_clambda
                   outputprefix ppf;
                 Compilenv.save_unit_info cmxfile)
