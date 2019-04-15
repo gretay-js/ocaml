@@ -1178,12 +1178,12 @@ asmcomp/reloadgen.cmo : asmcomp/reg.cmi utils/misc.cmi asmcomp/mach.cmi \
 asmcomp/reloadgen.cmx : asmcomp/reg.cmx utils/misc.cmx asmcomp/mach.cmx \
     asmcomp/reloadgen.cmi
 asmcomp/reloadgen.cmi : asmcomp/reg.cmi asmcomp/mach.cmi
-asmcomp/reorder.cmo : asmcomp/reg.cmi asmcomp/printlinear.cmi utils/misc.cmi \
-    asmcomp/linearize.cmi middle_end/debuginfo.cmi asmcomp/cfg.cmi \
-    asmcomp/reorder.cmi
-asmcomp/reorder.cmx : asmcomp/reg.cmx asmcomp/printlinear.cmx utils/misc.cmx \
-    asmcomp/linearize.cmx middle_end/debuginfo.cmx asmcomp/cfg.cmx \
-    asmcomp/reorder.cmi
+asmcomp/reorder.cmo : utils/save_ir.cmi asmcomp/reg.cmi \
+    asmcomp/printlinear.cmi utils/misc.cmi asmcomp/linearize.cmi \
+    middle_end/debuginfo.cmi asmcomp/cfg.cmi asmcomp/reorder.cmi
+asmcomp/reorder.cmx : utils/save_ir.cmx asmcomp/reg.cmx \
+    asmcomp/printlinear.cmx utils/misc.cmx asmcomp/linearize.cmx \
+    middle_end/debuginfo.cmx asmcomp/cfg.cmx asmcomp/reorder.cmi
 asmcomp/reorder.cmi : asmcomp/linearize.cmi
 asmcomp/schedgen.cmo : asmcomp/reg.cmi asmcomp/proc.cmi asmcomp/mach.cmi \
     asmcomp/linearize.cmi asmcomp/cmm.cmi asmcomp/arch.cmo \
