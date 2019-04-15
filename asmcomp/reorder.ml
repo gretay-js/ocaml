@@ -40,27 +40,28 @@ let rec add_linear_id i d =
 let add_linear_ids f =
   { f with fun_body = add_linear_id f.fun_body 1 }
 
-let rec add_discriminator i file =
+let rec add_linear_discriminator i file d =
   match i.desc with
   | Lend -> { i with next = i.next }
   | Llabel _ | Ladjust_trap_depth _
-    -> { i with next = add_discriminator i.next file }
+    -> { i with next = add_linear_discriminator i.next file d }
   | _ -> begin
       let dbg = Debuginfo.concat i.dbg
-                  (Debuginfo.make ~file ~discriminator:i.id)
+                  (Debuginfo.make ~file ~discriminator:d)
       in
-      { i with dbg; next = add_discriminator i.next file }
+      { i with dbg; next = add_linear_discriminator i.next file (d+1) }
     end
 
-let add_discriminators f lang =
+let add_linear_discriminators f =
   (* Best guess for filename based on compilation unit name,
      because dwarf format (and assembler) require it,
      but only the discriminator really matters,
      and it is per function. *)
+  let open Save_ir.Language in
   let file = Printf.sprintf "%s.%s"
                f.fun_name
-               (Save_ir.Language.extension lang) in
-  { f with fun_body = add_discriminator f.fun_body file }
+               (extension (Linear After_all_passes)) in
+  { f with fun_body = add_linear_discriminator f.fun_body file 1 }
 
 let fundecl f =
   if !reorder && f.fun_fast then begin
@@ -69,7 +70,7 @@ let fundecl f =
       Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
     end;
     let f = add_linear_ids f in
-    let f = add_discriminators f (Linear After_all_passes) in
+    let f = add_discriminators f in
     let cfg = Cfg.from_linear f in
     (* Cfg.eliminate_dead_blocks cfg; *)
     let old_layout = Cfg.layout cfg in
