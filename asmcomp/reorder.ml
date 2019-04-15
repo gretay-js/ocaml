@@ -29,15 +29,45 @@ let rec equal i1 i2 =
       Printlinear.instr i2;
     false
   end
-let rec add_discriminator i d =
+
+let rec add_linear_id i d =
   match i.desc with
   | Lend -> { i with next = i.next }
   | Llabel _ | Ladjust_trap_depth _
-    -> { i with next = add_discriminator i.next d }
-  | _ -> { i with next = add_discriminator i.next (d + 1); id = d }
+    -> { i with next = add_linear_id i.next d }
+  | _ -> { i with next = add_linear_id i.next (d + 1); id = d }
 
-let add_discriminators f =
-  { f with fun_body = add_discriminator f.fun_body 1 }
+let add_linear_ids f =
+  { f with fun_body = add_linear_id f.fun_body 2 }
+
+let add_discriminator dbg file d =
+  Debuginfo.make ~file ~line:d ~discriminator:d
+  |> Debuginfo.concat dbg
+
+let rec add_linear_discriminator i file d =
+  assert (i.id = 0 || i.id = d);
+  match i.desc with
+  | Lend -> { i with next = i.next }
+  | Llabel _ | Ladjust_trap_depth _
+    -> { i with next = add_linear_discriminator i.next file d }
+  | _ -> begin
+      { i with dbg = add_discriminator i.dbg file d;
+               next = add_linear_discriminator i.next file (d+1);
+      }
+    end
+
+let add_linear_discriminators f =
+  (* Best guess for filename based on compilation unit name,
+     because dwarf format (and assembler) require it,
+     but only the discriminator really matters,
+     and it is per function. *)
+  let open Save_ir.Language in
+  let file = Printf.sprintf "%s.%s"
+               f.fun_name
+               (extension (Linear After_all_passes)) in
+  { f with fun_dbg = add_discriminator f.fun_dbg file 1;
+           fun_body = add_linear_discriminator f.fun_body file 2
+  }
 
 let fundecl f =
   if !reorder && f.fun_fast then begin
@@ -45,7 +75,8 @@ let fundecl f =
       Printf.printf "Processing %s\n" f.fun_name;
       Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
     end;
-    let f = add_discriminators f in
+    let f = add_linear_ids f in
+    let f = add_linear_discriminators f in
     let cfg = Cfg.from_linear f in
     (* Cfg.eliminate_dead_blocks cfg; *)
     let old_layout = Cfg.layout cfg in

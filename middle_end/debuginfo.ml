@@ -21,6 +21,7 @@ type item = {
   dinfo_line: int;
   dinfo_char_start: int;
   dinfo_char_end: int;
+  dinfo_discriminator: int;
 }
 
 type t = item list
@@ -38,8 +39,13 @@ let to_string dbg =
     let items =
       List.map
         (fun d ->
-           Printf.sprintf "%s:%d,%d-%d"
-             d.dinfo_file d.dinfo_line d.dinfo_char_start d.dinfo_char_end)
+           if d.dinfo_discriminator > 0 then
+             Printf.sprintf "%s:%d,%d-%d(%d)"
+               d.dinfo_file d.dinfo_line d.dinfo_char_start d.dinfo_char_end
+               d.dinfo_discriminator
+           else
+             Printf.sprintf "%s:%d,%d-%d"
+               d.dinfo_file d.dinfo_line d.dinfo_char_start d.dinfo_char_end)
         ds
     in
     "{" ^ String.concat ";" items ^ "}"
@@ -52,6 +58,7 @@ let item_from_location loc =
       if loc.loc_end.pos_fname = loc.loc_start.pos_fname
       then loc.loc_end.pos_cnum - loc.loc_start.pos_bol
       else loc.loc_start.pos_cnum - loc.loc_start.pos_bol;
+    dinfo_discriminator = 0;
   }
 
 let from_location loc =
@@ -96,6 +103,8 @@ let compare dbg1 dbg2 =
       if c <> 0 then c else
       let c = compare d1.dinfo_char_start d2.dinfo_char_start in
       if c <> 0 then c else
+      let c = compare d1.dinfo_discriminator d2.dinfo_discriminator in
+      if c <> 0 then c else
       loop ds1 ds2
   in
   loop (List.rev dbg1) (List.rev dbg2)
@@ -110,6 +119,9 @@ let rec print_compact ppf t =
       item.dinfo_line;
     if item.dinfo_char_start >= 0 then begin
       Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
+    end;
+    if item.dinfo_discriminator > 0 then begin
+      Format.fprintf ppf "(%i)" item.dinfo_discriminator
     end
   in
   match t with
@@ -119,3 +131,13 @@ let rec print_compact ppf t =
     print_item item;
     Format.fprintf ppf ";";
     print_compact ppf t
+
+let make ~file ~line ~discriminator =
+  [{ dinfo_file = file;
+     dinfo_discriminator = discriminator;
+     (* Legal dwarf line=0 for info that is not attached to a source line,
+        but some assembler versions ignore these lines anyway. *)
+     dinfo_line = line;
+     dinfo_char_start = 0;
+     dinfo_char_end = 0;
+  }]

@@ -152,6 +152,10 @@ module Language = struct
     | Linear pass -> "linear" ^ (to_string_pass linear_pass_name pass)
     | Bytecode -> "bytecode"
 
+  let to_string_hum = function
+    | Mach (After pass) -> mach_pass_name_human pass
+    | pass -> to_string pass
+
   let extension = function
     | Parsetree -> "parsetree"
     | Typedtree -> "typedtree"
@@ -162,10 +166,6 @@ module Language = struct
     | Mach _ -> "mach"
     | Linear  _ -> "linear"
     | Bytecode -> "bytecode"
-
-  let to_string_hum = function
-    | Mach (After pass) -> mach_pass_name_human pass
-    | pass -> to_string pass
 
   include Identifiable.Make (struct
       type nonrec t = t
@@ -263,7 +263,7 @@ let should_save_all_after_each_pass () =
 let all_languages =
   List.map Language.to_string Language.all
 
-let save lang ~output_prefix f term =
+let save lang ?(output_prefix="") f term =
   if Language.Set.mem lang !shoud_save_languages then begin
     let filename =
       Printf.sprintf "%s.%03d.%s.%s"
@@ -280,28 +280,21 @@ let save lang ~output_prefix f term =
       exit 1
     | chan ->
       let formatter = Format.formatter_of_out_channel chan in
-      f formatter term;
-      close_out chan
+      try begin
+        f formatter term;
+        close_out chan
+      end
+      with exn -> begin
+        close_out chan;
+        raise exn
+      end
   end;
   term
 
-let passes_finished lang f term =
-  if Language.Set.mem lang !shoud_save_languages then begin
-    let output_prefix  = "" in
-    let filename =
-      Printf.sprintf "%s.%s"
-        output_prefix
-        (Language.extension lang)
-    in
-    match open_out filename with
-    | exception exn ->
-      Printf.eprintf "Cannot open intermediate language file \
-                      for writing: %s (%s)\n"
-        filename (Printexc.to_string exn);
-      exit 1
-    | chan ->
-      let formatter = Format.formatter_of_out_channel chan in
-      f formatter term;
-      close_out chan
-  end;
-  term
+
+let output_prefix = ref ""
+
+let set_output_prefix s =
+  output_prefix := s
+
+let get_output_prefix () = !output_prefix
