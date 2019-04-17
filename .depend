@@ -1184,7 +1184,7 @@ asmcomp/reorder.cmo : utils/save_ir.cmi asmcomp/reg.cmi \
 asmcomp/reorder.cmx : utils/save_ir.cmx asmcomp/reg.cmx \
     asmcomp/printlinear.cmx utils/misc.cmx asmcomp/linearize.cmx \
     middle_end/debuginfo.cmx asmcomp/cfg.cmx asmcomp/reorder.cmi
-asmcomp/reorder.cmi : asmcomp/linearize.cmi
+asmcomp/reorder.cmi : asmcomp/linearize.cmi asmcomp/cfg.cmi
 asmcomp/schedgen.cmo : asmcomp/reg.cmi asmcomp/proc.cmi asmcomp/mach.cmi \
     asmcomp/linearize.cmi asmcomp/cmm.cmi asmcomp/arch.cmo \
     asmcomp/schedgen.cmi
