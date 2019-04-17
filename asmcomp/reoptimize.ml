@@ -11,13 +11,15 @@ open Linearize
 let verbose = ref false
 
 (* Turns on cfg construction. *)
-let build_cfg = ref true
+let build_cfg = ref false
 
 (* Transformation is identity function by default *)
 let transform = ref (fun cfg -> cfg)
 
 (* Change reorder algorithm *)
-let set_transform f =  transform := f
+let set_transform f =
+  build_cfg := true;
+  transform := f
 
 let rec equal i1 i2 =
   (* Format.kasprintf prerr_endline "@;%a" Printlinear.instr i1;
