@@ -8,6 +8,20 @@ let reorder = ref true
 
 let verbose = ref false
 
+type fun_layout = (int, int) Hashtbl.t
+type layout = (string, fun_layout) Hashtbl.t
+
+type algo =
+  | Identity
+  | Random
+  | External of layout
+  | CachePlus
+
+let algo = ref Identity
+
+let set_layout layout =
+  algo := External layout
+
 let rec equal i1 i2 =
   (* Format.kasprintf prerr_endline "@;%a" Printlinear.instr i1;
    * Format.kasprintf prerr_endline "@;%a" Printlinear.instr i2; *)
