@@ -1,7 +1,7 @@
 (* Control Flow Graph of a function. *)
 type t
 
-type label
+type label = Linearize.label
 
 module Layout : sig
   type t = label list
