@@ -14,7 +14,7 @@ let verbose = ref false
 let build_cfg = ref true
 
 (* Transformation is identity function by default *)
-let transform = ref (fun cfg -> (cfg, cfg.get_layout()))
+let transform = ref (fun cfg -> cfg)
 
 (* Change reorder algorithm *)
 let set_transform f =  transform := f
@@ -89,8 +89,8 @@ let fundecl f =
     let f = add_linear_ids f in
     let f = add_linear_discriminators f in
     let cfg = Cfg.from_linear f in
-    let (new_layout, cfg) = !tranform cfg in
-    let new_body = Cfg.to_linear cfg new_layout in
+    let new_cfg = !transform cfg in
+    let new_body = Cfg.to_linear cfg in
     if !verbose then
       Format.kasprintf prerr_endline "\nAfter:@;%a"
         Printlinear.fundecl {f with fun_body = new_body};
