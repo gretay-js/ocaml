@@ -130,7 +130,7 @@ type t = {
      a block might contain multiple Lpushtrap, which is not a terminator. *)
 }
 
-let get_layout t = t.layout
+let _get_layout t = t.layout
 
 let no_label = (-1)
 type labelled_insn =
@@ -661,8 +661,8 @@ let linearize_terminator terminator next =
   in
   List.fold_right (to_linear_instr ~i:terminator) desc_list next.insn
 
-let to_linear t layout =
-  let layout = Array.of_list layout in
+let to_linear t =
+  let layout = Array.of_list t.layout in
   let len = Array.length layout in
   let next = ref { label = no_label; insn = end_instr; } in
   for i = len - 1 downto 0 do

@@ -90,7 +90,7 @@ let fundecl f =
     let f = add_linear_discriminators f in
     let cfg = Cfg.from_linear f in
     let new_cfg = !transform cfg in
-    let new_body = Cfg.to_linear cfg in
+    let new_body = Cfg.to_linear new_cfg in
     if !verbose then
       Format.kasprintf prerr_endline "\nAfter:@;%a"
         Printlinear.fundecl {f with fun_body = new_body};

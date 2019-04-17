@@ -55,7 +55,7 @@ module Language : sig
     | Linearize
     | Linear_invariants
     | Scheduling
-    | Block_reorder
+    | Reoptimize
 
   type 'a pass =
     | After_all_passes
