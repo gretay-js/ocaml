@@ -5,9 +5,6 @@ type label = Linearize.label
 
 module Layout = struct
   type t = label list
-
-  (* CR gyorsh: missing cfg and parameters to determine new order *)
-  let reorder t = t
 end
 
 module LabelSet = Set.Make(
@@ -133,7 +130,7 @@ type t = {
      a block might contain multiple Lpushtrap, which is not a terminator. *)
 }
 
-let layout t = t.layout
+let get_layout t = t.layout
 
 let no_label = (-1)
 type labelled_insn =

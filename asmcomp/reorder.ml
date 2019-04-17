@@ -1,26 +1,23 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(* Block reordering within a function *)
+(* Construct control flow graph of the function from linear representation.
+   Annotate linear IR with debug information that ties generated assembly and
+   binaries back to it.
+   Optionally, apply intra-procedural optimizations, such as block reordering.
+   Convert back to linear. *)
 
 open Linearize
 
-let reorder = ref true
-
 let verbose = ref false
 
-type fun_layout = (int, int) Hashtbl.t
-type layout = (string, fun_layout) Hashtbl.t
+(* Turns on cfg construction. *)
+let build_cfg = ref true
 
-type algo =
-  | Identity
-  | Random
-  | External of layout
-  | CachePlus
+(* Transformation is identity function by default *)
+let transform = ref (fun cfg -> (cfg, cfg.get_layout()))
 
-let algo = ref Identity
-
-let set_layout layout =
-  algo := External layout
+(* Change reorder algorithm *)
+let set_transform f =  transform := f
 
 let rec equal i1 i2 =
   (* Format.kasprintf prerr_endline "@;%a" Printlinear.instr i1;
@@ -84,7 +81,7 @@ let add_linear_discriminators f =
   }
 
 let fundecl f =
-  if !reorder && f.fun_fast then begin
+  if !build_cfg && f.fun_fast then begin
     if !verbose then begin
       Printf.printf "Processing %s\n" f.fun_name;
       Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
@@ -92,9 +89,7 @@ let fundecl f =
     let f = add_linear_ids f in
     let f = add_linear_discriminators f in
     let cfg = Cfg.from_linear f in
-    (* Cfg.eliminate_dead_blocks cfg; *)
-    let old_layout = Cfg.layout cfg in
-    let new_layout = Cfg.Layout.reorder old_layout in
+    let (new_layout, cfg) = !tranform cfg in
     let new_body = Cfg.to_linear cfg new_layout in
     if !verbose then
       Format.kasprintf prerr_endline "\nAfter:@;%a"
