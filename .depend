@@ -757,34 +757,36 @@ asmcomp/arch.cmx : utils/config.cmx utils/clflags.cmx
 asmcomp/asmgen.cmo : asmcomp/un_anf.cmi bytecomp/translmod.cmi \
     middle_end/base_types/symbol.cmi asmcomp/split.cmi asmcomp/spill.cmi \
     asmcomp/selection.cmi asmcomp/scheduling.cmi utils/save_ir.cmi \
-    asmcomp/reorder.cmi asmcomp/reload.cmi asmcomp/reg.cmi utils/profile.cmi \
-    asmcomp/proc.cmi asmcomp/printmach.cmi asmcomp/printlinear.cmi \
-    asmcomp/printcmm.cmi asmcomp/printclambda.cmi typing/primitive.cmi \
-    utils/misc.cmi asmcomp/mach.cmi parsing/location.cmi asmcomp/liveness.cmi \
-    asmcomp/linscan.cmi middle_end/base_types/linkage_name.cmi \
-    asmcomp/linearize.cmi asmcomp/linear_invariants.cmi bytecomp/lambda.cmi \
-    asmcomp/interval.cmi asmcomp/interf.cmi typing/ident.cmi \
-    asmcomp/flambda_to_clambda.cmi middle_end/flambda.cmi asmcomp/emitaux.cmi \
-    asmcomp/emit.cmi asmcomp/deadcode.cmi utils/config.cmi \
-    asmcomp/compilenv.cmi asmcomp/comballoc.cmi asmcomp/coloring.cmi \
-    asmcomp/cmmgen.cmi asmcomp/cmm.cmi asmcomp/closure.cmi utils/clflags.cmi \
-    asmcomp/clambda.cmi asmcomp/CSE.cmo asmcomp/build_export_info.cmi \
+    asmcomp/reoptimize.cmi asmcomp/reload.cmi asmcomp/reg.cmi \
+    utils/profile.cmi asmcomp/proc.cmi asmcomp/printmach.cmi \
+    asmcomp/printlinear.cmi asmcomp/printcmm.cmi asmcomp/printclambda.cmi \
+    typing/primitive.cmi utils/misc.cmi asmcomp/mach.cmi parsing/location.cmi \
+    asmcomp/liveness.cmi asmcomp/linscan.cmi \
+    middle_end/base_types/linkage_name.cmi asmcomp/linearize.cmi \
+    asmcomp/linear_invariants.cmi bytecomp/lambda.cmi asmcomp/interval.cmi \
+    asmcomp/interf.cmi typing/ident.cmi asmcomp/flambda_to_clambda.cmi \
+    middle_end/flambda.cmi asmcomp/emitaux.cmi asmcomp/emit.cmi \
+    asmcomp/deadcode.cmi utils/config.cmi asmcomp/compilenv.cmi \
+    asmcomp/comballoc.cmi asmcomp/coloring.cmi asmcomp/cmmgen.cmi \
+    asmcomp/cmm.cmi asmcomp/closure.cmi utils/clflags.cmi asmcomp/clambda.cmi \
+    asmcomp/CSE.cmo asmcomp/build_export_info.cmi \
     asmcomp/debug/available_regs.cmi asmcomp/asmgen.cmi
 asmcomp/asmgen.cmx : asmcomp/un_anf.cmx bytecomp/translmod.cmx \
     middle_end/base_types/symbol.cmx asmcomp/split.cmx asmcomp/spill.cmx \
     asmcomp/selection.cmx asmcomp/scheduling.cmx utils/save_ir.cmx \
-    asmcomp/reorder.cmx asmcomp/reload.cmx asmcomp/reg.cmx utils/profile.cmx \
-    asmcomp/proc.cmx asmcomp/printmach.cmx asmcomp/printlinear.cmx \
-    asmcomp/printcmm.cmx asmcomp/printclambda.cmx typing/primitive.cmx \
-    utils/misc.cmx asmcomp/mach.cmx parsing/location.cmx asmcomp/liveness.cmx \
-    asmcomp/linscan.cmx middle_end/base_types/linkage_name.cmx \
-    asmcomp/linearize.cmx asmcomp/linear_invariants.cmx bytecomp/lambda.cmx \
-    asmcomp/interval.cmx asmcomp/interf.cmx typing/ident.cmx \
-    asmcomp/flambda_to_clambda.cmx middle_end/flambda.cmx asmcomp/emitaux.cmx \
-    asmcomp/emit.cmx asmcomp/deadcode.cmx utils/config.cmx \
-    asmcomp/compilenv.cmx asmcomp/comballoc.cmx asmcomp/coloring.cmx \
-    asmcomp/cmmgen.cmx asmcomp/cmm.cmx asmcomp/closure.cmx utils/clflags.cmx \
-    asmcomp/clambda.cmx asmcomp/CSE.cmx asmcomp/build_export_info.cmx \
+    asmcomp/reoptimize.cmx asmcomp/reload.cmx asmcomp/reg.cmx \
+    utils/profile.cmx asmcomp/proc.cmx asmcomp/printmach.cmx \
+    asmcomp/printlinear.cmx asmcomp/printcmm.cmx asmcomp/printclambda.cmx \
+    typing/primitive.cmx utils/misc.cmx asmcomp/mach.cmx parsing/location.cmx \
+    asmcomp/liveness.cmx asmcomp/linscan.cmx \
+    middle_end/base_types/linkage_name.cmx asmcomp/linearize.cmx \
+    asmcomp/linear_invariants.cmx bytecomp/lambda.cmx asmcomp/interval.cmx \
+    asmcomp/interf.cmx typing/ident.cmx asmcomp/flambda_to_clambda.cmx \
+    middle_end/flambda.cmx asmcomp/emitaux.cmx asmcomp/emit.cmx \
+    asmcomp/deadcode.cmx utils/config.cmx asmcomp/compilenv.cmx \
+    asmcomp/comballoc.cmx asmcomp/coloring.cmx asmcomp/cmmgen.cmx \
+    asmcomp/cmm.cmx asmcomp/closure.cmx utils/clflags.cmx asmcomp/clambda.cmx \
+    asmcomp/CSE.cmx asmcomp/build_export_info.cmx \
     asmcomp/debug/available_regs.cmx asmcomp/asmgen.cmi
 asmcomp/asmgen.cmi : bytecomp/lambda.cmi typing/ident.cmi \
     middle_end/flambda.cmi asmcomp/cmm.cmi middle_end/backend_intf.cmi
@@ -1178,13 +1180,13 @@ asmcomp/reloadgen.cmo : asmcomp/reg.cmi utils/misc.cmi asmcomp/mach.cmi \
 asmcomp/reloadgen.cmx : asmcomp/reg.cmx utils/misc.cmx asmcomp/mach.cmx \
     asmcomp/reloadgen.cmi
 asmcomp/reloadgen.cmi : asmcomp/reg.cmi asmcomp/mach.cmi
-asmcomp/reorder.cmo : utils/save_ir.cmi asmcomp/reg.cmi \
+asmcomp/reoptimize.cmo : utils/save_ir.cmi asmcomp/reg.cmi \
     asmcomp/printlinear.cmi utils/misc.cmi asmcomp/linearize.cmi \
-    middle_end/debuginfo.cmi asmcomp/cfg.cmi asmcomp/reorder.cmi
-asmcomp/reorder.cmx : utils/save_ir.cmx asmcomp/reg.cmx \
+    middle_end/debuginfo.cmi asmcomp/cfg.cmi asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmx : utils/save_ir.cmx asmcomp/reg.cmx \
     asmcomp/printlinear.cmx utils/misc.cmx asmcomp/linearize.cmx \
-    middle_end/debuginfo.cmx asmcomp/cfg.cmx asmcomp/reorder.cmi
-asmcomp/reorder.cmi : asmcomp/linearize.cmi
+    middle_end/debuginfo.cmx asmcomp/cfg.cmx asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmi : asmcomp/linearize.cmi asmcomp/cfg.cmi
 asmcomp/schedgen.cmo : asmcomp/reg.cmi asmcomp/proc.cmi asmcomp/mach.cmi \
     asmcomp/linearize.cmi asmcomp/cmm.cmi asmcomp/arch.cmo \
     asmcomp/schedgen.cmi

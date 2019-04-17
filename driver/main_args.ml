@@ -738,10 +738,6 @@ let mk_dscheduling f =
   "-dscheduling", Arg.Unit f, " (undocumented)"
 ;;
 
-let mk_dreorder f =
-  "-dreorder", Arg.Unit f, " (undocumented)"
-;;
-
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
 ;;
@@ -983,7 +979,6 @@ module type Optcommon_options = sig
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
   val _dscheduling :  unit -> unit
-  val _dreorder :  unit -> unit
   val _dlinear :  unit -> unit
   val _dstartup :  unit -> unit
 end;;
@@ -1323,7 +1318,6 @@ struct
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
     mk_dscheduling F._dscheduling;
-    mk_dreorder F._dreorder;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1423,7 +1417,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
     mk_dscheduling F._dscheduling;
-    mk_dreorder F._dreorder;
     mk_dlinear F._dlinear;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;

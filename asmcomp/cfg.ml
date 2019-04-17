@@ -5,9 +5,6 @@ type label = Linearize.label
 
 module Layout = struct
   type t = label list
-
-  (* CR gyorsh: missing cfg and parameters to determine new order *)
-  let reorder t = t
 end
 
 module LabelSet = Set.Make(
@@ -131,9 +128,24 @@ type t = {
      Lpushtrap L reference it. Used for dead block elimination.
      This mapping is one to one, but the reverse is not, because
      a block might contain multiple Lpushtrap, which is not a terminator. *)
+
+  id_to_label : (int, label) Hashtbl.t;
+  (* Map id of instruction to label of the block that contains
+     the instruction. Used for mapping perf data back to linear IR. *)
 }
 
-let layout t = t.layout
+let get_layout t = t.layout
+let set_layout t new_layout =
+  t.layout <- new_layout;
+  t
+
+let get_name t = t.fun_name
+
+let get_label_for_id t id =
+  Printf.printf "id_to_label: \n";
+  Hashtbl.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl) t.id_to_label;
+  Printf.printf "\n";
+  Hashtbl.find_opt t.id_to_label id
 
 let no_label = (-1)
 type labelled_insn =
@@ -167,7 +179,16 @@ let register t block =
   (* Printf.printf "registering block %d\n" block.start *)
   (* Body is constructed in reverse, fix it now: *)
   block.body <- List.rev block.body;
-  Hashtbl.add t.blocks block.start block
+  Hashtbl.add t.blocks block.start block;
+  let register_id i =
+    if i.id <> 0 then begin
+      assert (not (Hashtbl.mem t.id_to_label i.id));
+      Printf.printf "register_id %d to label %d" i.id block.start;
+      Hashtbl.add t.id_to_label i.id block.start
+    end
+  in
+  List.iter register_id block.body;
+  register_id block.terminator
 
 let register_predecessors t =
   Hashtbl.iter (fun label block ->
@@ -570,6 +591,7 @@ let make_empty_cfg name =
     split_labels = (Hashtbl.create 7 : (label, Layout.t) Hashtbl.t);
     entry_label = 0;
     layout = [];
+    id_to_label = (Hashtbl.create 31 : (int, label) Hashtbl.t);
   }
 
 let _compute_trap_depths t f =
@@ -664,8 +686,10 @@ let linearize_terminator terminator next =
   in
   List.fold_right (to_linear_instr ~i:terminator) desc_list next.insn
 
-let to_linear t layout =
-  let layout = Array.of_list layout in
+(* CR gyorsh: handle duplicate labels in new layout: print the same
+   block more than once. *)
+let to_linear t =
+  let layout = Array.of_list t.layout in
   let len = Array.length layout in
   let next = ref { label = no_label; insn = end_instr; } in
   for i = len - 1 downto 0 do

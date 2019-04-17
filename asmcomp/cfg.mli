@@ -1,16 +1,21 @@
-
-
-module Layout : sig
-  type t
-  val reorder : t -> t
-end
-
 (* Control Flow Graph of a function. *)
 type t
 
+type label = Linearize.label
+
+module Layout : sig
+  type t = label list
+end
+
 val from_linear : Linearize.fundecl -> t
-val to_linear : t -> Layout.t -> Linearize.instruction
+val to_linear : t -> Linearize.instruction
 
 (* Mutates t *)
 val eliminate_dead_blocks : t -> unit
-val layout : t -> Layout.t
+
+val get_layout : t -> Layout.t
+val set_layout : t -> Layout.t -> t
+
+val get_name : t -> string
+
+val get_label_for_id : t -> int -> label option

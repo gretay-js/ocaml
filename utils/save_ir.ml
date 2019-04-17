@@ -55,7 +55,7 @@ module Language = struct
     | Linearize
     | Linear_invariants
     | Scheduling
-    | Block_reorder
+    | Reoptimize
 
   type 'a pass =
     | After_all_passes
@@ -134,7 +134,7 @@ module Language = struct
     | Linearize -> "linearize"
     | Linear_invariants -> "linear_invariants"
     | Scheduling -> "scheduling"
-    | Block_reorder -> "block_reorder"
+    | Reoptimize -> "reoptimize"
 
   let to_string_pass pass_name = function
     | After_all_passes -> "_all_passes"
@@ -210,7 +210,7 @@ module Language = struct
     Mach (After Liveness_during_regalloc);
     Linear (After Linearize);
     Linear (After Scheduling);
-    Linear (After Block_reorder);
+    Linear (After Reoptimize);
   ]
 
   let conversions = [
@@ -221,7 +221,7 @@ module Language = struct
     Flambda (After Initialize_symbol_to_let_symbol);
     Cmm;
     Mach (After Liveness_during_regalloc);
-    Linear (After Block_reorder);
+    Linear (After Reoptimize);
   ]
 
   let all_numbered =
