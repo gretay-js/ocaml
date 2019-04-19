@@ -129,7 +129,7 @@ type t = {
      This mapping is one to one, but the reverse is not, because
      a block might contain multiple Lpushtrap, which is not a terminator. *)
 
-  id_to_label : (int, label) Hashtbl.t;
+  mutable id_to_label : label Numbers.Int.Map.t;
   (* Map id of instruction to label of the block that contains
      the instruction. Used for mapping perf data back to linear IR. *)
 }
@@ -139,13 +139,36 @@ let set_layout t new_layout =
   t.layout <- new_layout;
   t
 
+let print t =
+  Printf.printf "%s\n" t.fun_name;
+  Printf.printf "layout.length=%d\n" (List.length t.layout);
+  Printf.printf "blocks.length=%d\n" (Hashtbl.length t.blocks);
+  let print_block label block =
+      Printf.printf "%d:\n" label;
+      List.iter (fun i->
+        Printf.printf "\t%d\n" i.id)
+        block.body;
+      Printf.printf "\t%d\n" block.terminator.id
+  in
+  List.iter (fun label ->
+    let block = Hashtbl.find t.blocks label
+    in print_block label block)
+    t.layout;
+  Printf.printf "id_to_label map: \n";
+  Numbers.Int.Map.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl)
+    t.id_to_label;
+  Printf.printf "\n"
+
 let get_name t = t.fun_name
 
-let get_label_for_id t id =
-  Printf.printf "id_to_label: \n";
-  Hashtbl.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl) t.id_to_label;
-  Printf.printf "\n";
-  Hashtbl.find_opt t.id_to_label id
+let id_to_label t id =
+  match Numbers.Int.Map.find_opt id t.id_to_label with
+  | None ->
+    print t;
+    Misc.fatal_errorf "Cannot find label for id %d in map\n" id
+  | Some lbl ->
+    Printf.printf "Found label %d for id %d in map\n" lbl id;
+    Some lbl
 
 let no_label = (-1)
 type labelled_insn =
@@ -179,15 +202,7 @@ let register t block =
   (* Printf.printf "registering block %d\n" block.start *)
   (* Body is constructed in reverse, fix it now: *)
   block.body <- List.rev block.body;
-  Hashtbl.add t.blocks block.start block;
-  let register_id i =
-    if i.id <> 0 then begin
-      assert (not (Hashtbl.mem t.id_to_label i.id));
-      Hashtbl.add t.id_to_label i.id block.start
-    end
-  in
-  List.iter register_id block.body;
-  register_id block.terminator
+  Hashtbl.add t.blocks block.start block
 
 let register_predecessors t =
   Hashtbl.iter (fun label block ->
@@ -590,7 +605,7 @@ let make_empty_cfg name =
     split_labels = (Hashtbl.create 7 : (label, Layout.t) Hashtbl.t);
     entry_label = 0;
     layout = [];
-    id_to_label = (Hashtbl.create 31 : (int, label) Hashtbl.t);
+    id_to_label = Numbers.Int.Map.empty;
   }
 
 let _compute_trap_depths t f =
@@ -599,6 +614,19 @@ let _compute_trap_depths t f =
   LabelMap.iter (fun label depth ->
     Hashtbl.add t.trap_depths label depth)
     (compute_trap_depths f)
+
+let compute_id_to_label t =
+  let fold_block map label =
+    let block = Hashtbl.find t.blocks label in
+    let new_map = List.fold_left (fun map i->
+      Numbers.Int.Map.add i.id label map)
+      map
+      block.body
+    in Numbers.Int.Map.add block.terminator.id label new_map
+  in
+  t.id_to_label <- List.fold_left fold_block
+                     Numbers.Int.Map.empty
+                     t.layout
 
 let from_linear (f : Linearize.fundecl) =
   let t = make_empty_cfg f.fun_name in
@@ -614,6 +642,7 @@ let from_linear (f : Linearize.fundecl) =
      CR gyorsh: combine with dead block elimination. *)
   register_predecessors t;
   register_split_labels t;
+  compute_id_to_label t;
   (* Layout was constructed in reverse, fix it now: *)
   t.layout <- List.rev t.layout;
   t

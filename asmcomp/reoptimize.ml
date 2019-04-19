@@ -11,7 +11,7 @@ open Linearize
 let verbose = ref false
 
 (* Turns on cfg construction. *)
-let build_cfg = ref false
+let build_cfg = ref true
 
 (* Transformation is identity function by default *)
 let transform = ref (fun cfg -> cfg)

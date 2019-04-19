@@ -18,4 +18,4 @@ val set_layout : t -> Layout.t -> t
 
 val get_name : t -> string
 
-val get_label_for_id : t -> int -> label option
+val id_to_label : t -> int -> label option
