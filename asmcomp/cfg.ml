@@ -141,7 +141,11 @@ let set_layout t new_layout =
 
 let get_name t = t.fun_name
 
-let get_label_for_id t id = Hashtbl.find_opt t.id_to_label id
+let get_label_for_id t id =
+  Printf.printf "id_to_label: \n";
+  Hashtbl.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl) t.id_to_label;
+  Printf.printf "\n";
+  Hashtbl.find_opt t.id_to_label id
 
 let no_label = (-1)
 type labelled_insn =
@@ -179,7 +183,7 @@ let register t block =
   let register_id i =
     if i.id <> 0 then begin
       assert (not (Hashtbl.mem t.id_to_label i.id));
-      (* Printf.printf "register_id %d to label %d" i.id block.start; *)
+      Printf.printf "register_id %d to label %d" i.id block.start;
       Hashtbl.add t.id_to_label i.id block.start
     end
   in
