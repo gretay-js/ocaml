@@ -145,7 +145,26 @@ let get_label_for_id t id =
   Printf.printf "id_to_label: \n";
   Hashtbl.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl) t.id_to_label;
   Printf.printf "\n";
-  Hashtbl.find_opt t.id_to_label id
+  let tmp = Hashtbl.fold (fun label block map ->
+    let new_map = List.fold_left (fun map i->
+      Numbers.Int.Map.add i.id label map)
+      map
+      block.body
+    in Numbers.Int.Map.add block.terminator.id label new_map)
+    t.blocks
+    Numbers.Int.Map.empty
+  in
+  Printf.printf "tmp: \n";
+  Numbers.Int.Map.iter (fun id lbl -> Printf.printf "(%d,%d) "  id lbl) tmp;
+  Printf.printf "\n";
+  begin
+    match Numbers.Int.Map.find_opt id tmp with
+    | None -> Misc.fatal_errorf "Cannot find label for id %d in tmp" id
+    | Some lbl -> Printf.printf "Found label %d for id %d in tmp" lbl id
+  end;
+  match Hashtbl.find_opt t.id_to_label id with
+  | None -> Misc.fatal_errorf "Cannot find label for id %d in id_to_label" id
+  | Some lbl -> Some lbl
 
 let no_label = (-1)
 type labelled_insn =
