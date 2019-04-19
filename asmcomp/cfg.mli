@@ -19,3 +19,5 @@ val set_layout : t -> Layout.t -> t
 val get_name : t -> string
 
 val id_to_label : t -> int -> label option
+
+val print : t -> unit
