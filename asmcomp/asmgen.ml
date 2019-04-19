@@ -173,6 +173,7 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ linear_pass Linear_invariants Linear_invariants.check
   ++ linear_pass Scheduling Scheduling.fundecl ~dump_if:dump_scheduling
   ++ linear_pass Reoptimize Reoptimize.fundecl
+  ++ Save_ir.save (Linear (After Save_ir.Language.Reoptimize)) Printlinear.fundecl
   ++ linear_pass Linear_invariants Linear_invariants.check
   ++ Save_ir.save (Linear After_all_passes) Printlinear.fundecl
   ++ Profile.record ~accumulate:true "emit" Emit.fundecl

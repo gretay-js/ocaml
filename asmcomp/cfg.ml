@@ -183,7 +183,6 @@ let register t block =
   let register_id i =
     if i.id <> 0 then begin
       assert (not (Hashtbl.mem t.id_to_label i.id));
-      Printf.printf "register_id %d to label %d" i.id block.start;
       Hashtbl.add t.id_to_label i.id block.start
     end
   in
