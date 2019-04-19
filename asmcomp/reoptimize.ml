@@ -17,7 +17,7 @@ let build_cfg = ref false
 let transform = ref (fun cfg -> cfg)
 
 (* Change reorder algorithm *)
-let set_transform f =
+let set_transform ~f =
   build_cfg := true;
   transform := f
 
@@ -43,6 +43,15 @@ let rec equal i1 i2 =
     false
   end
 
+(* all labels have id 0 because cfg operations can create new labels,
+   whereas ids*)
+let label_id = 0
+let prolog_id = 1
+(* From 4.08, LPrologue is added to fun_body, so there is
+   no need to make an id for fun_dbg, and prolog_id instead
+   of entry_id in add_linear_discriminators. *)
+let entry_id = 1
+
 let rec add_linear_id i d =
   match i.desc with
   | Lend -> { i with next = i.next }
@@ -51,14 +60,14 @@ let rec add_linear_id i d =
   | _ -> { i with next = add_linear_id i.next (d + 1); id = d }
 
 let add_linear_ids f =
-  { f with fun_body = add_linear_id f.fun_body 2 }
+  { f with fun_body = add_linear_id f.fun_body entry_id }
 
 let add_discriminator dbg file d =
   Debuginfo.make ~file ~line:d ~discriminator:d
   |> Debuginfo.concat dbg
 
 let rec add_linear_discriminator i file d =
-  assert (i.id = 0 || i.id = d);
+  assert (i.id = label_id || i.id = d);
   match i.desc with
   | Lend -> { i with next = i.next }
   | Llabel _ | Ladjust_trap_depth _
@@ -78,8 +87,8 @@ let add_linear_discriminators f =
   let file = Printf.sprintf "%s.%s"
                f.fun_name
                (extension (Linear After_all_passes)) in
-  { f with fun_dbg = add_discriminator f.fun_dbg file 1;
-           fun_body = add_linear_discriminator f.fun_body file 2
+  { f with fun_dbg = add_discriminator f.fun_dbg file prolog_id;
+           fun_body = add_linear_discriminator f.fun_body file entry_id
   }
 
 let fundecl f =
