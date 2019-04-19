@@ -186,7 +186,7 @@ ASMCOMP=\
   asmcomp/reloadgen.cmo asmcomp/reload.cmo \
   asmcomp/deadcode.cmo \
   asmcomp/printlinear.cmo asmcomp/linearize.cmo \
-  asmcomp/linear_invariants.cmo asmcomp/cfg.cmo asmcomp/reoptimize.cmo \
+  asmcomp/linear_invariants.cmo asmcomp/reoptimize.cmo \
   asmcomp/debug/available_regs.cmo \
   asmcomp/schedgen.cmo asmcomp/scheduling.cmo \
   asmcomp/branch_relaxation_intf.cmo \
