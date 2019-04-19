@@ -867,15 +867,6 @@ asmcomp/build_export_info.cmx : middle_end/base_types/variable.cmx \
     asmcomp/build_export_info.cmi
 asmcomp/build_export_info.cmi : middle_end/flambda.cmi \
     asmcomp/export_info.cmi middle_end/backend_intf.cmi
-asmcomp/cfg.cmo : asmcomp/reg.cmi asmcomp/printlinear.cmi utils/misc.cmi \
-    asmcomp/mach.cmi asmcomp/linearize.cmi asmcomp/linear_invariants.cmi \
-    typing/ident.cmi middle_end/debuginfo.cmi asmcomp/cmm.cmi \
-    asmcomp/arch.cmo asmcomp/cfg.cmi
-asmcomp/cfg.cmx : asmcomp/reg.cmx asmcomp/printlinear.cmx utils/misc.cmx \
-    asmcomp/mach.cmx asmcomp/linearize.cmx asmcomp/linear_invariants.cmx \
-    typing/ident.cmx middle_end/debuginfo.cmx asmcomp/cmm.cmx \
-    asmcomp/arch.cmx asmcomp/cfg.cmi
-asmcomp/cfg.cmi : asmcomp/linearize.cmi
 asmcomp/clambda.cmo : bytecomp/lambda.cmi typing/ident.cmi \
     middle_end/debuginfo.cmi parsing/asttypes.cmi asmcomp/clambda.cmi
 asmcomp/clambda.cmx : bytecomp/lambda.cmx typing/ident.cmx \
@@ -1180,13 +1171,9 @@ asmcomp/reloadgen.cmo : asmcomp/reg.cmi utils/misc.cmi asmcomp/mach.cmi \
 asmcomp/reloadgen.cmx : asmcomp/reg.cmx utils/misc.cmx asmcomp/mach.cmx \
     asmcomp/reloadgen.cmi
 asmcomp/reloadgen.cmi : asmcomp/reg.cmi asmcomp/mach.cmi
-asmcomp/reoptimize.cmo : utils/save_ir.cmi asmcomp/reg.cmi \
-    asmcomp/printlinear.cmi utils/misc.cmi asmcomp/linearize.cmi \
-    middle_end/debuginfo.cmi asmcomp/cfg.cmi asmcomp/reoptimize.cmi
-asmcomp/reoptimize.cmx : utils/save_ir.cmx asmcomp/reg.cmx \
-    asmcomp/printlinear.cmx utils/misc.cmx asmcomp/linearize.cmx \
-    middle_end/debuginfo.cmx asmcomp/cfg.cmx asmcomp/reoptimize.cmi
-asmcomp/reoptimize.cmi : asmcomp/linearize.cmi asmcomp/cfg.cmi
+asmcomp/reoptimize.cmo : asmcomp/linearize.cmi asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmx : asmcomp/linearize.cmx asmcomp/reoptimize.cmi
+asmcomp/reoptimize.cmi : asmcomp/linearize.cmi
 asmcomp/schedgen.cmo : asmcomp/reg.cmi asmcomp/proc.cmi asmcomp/mach.cmi \
     asmcomp/linearize.cmi asmcomp/cmm.cmi asmcomp/arch.cmo \
     asmcomp/schedgen.cmi
