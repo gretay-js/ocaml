@@ -11,8 +11,6 @@ let transform = ref (fun fundecl -> fundecl)
 (* Change transformation *)
 let setup ~f = transform := f
 
-let verbose = ref false
-
 (* All labels have id 0 because cfg operations can create new labels,
    whereas ids of basic block instructions do not change. *)
 let label_id = 0
@@ -63,10 +61,6 @@ let add_linear_discriminators f =
 
 let fundecl f =
   if f.fun_fast && !Clflags.extended_debug then begin
-    if !verbose then begin
-      Printf.printf "Processing %s\n" f.fun_name;
-      Format.kasprintf prerr_endline "Before:@;%a" Printlinear.fundecl f
-    end;
     let f = add_linear_ids f in
     let f = add_linear_discriminators f in
     !transform f
