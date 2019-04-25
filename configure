@@ -64,6 +64,7 @@ force_safe_string=false
 default_safe_string=true
 function_sections=false
 afl_instrument=false
+extended_debug=false
 max_testsuite_dir_retries=0
 with_cplugins=false
 with_fpic=false
@@ -258,6 +259,8 @@ while : ; do
         function_sections=true;;
     -afl-instrument)
         afl_instrument=true;;
+    -xg)
+        extended_debug=true;;
     *) if echo "$1" | grep -q -e '^--\?[a-zA-Z0-9-]\+='; then
          err "configure expects arguments of the form '-prefix /foo/bar'," \
              "not '-prefix=/foo/bar' (note the '=')."
@@ -2150,6 +2153,7 @@ config DEFAULT_SAFE_STRING "$default_safe_string"
 config WINDOWS_UNICODE "0"
 config FUNCTION_SECTIONS "$function_sections"
 config AFL_INSTRUMENT "$afl_instrument"
+config EXTENDED_DEBUG "$extended_debug"
 config MAX_TESTSUITE_DIR_RETRIES "$max_testsuite_dir_retries"
 config FLAT_FLOAT_ARRAY "$flat_float_array"
 config AWK "awk"
@@ -2299,6 +2303,11 @@ else
   inf "        afl-fuzz always enabled .. yes"
   else
   inf "        afl-fuzz always enabled .. no"
+  fi
+  if test "$extended_debug" = "true"; then
+  inf "        extended debug always enabled .. yes"
+  else
+  inf "        extended debug always enabled .. no"
   fi
 fi
 

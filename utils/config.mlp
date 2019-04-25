@@ -84,6 +84,7 @@ let flat_float_array = %%FLAT_FLOAT_ARRAY%%
 
 let function_sections = %%FUNCTION_SECTIONS%%
 let afl_instrument = %%AFL_INSTRUMENT%%
+let extended_debug = %%EXTENDED_DEBUG%%
 
 let exec_magic_number = "Caml1999X023"
     (* exec_magic_number is duplicated in byterun/caml/exec.h *)
@@ -200,6 +201,7 @@ let print_config oc =
   p_bool "flat_float_array" flat_float_array;
   p_bool "function_sections" function_sections;
   p_bool "afl_instrument" afl_instrument;
+  p_bool "extended_debug" extended_debug;
   p_bool "windows_unicode" windows_unicode;
 
   (* print the magic number *)
