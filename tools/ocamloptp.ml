@@ -52,6 +52,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _a () = make_archive := true; option "-a" ()
   let _absname = option "-absname"
   let _afl_instrument = option "-afl-instrument"
+  let _xg = option "-xg"
   let _afl_inst_ratio n = option_with_int "-afl-inst-ratio" n
   let _annot = option "-annot"
   let _binannot = option "-bin-annot"
