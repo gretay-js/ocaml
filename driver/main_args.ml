@@ -101,6 +101,10 @@ let mk_g_opt f =
   "-g", Arg.Unit f, " Record debugging information for exception backtrace"
 ;;
 
+let mk_xg f =
+  "-xg", Arg.Unit f, " Record extra debugging information for profiling"
+;;
+
 let mk_i f =
   "-i", Arg.Unit f, " Print inferred interface"
 ;;
@@ -997,6 +1001,7 @@ module type Optcomp_options = sig
   val _afl_instrument : unit -> unit
   val _afl_inst_ratio : int -> unit
   val _dinterval : unit -> unit
+  val _xg : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1207,6 +1212,7 @@ struct
     mk_dtypes F._annot;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
+    mk_xg F._xg;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
