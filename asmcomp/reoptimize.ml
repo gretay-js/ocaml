@@ -46,12 +46,16 @@ let rec add_linear_discriminator i file d =
       }
     end
 
-(* CR gyorsh: This is the only machine dependent part. *)
+(* CR gyorsh: This is the only machine dependent part.
+   owee parser doesn't know how to handle /% that may appear
+   in a function name, for example an Int operator.
+*)
 let to_symbol name =
   let symbol_prefix =
     if X86_proc.system = X86_proc.S_macosx then "_" else ""
   in
   X86_proc.string_of_symbol symbol_prefix name
+(* let to_symbol name = name *)
 
 let add_linear_discriminators f =
   (* Best guess for filename based on compilation unit name,
