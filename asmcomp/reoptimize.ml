@@ -46,15 +46,19 @@ let rec add_linear_discriminator i file d =
       }
     end
 
+(* CR gyorsh: This is the only machine dependent part. *)
+let to_symbol name =
+  let symbol_prefix =
+    if X86_proc.system = X86_proc.S_macosx then "_" else ""
+  in
+  X86_proc.string_of_symbol symbol_prefix name
+
 let add_linear_discriminators f =
   (* Best guess for filename based on compilation unit name,
      because dwarf format (and assembler) require it,
      but only the line number or discriminator really matter,
      and it is per function. *)
-  let open Save_ir.Language in
-  let file = Printf.sprintf "%s.%s"
-               f.fun_name
-               (extension (Linear After_all_passes)) in
+  let file = (to_symbol f.fun_name)^".linear" in
   { f with fun_dbg = add_discriminator f.fun_dbg file prolog_id;
            fun_body = add_linear_discriminator f.fun_body file entry_id
   }
