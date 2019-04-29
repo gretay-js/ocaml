@@ -12,7 +12,7 @@ conflict-class: "ocaml-core-compiler"
 flags: compiler
 setenv: CAML_LD_LIBRARY_PATH = "%{lib}%/stublibs"
 build: [
-  ["./configure" "-prefix" prefix "-no-ocamldoc" "-flambda"]
+  ["./configure" "-prefix" prefix "-no-ocamldoc" "-flambda" "-function-sections"]
   [make "-j%{jobs}%" "world"]
   [make "-j%{jobs}%" "world.opt"]
 ]
