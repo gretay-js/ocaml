@@ -255,7 +255,7 @@ while : ; do
         flat_float_array=true;;
     -no-flat-float-array|--no-flat-float-array)
         flat_float_array=false;;
-    -function_sections)
+    -function-sections)
         function_sections=true;;
     -afl-instrument)
         afl_instrument=true;;
@@ -485,6 +485,11 @@ case "$ccfamily" in
   *)
     common_cflags="-O";;
 esac
+
+if test "$function_sections" = "true"; then
+    common_cflags="$common_cflags -ffunction-sections"
+    echo "#define FUNCTION_SECTIONS" >> m.h
+fi
 
 internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
 
