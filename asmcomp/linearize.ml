@@ -232,7 +232,9 @@ let rec linear i n =
   | Iifthenelse(test, ifso, ifnot) ->
       let n1 = linear i.Mach.next n in
       begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
-        Iend, _, Lbranch lbl ->
+      | (Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
+        when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
+      | Iend, _, Lbranch lbl ->
           copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
       | _, Iend, Lbranch lbl ->
           copy_instr (Lcondbranch(invert_test test, lbl)) i (linear ifso n1)
