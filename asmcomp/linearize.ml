@@ -141,10 +141,19 @@ let adjust_trap_depth delta_traps next =
   if delta_traps = 0 then next
   else cons_instr (Ladjust_trap_depth { delta_traps }) next
 
+
+(* Discard useless moves where destination and source are the same.
+   Enables other optimizations during linearize. *)
+let rec discard_moves (i:Mach.instruction) =
+  match i.desc with
+  | Iop(Imove | Ireload | Ispill)
+    when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
+    discard_moves i.next
+  | _ -> i
+
 (* Discard all instructions up to the next label.
    This function is to be called before adding a non-terminating
    instruction. *)
-
 let rec discard_dead_code n =
   let adjust trap_depth =
     adjust_trap_depth trap_depth (discard_dead_code n.next)
@@ -230,10 +239,13 @@ let rec linear i n =
       then cons_instr Lreloadretaddr n1
       else n1
   | Iifthenelse(test, ifso, ifnot) ->
+      let ifso = discard_moves ifso in
+      let ifnot = discard_moves ifnot in
       let n1 = linear i.Mach.next n in
       begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
-      (* | (Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
-       *   when find_exit_label_try_depth n = (lbl, !try_depth) -> n1 *)
+      | (Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
+        when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
+      | Iend, Iend, _ -> n1
       | Iend, _, Lbranch lbl ->
           copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
       | _, Iend, Lbranch lbl ->
@@ -294,6 +306,8 @@ let rec linear i n =
       let n2 = linear body (add_branch lbl_head n1) in
       cons_instr (Llabel lbl_head) n2
   | Icatch(_rec_flag, handlers, body) ->
+    (* CR gyorsh: use discard_moves on handlers here
+       to enable more dead code elimination. *)
       let (lbl_end, n1) = get_label(linear i.Mach.next n) in
       (* CR mshinwell for pchambart:
          1. rename "io"
