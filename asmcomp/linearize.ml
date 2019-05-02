@@ -243,9 +243,10 @@ let rec linear i n =
       let ifnot = discard_moves ifnot in
       let n1 = linear i.Mach.next n in
       begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
-      | (Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
-        when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
       | Iend, Iend, _ -> n1
+      | (Iexit n, Iend, Llabel lbl | Iend, Iexit n, Llabel lbl |
+         Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
+        when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
       | Iend, _, Lbranch lbl ->
           copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
       | _, Iend, Lbranch lbl ->
@@ -312,6 +313,8 @@ let rec linear i n =
       (* CR mshinwell for pchambart:
          1. rename "io"
          2. Make sure the test cases cover the "Iend" cases too *)
+      let handlers = List.map (fun (n, handler) ->
+        (n, discard_moves handler)) handlers in
       let labels_at_entry_to_handlers = List.map (fun (_nfail, handler) ->
           match handler.Mach.desc with
           | Iend -> lbl_end
@@ -323,11 +326,11 @@ let rec linear i n =
       let previous_exit_label = !exit_label in
       exit_label := exit_label_add @ !exit_label;
       let n2 = List.fold_left2 (fun n (_nfail, handler) lbl_handler ->
-          match handler.Mach.desc with
-          | Iend -> n
-          | _ -> cons_instr (Llabel lbl_handler)
-                   (linear handler (add_branch lbl_end n)))
-          n1 handlers labels_at_entry_to_handlers
+        match handler.Mach.desc with
+        | Iend -> n
+        | _ -> cons_instr (Llabel lbl_handler)
+                 (linear handler (add_branch lbl_end n)))
+        n1 handlers labels_at_entry_to_handlers
       in
       let n3 = linear body (add_branch lbl_end n2) in
       exit_label := previous_exit_label;
