@@ -254,6 +254,10 @@ let rec linear i n =
       | Iexit nfail1, Iexit nfail2, _ when nfail1 = nfail2 ->
         linear ifso n1
       | Iexit nfail1, Iexit nfail2, _
+        when local_exit nfail1 && local_exit nfail2 &&
+             find_exit_label nfail1 = find_exit_label nfail2 ->
+        linear ifso n1
+      | Iexit nfail1, Iexit nfail2, _
             when is_next_catch nfail1 && local_exit nfail2 ->
           let lbl2 = find_exit_label nfail2 in
           copy_instr
