@@ -365,31 +365,30 @@ let rec linear i n =
   | Iraise k ->
       copy_instr (Lraise k) i (discard_dead_code n)
 
-
-(* let rec discard_branch_fallthrough i =
- *   let same_target lbl = function
- *     | Llabel l | Lbranch l -> lbl = l
- *     | _ -> false
- *   in
- *   let same_target_opt labels = function
- *     | Llabel l | Lbranch l
- *       -> List.for_all
- *            (fun lbl -> match lbl with
- *               | None -> true
- *               | Some lbl when l = lbl -> true
- *               | _ -> false)
- *            labels
- *     | _ -> false
- *   in
- *   match i.desc with
- *   | Lend -> i
- *   | (Lbranch lbl | Lcondbranch (_, lbl))
- *     when same_target lbl i.next.desc ->
- *     discard_branch_fallthrough i.next
- *   | Lcondbranch3 (lbl1,lbl2,lbl3)
- *     when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
- *     discard_branch_fallthrough i.next
- *   | _ -> {i with next = discard_branch_fallthrough i.next } *)
+let rec discard_branch_fallthrough i =
+  let same_target lbl = function
+    | Llabel l | Lbranch l -> lbl = l
+    | _ -> false
+  in
+  let same_target_opt labels = function
+    | Llabel l | Lbranch l
+      -> List.for_all
+           (fun lbl -> match lbl with
+              | None -> true
+              | Some lbl when l = lbl -> true
+              | _ -> false)
+           labels
+    | _ -> false
+  in
+  match i.desc with
+  | Lend -> i
+  | (Lbranch lbl | Lcondbranch (_, lbl))
+    when same_target lbl i.next.desc ->
+    discard_branch_fallthrough i.next
+  (* | Lcondbranch3 (lbl1,lbl2,lbl3)
+   *   when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
+   *   discard_branch_fallthrough i.next *)
+  | _ -> {i with next = discard_branch_fallthrough i.next }
 
 let discard_branch_fallthrough i = i
 
