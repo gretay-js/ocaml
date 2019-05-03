@@ -141,16 +141,6 @@ let adjust_trap_depth delta_traps next =
   if delta_traps = 0 then next
   else cons_instr (Ladjust_trap_depth { delta_traps }) next
 
-
-(* Discard useless moves where destination and source are the same.
-   Enables other optimizations during linearize. *)
-let rec discard_moves (i:Mach.instruction) =
-  match i.desc with
-  | Iop(Imove | Ireload | Ispill)
-    when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
-    discard_moves i.next
-  | _ -> i
-
 (* Discard all instructions up to the next label.
    This function is to be called before adding a non-terminating
    instruction. *)
@@ -239,8 +229,6 @@ let rec linear i n =
       then cons_instr Lreloadretaddr n1
       else n1
   | Iifthenelse(test, ifso, ifnot) ->
-      let ifso = discard_moves ifso in
-      let ifnot = discard_moves ifnot in
       let n1 = linear i.Mach.next n in
       begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
       | Iend, Iend, _ -> n1
@@ -315,8 +303,6 @@ let rec linear i n =
       (* CR mshinwell for pchambart:
          1. rename "io"
          2. Make sure the test cases cover the "Iend" cases too *)
-      let handlers = List.map (fun (n, handler) ->
-        (n, discard_moves handler)) handlers in
       let labels_at_entry_to_handlers = List.map (fun (_nfail, handler) ->
           match handler.Mach.desc with
           | Iend -> lbl_end
@@ -366,6 +352,46 @@ let rec linear i n =
       copy_instr (Lraise k) i (discard_dead_code n)
 
 
+
+(* Discard useless moves where destination and source are the same.
+   Simplify the CFG. Enables other optimizations during linearize. *)
+let rec discard_moves (i:Mach.instruction) =
+  let mk desc =
+    {i with desc; next = discard_moves i.next;} in
+  match i.desc with
+  | Iend -> i
+  | Iop(Imove | Ireload | Ispill)
+    when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
+    discard_moves i.next
+  | Iop(_) -> mk i.desc
+  | Iraise _ | Iexit _ | Ireturn -> mk i.desc
+  | Iifthenelse(test, ifso, ifnot) ->
+    let ifso' = discard_moves ifso in
+    let ifnot' = discard_moves ifnot in
+    begin
+      match ifso'.Mach.desc, ifnot'.Mach.desc with
+      | Iend, Iend -> discard_moves i.next
+      | Iexit nfail1, Iexit nfail2 when nfail1 = nfail2 ->
+        mk (Iexit nfail1)
+      | _-> mk (Iifthenelse(test, ifso', ifnot'))
+    end
+  | Iswitch(index, cases) ->
+    let cases' = Array.map discard_moves cases in
+    mk (Iswitch(index, cases'))
+  | Iloop(body) ->
+    let body' = discard_moves body in
+    mk (Iloop body')
+  | Icatch(rec_flag, handlers, body) ->
+    let body' = discard_moves body in
+    let handlers' =
+      List.map (fun (n, handler) ->
+        (n, discard_moves handler)) handlers in
+    mk (Icatch(rec_flag, handlers', body'))
+  | Itrywith(body, handler) ->
+    let body' = discard_moves body in
+    let handler' = discard_moves handler in
+    mk (Itrywith(body', handler'))
+
 let rec discard_branch_fallthrough i =
   let same_target lbl = function
     | Llabel l | Lbranch l -> lbl = l
@@ -392,8 +418,11 @@ let rec discard_branch_fallthrough i =
   | _ -> {i with next = discard_branch_fallthrough i.next }
 
 let fundecl f =
+  let fun_body = discard_branch_fallthrough
+                   (linear (discard_moves f.Mach.fun_body) end_instr)
+  in
   { fun_name = f.Mach.fun_name;
-    fun_body = discard_branch_fallthrough (linear f.Mach.fun_body end_instr);
+    fun_body;
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
     fun_dbg  = f.Mach.fun_dbg;
     fun_spacetime_shape = f.Mach.fun_spacetime_shape;
