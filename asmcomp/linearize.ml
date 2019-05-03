@@ -385,12 +385,10 @@ let rec discard_branch_fallthrough i =
   | (Lbranch lbl | Lcondbranch (_, lbl))
     when same_target lbl i.next.desc ->
     discard_branch_fallthrough i.next
-  (* | Lcondbranch3 (lbl1,lbl2,lbl3)
-   *   when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
-   *   discard_branch_fallthrough i.next *)
+  | Lcondbranch3 (lbl1,lbl2,lbl3)
+    when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
+    discard_branch_fallthrough i.next
   | _ -> {i with next = discard_branch_fallthrough i.next }
-
-let discard_branch_fallthrough i = i
 
 let fundecl f =
   { fun_name = f.Mach.fun_name;

@@ -41,7 +41,8 @@ module Language = struct
     | Comballoc
     | CSE
     | Liveness_1
-    | Deadcode
+    | Deadcode_1
+    | Deadcode_2
     | Spill
     | Liveness_2
     | Split
@@ -79,7 +80,8 @@ module Language = struct
     | Comballoc -> "allocation combining"
     | CSE -> "CSE"
     | Liveness_1 -> "liveness analysis (1)"
-    | Deadcode -> "dead code elimination"
+    | Deadcode_1 -> "dead code elimination (1)"
+    | Deadcode_2 -> "dead code elimination (2)"
     | Spill -> "insertion of suggested spills and reloads"
     | Liveness_2 -> "liveness analysis (2)"
     | Split -> "live range splitting"
@@ -119,7 +121,8 @@ module Language = struct
     | Comballoc -> "comballoc"
     | CSE -> "cse"
     | Liveness_1 -> "liveness_1"
-    | Deadcode -> "deadcode"
+    | Deadcode_1-> "deadcode_1"
+    | Deadcode_2-> "deadcode_2"
     | Spill -> "spill"
     | Liveness_2 -> "Liveness_2"
     | Split -> "split"
@@ -200,7 +203,8 @@ module Language = struct
     Mach (After Comballoc);
     Mach (After CSE);
     Mach (After Liveness_1);
-    Mach (After Deadcode);
+    Mach (After Deadcode_1);
+    Mach (After Deadcode_2);
     Mach (After Spill);
     Mach (After Liveness_2);
     Mach (After Split);

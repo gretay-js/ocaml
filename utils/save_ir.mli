@@ -41,7 +41,8 @@ module Language : sig
     | Comballoc
     | CSE
     | Liveness_1
-    | Deadcode
+    | Deadcode_1
+    | Deadcode_2
     | Spill
     | Liveness_2
     | Split

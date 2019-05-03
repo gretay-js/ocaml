@@ -161,12 +161,13 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ mach_pass Comballoc Comballoc.fundecl ~dump_if:dump_combine
   ++ mach_pass CSE CSE.fundecl ~dump_if:dump_cse
   ++ mach_pass Liveness_1 (liveness ppf)
-  ++ mach_pass Deadcode Deadcode.fundecl ~dump_if:dump_live
+  ++ mach_pass Deadcode_1 Deadcode.fundecl ~dump_if:dump_live
   ++ mach_pass Spill Spill.fundecl
   ++ mach_pass Liveness_2 (liveness ppf) ~dump_if:dump_spill
   ++ mach_pass Split Split.fundecl ~dump_if:dump_split
   ++ mach_pass Liveness_3 (liveness ppf)
   ++ mach_pass Regalloc (regalloc ppf 1)
+  (* ++ mach_pass Deadcode_2 Deadcode.fundecl ~dump_if:dump_live *)
   ++ mach_pass Available_regs Available_regs.fundecl
   ++ Save_ir.save (Mach After_all_passes) Printmach.fundecl
   ++ to_linear_pass ~ppf Linearize Linearize.fundecl ~dump_if:dump_linear
