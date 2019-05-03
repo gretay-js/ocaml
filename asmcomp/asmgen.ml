@@ -169,6 +169,7 @@ let compile_fundecl (ppf : formatter) fd_cmm =
   ++ mach_pass Regalloc (regalloc ppf 1)
   ++ mach_pass Available_regs Available_regs.fundecl
   ++ Save_ir.save (Mach After_all_passes) Printmach.fundecl
+  ++ mach_pass Available_regs Deadcode.fundecl
   ++ to_linear_pass ~ppf Linearize Linearize.fundecl ~dump_if:dump_linear
   ++ linear_pass Linear_invariants Linear_invariants.check
   ++ linear_pass Scheduling Scheduling.fundecl ~dump_if:dump_scheduling

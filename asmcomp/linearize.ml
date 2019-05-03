@@ -311,8 +311,6 @@ let rec linear i n =
       let n2 = linear body (add_branch lbl_head n1) in
       cons_instr (Llabel lbl_head) n2
   | Icatch(_rec_flag, handlers, body) ->
-    (* CR gyorsh: use discard_moves on handlers here
-       to enable more dead code elimination. *)
       let (lbl_end, n1) = get_label(linear i.Mach.next n) in
       (* CR mshinwell for pchambart:
          1. rename "io"
@@ -367,9 +365,35 @@ let rec linear i n =
   | Iraise k ->
       copy_instr (Lraise k) i (discard_dead_code n)
 
+
+let rec discard_branch_fallthrough i =
+  let same_target lbl = function
+    | Llabel l | Lbranch l -> lbl = l
+    | _ -> false
+  in
+  let same_target_opt labels = function
+    | Llabel l | Lbranch l
+      -> List.for_all
+           (fun lbl -> match lbl with
+              | None -> true
+              | Some lbl when l = lbl -> true
+              | _ -> false)
+           labels
+    | _ -> false
+  in
+  match i.desc with
+  | Lend -> i
+  | (Lbranch lbl | Lcondbranch (_, lbl))
+    when same_target lbl i.next.desc ->
+    discard_branch_fallthrough i.next
+  | Lcondbranch3 (lbl1,lbl2,lbl3)
+    when same_target_opt [lbl1; lbl2; lbl3] i.next.desc ->
+    discard_branch_fallthrough i.next
+  | _ -> {i with next = discard_branch_fallthrough i.next }
+
 let fundecl f =
   { fun_name = f.Mach.fun_name;
-    fun_body = linear f.Mach.fun_body end_instr;
+    fun_body = discard_branch_fallthrough (linear f.Mach.fun_body end_instr);
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
     fun_dbg  = f.Mach.fun_dbg;
     fun_spacetime_shape = f.Mach.fun_spacetime_shape;
