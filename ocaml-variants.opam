@@ -15,6 +15,7 @@ build: [
   ["./configure" "-prefix" prefix "-no-ocamldoc" "-flambda" "-xg"]
   [make "-j%{jobs}%" "world"]
   [make "-j%{jobs}%" "world.opt"]
+  [make "-j%{jobs}%" "ocamlnat"]
 ]
 install: [make "install"]
 maintainer: "caml-list@inria.fr"
