@@ -167,8 +167,8 @@ let label s = sym (emit_label s)
 
 let def_label s = D.label (emit_label s)
 
-let emit_Llabel _fallthrough lbl =
-  (* if not fallthrough && !fastcode_flag then D.align 4; *)
+let emit_Llabel fallthrough lbl =
+  if not fallthrough && !fastcode_flag then D.align 4;
   def_label lbl
 
 (* Output a pseudo-register *)
@@ -932,7 +932,7 @@ let fundecl fundecl =
   bound_error_call := 0;
   all_functions := fundecl :: !all_functions;
   emit_named_text_section !function_name;
-  D.align 2; (* D.align 16; *)
+  D.align 16;
   add_def_symbol fundecl.fun_name;
   if system = S_macosx
   && not !Clflags.output_c_object
