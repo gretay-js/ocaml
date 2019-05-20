@@ -491,6 +491,10 @@ if test "$function_sections" = "true"; then
     echo "#define FUNCTION_SECTIONS" >> m.h
 fi
 
+if test "$extended_debug" = "true"; then
+    common_cflags="$common_cflags -g"
+fi
+
 internal_cppflags="-DCAML_NAME_SPACE $internal_cppflags"
 
 # Adjust according to target
