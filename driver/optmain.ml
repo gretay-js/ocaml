@@ -250,6 +250,7 @@ let main () = begin
       ["-depend", Arg.Unit Makedepend.main_from_option,
        "<options> Compute dependencies (use 'ocamlopt -depend -help' for details)"];
     Clflags.parse_arguments anonymous usage;
+    if !Clflags.extended_debug then Clflags.debug := true;
     Compmisc.read_color_env ppf;
     if !gprofile && not Config.profiling then
       fatal "Profiling with \"gprof\" is not supported on this platform.";
