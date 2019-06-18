@@ -31,6 +31,9 @@ let setup ~f = transform := f
 
 (* All labels have id 0 because cfg operations can create new labels,
    whereas ids of basic block instructions do not change. *)
+(* New terminators introduced by block reordering can also get id=0. *)
+(* CR: make id into an abstract type to distinguish special cases of new ids
+   explicitly. *)
 let label_id = 0
 let prolog_id = 1
 (* From 4.08, LPrologue is added to fun_body, so there is
