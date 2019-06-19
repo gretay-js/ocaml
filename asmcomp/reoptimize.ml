@@ -88,11 +88,25 @@ let add_linear_discriminators f =
            fun_body = add_linear_discriminator f.fun_body file entry_id
   }
 
+let marshal f =
+  (* Alternative is to marshal the entire compilation unit.
+     Move this code to asmgen.
+  *)
+  let filename = (to_symbol f.fun_name) ^ ".linear" in
+  try
+    let oc = open_out_bin filename in
+    Marshal.to_channel oc f [Marshal.Closures];
+    close_out oc;
+  with _ ->
+    Misc.fatal_errorf "Failed to marshal function to file %s" filename
+
 let fundecl f =
   if f.fun_fast && !Clflags.extended_debug then begin
     let f = add_linear_ids f in
     let f = add_linear_discriminators f in
-    !transform f
+    let f = !transform f in
+    marshal f;
+    f
   end
   else
     f
