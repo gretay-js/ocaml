@@ -20,7 +20,7 @@
 
 (** Registers function [f] as the transformer to be applied
     when this pass executes. *)
-val setup: f:(Linearize.fundecl -> Linearize.fundecl) -> unit
+val setup: f:(Linear.fundecl -> Linear.fundecl) -> unit
 
 (** Apply the transformer *)
-val fundecl: Linearize.fundecl -> Linearize.fundecl
+val fundecl: Linear.fundecl -> Linear.fundecl

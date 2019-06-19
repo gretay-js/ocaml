@@ -18,6 +18,8 @@ open Format
 type error =
   | CannotRun of string
   | WrongMagic of string
+  | IncompatibleInputFormat of string
+  | OutdatedVersion of string
 
 exception Error of error
 
@@ -102,6 +104,22 @@ let read_ast (type a) (kind : a ast_kind) fn : a =
        (input_value ic : a)
     )
 
+let read_saved_ast (type a) (kind : a ast_kind) fn : a =
+  let ic = open_in_bin fn in
+  Misc.try_finally
+    ~always:(fun () -> close_in ic)
+    (fun () ->
+       let magic = magic_of_kind kind in
+       let buffer = really_input_string ic (String.length magic) in
+       if (magic = buffer) then begin
+         Location.input_name := (input_value ic : string);
+         (input_value ic : a)
+       end else if String.sub buffer 0 9 = String.sub magic 0 9 then
+         raise (Error (OutdatedVersion fn))
+       else
+         raise (Error (IncompatibleInputFormat fn))
+    )
+
 let rewrite kind ppxs ast =
   let fn = Filename.temp_file "camlppx" "" in
   write_ast kind fn ast;
@@ -155,10 +173,11 @@ let open_and_check_magic inputfile ast_magic =
       else false
     with
       Outdated_version ->
-        Misc.fatal_error "OCaml and preprocessor have incompatible versions"
+        raise (Error (OutdatedVersion "preprocessor"))
     | _ -> false
   in
   (ic, is_ast_file)
+
 
 let parse (type a) (kind : a ast_kind) lexbuf : a =
   match kind with
@@ -181,6 +200,8 @@ let file_aux ~tool_name inputfile (type a) parse_fun invariant_fun
         (* if all_ppx <> [], invariant_fun will be called by apply_rewriters *)
         ast
       end else begin
+        if not (Clflags.(should_run Compiler_pass.Parsing)) then
+          raise (Error (IncompatibleInputFormat inputfile));
         seek_in ic 0;
         let lexbuf = Lexing.from_channel ic in
         Location.init lexbuf inputfile;
@@ -204,6 +225,12 @@ let report_error ppf = function
   | WrongMagic cmd ->
       fprintf ppf "External preprocessor does not produce a valid file@.\
                    Command line: %s@." cmd
+  | IncompatibleInputFormat filename ->
+      fprintf ppf "File format of %s is incompatible with -start-from@."
+        filename
+  | OutdatedVersion filename ->
+      fprintf ppf "OCaml and %s have incompatible versions."
+        filename
 
 let () =
   Location.register_error_of_exn
@@ -218,7 +245,14 @@ let parse_file ~tool_name invariant_fun parse kind sourcefile =
   Misc.try_finally
     (fun () ->
        Profile.record_call "parsing" @@ fun () ->
-       file_aux ~tool_name inputfile parse invariant_fun kind)
+       file_aux ~tool_name inputfile parse invariant_fun kind
+       |> (fun ast ->
+         if Clflags.(should_save_ir_after Compiler_pass.Parsing) then begin
+           let fn = sourcefile ^ ".ast" in
+           write_ast kind fn ast;
+         end;
+         ast)
+    )
     ~always:(fun () -> remove_preprocessed inputfile)
 
 module ImplementationHooks = Misc.MakeHooks(struct
@@ -230,7 +264,7 @@ module InterfaceHooks = Misc.MakeHooks(struct
 
 let parse_implementation ~tool_name sourcefile =
   parse_file ~tool_name Ast_invariants.structure
-      (parse Structure) Structure sourcefile
+    (parse Structure) Structure sourcefile
   |> ImplementationHooks.apply_hooks { Misc.sourcefile }
 
 let parse_interface ~tool_name sourcefile =

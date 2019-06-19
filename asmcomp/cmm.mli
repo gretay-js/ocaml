@@ -86,6 +86,8 @@ val swap_float_comparison: float_comparison -> float_comparison
 
 type label = int
 val new_label: unit -> label
+val set_label: int -> unit
+val cur_label: unit -> label
 
 type raise_kind =
   | Raise_withtrace
@@ -218,4 +220,4 @@ val ccatch :
        * expression * expression
   -> expression
 
-val reset : unit -> unit
+val reset_label : unit -> unit

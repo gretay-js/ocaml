@@ -29,6 +29,39 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
+let should_save_after_linearize = ref false
+let should_emit = ref true
+let linear_unit_info = { Linear_format.
+                         unit_name = "";
+                         items = [];
+                       }
+
+let reset () =
+  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
+  should_emit :=
+    if should_stop_after Compiler_pass.Linearize then false
+    else true;
+  if !should_save_after_linearize then begin
+    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.items <- [];
+  end
+
+let save_data dl =
+  if !should_save_after_linearize then
+    linear_unit_info.items <- Linear_format.(Data dl) :: linear_unit_info.items;
+  dl
+
+let save_linear f =
+  if !should_save_after_linearize then
+    linear_unit_info.items <- Linear_format.(Func f) :: linear_unit_info.items;
+  f
+
+let write_linear output_prefix =
+  if !should_save_after_linearize then
+    let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
+    linear_unit_info.items <- List.rev linear_unit_info.items;
+    Linear_format.save filename linear_unit_info
+
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
 
@@ -54,6 +87,14 @@ let flambda_raw_clambda_dump_if ppf
     end;
   if !dump_cmm then Format.fprintf ppf "@.cmm:@.";
   input
+
+let if_emit_do f x = if !should_emit then f x else ()
+let emit_begin_assembly = if_emit_do Emit.begin_assembly
+let emit_end_assembly = if_emit_do Emit.end_assembly
+let emit_data = if_emit_do Emit.data
+let emit_fundecl =
+  if_emit_do
+    (Profile.record ~accumulate:true "emit" Emit.fundecl)
 
 type clambda_and_constants =
   Clambda.ulambda *
@@ -123,18 +164,24 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ save_linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "reoptimize" Reoptimize.fundecl
-  ++ pass_dump_linear_if ppf_dump dump_reoptimize "After reoptimize"
+  ++ pass_dump_linear_if ppf_dump dump_scheduling "After reoptimize"
   ++ Profile.record ~accumulate:true "linear invariants" Linear_invariants.check
-  ++ Profile.record ~accumulate:true "emit" Emit.fundecl
+  ++ emit_fundecl
+
+let compile_data dl =
+  dl
+  ++ save_data
+  ++ emit_data
 
 let compile_phrase ~ppf_dump p =
   if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
   match p with
   | Cfunction fd -> compile_fundecl ~ppf_dump fd
-  | Cdata dl -> Emit.data dl
+  | Cdata dl -> compile_data dl
 
 
 (* For the native toplevel: generates generic functions unless
@@ -147,25 +194,34 @@ let compile_genfuns ~ppf_dump f =
        | _ -> ())
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
-let compile_unit _output_prefix asm_filename keep_asm
+let assemble ~asm_filename ~obj_filename =
+  let assemble_result =
+    Profile.record "assemble"
+      (Proc.assemble_file asm_filename) obj_filename
+  in
+  if assemble_result <> 0
+  then raise(Error(Assembler_error asm_filename))
+
+let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
-  let create_asm = keep_asm || not !Emitaux.binary_backend_available in
+  reset ();
+  let create_asm = !should_emit &&
+                   (keep_asm || not !Emitaux.binary_backend_available)
+  in
   Emitaux.create_asm_file := create_asm;
   Misc.try_finally
     ~exceptionally:(fun () -> remove_file obj_filename)
     (fun () ->
        if create_asm then Emitaux.output_channel := open_out asm_filename;
-       Misc.try_finally gen
+       Misc.try_finally
+         (fun () ->
+            gen ();
+            write_linear output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
-             if create_asm && not keep_asm then remove_file asm_filename);
-       let assemble_result =
-         Profile.record "assemble"
-           (Proc.assemble_file asm_filename) obj_filename
-       in
-       if assemble_result <> 0
-       then raise(Error(Assembler_error asm_filename));
+           if create_asm && not keep_asm then remove_file asm_filename);
+       if !should_emit then assemble ~asm_filename ~obj_filename;
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
@@ -175,25 +231,35 @@ let set_export_info (ulambda, prealloc, structured_constants, export) =
 
 let end_gen_implementation ?toplevel ~ppf_dump
     (clambda:clambda_and_constants) =
-  Emit.begin_assembly ();
+  emit_begin_assembly ();
   clambda
   ++ Profile.record "cmm" (Cmmgen.compunit ~ppf_dump)
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
-
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
      when part of a C library, won't be discarded by the linker.
      This is important if a module that uses such a symbol is later
      dynlinked. *)
-
   compile_phrase ~ppf_dump
     (Cmmgen.reference_symbols
        (List.filter (fun s -> s <> "" && s.[0] <> '%')
           (List.map Primitive.native_name !Translmod.primitive_declarations))
     );
-  Emit.end_assembly ()
+
+  emit_end_assembly ()
+
+let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
+  let open Linear_format in
+  let linear_unit_info,_ = restore filename in
+  let emit_item = function
+    | Data dl -> emit_data dl
+    | Func f -> emit_fundecl f
+  in
+  emit_begin_assembly ();
+  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
+  emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
     (program:Flambda.program) =
@@ -269,6 +335,12 @@ let compile_implementation_flambda ?toplevel prefixname
     ~required_globals ~backend ~ppf_dump (program:Flambda.program) =
   compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
+
+let compile_implementation_linear prefixname
+      ~ppf_dump ~progname =
+  compile_implementation_gen prefixname
+    ~required_globals:Ident.Set.empty
+    ~ppf_dump linear_gen_implementation progname
 
 (* Error report *)
 

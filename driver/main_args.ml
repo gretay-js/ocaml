@@ -95,8 +95,18 @@ let mk_dllpath f =
 ;;
 
 let mk_stop_after f =
-  "-stop-after", Arg.Symbol (Clflags.Compiler_pass.pass_names, f),
+  "-stop-after", Arg.Symbol (Clflags.pass_names_stop_after, f),
   " Stop after the given compilation pass."
+;;
+
+let mk_save_ir_after f =
+  "-save-ir-after", Arg.Symbol (Clflags.pass_names_save_ir_after, f),
+  " Save intermediate representation after the given compilation pass\
+    (may be specified more than once)."
+
+let mk_start_from f =
+  "-start-from", Arg.Symbol (Clflags.pass_names_start_from, f),
+  " Start from the given compilation pass."
 ;;
 
 let mk_dtypes f =
@@ -459,7 +469,7 @@ let mk_save_ir f =
   let langs = String.concat ", " Save_ir.all_languages in
   "-save-ir", Arg.String f,
   ("<language>  Save intermediate representation(s) to file (may be \
-    given more than once); valid languages: %s" ^ langs)
+    given more than once); valid languages: " ^ langs)
 ;;
 
 let mk_shared f =
@@ -911,6 +921,8 @@ module type Compiler_options = sig
   val _for_pack : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
+  val _save_ir_after : string -> unit
+  val _start_from : string -> unit
   val _i : unit -> unit
   val _impl : string -> unit
   val _intf : string -> unit
@@ -1112,6 +1124,8 @@ struct
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_stop_after F._stop_after;
+    mk_save_ir_after F._save_ir_after;
+    mk_start_from F._start_from;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
@@ -1283,6 +1297,8 @@ struct
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_stop_after F._stop_after;
+    mk_save_ir_after F._save_ir_after;
+    mk_start_from F._start_from;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;

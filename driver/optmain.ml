@@ -69,10 +69,21 @@ module Options = Main_args.Make_optcomp_options (struct
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some pass ->
         stop_after := Some pass;
-        begin match pass with
-        | P.Parsing | P.Typing ->
-            compile_only := true
-        end;
+        compile_only := P.is_compilation_pass pass;
+        check_pass_order ()
+    end
+  let _save_ir_after pass =
+    begin match Compiler_pass.of_string pass with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some pass ->
+        set_save_ir_after pass true
+    end
+  let _start_from pass =
+    begin match Compiler_pass.of_string pass with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some pass ->
+        start_from := Some pass;
+        check_pass_order ()
     end
   let _I dir = include_dirs := dir :: !include_dirs
   let _impl = impl
@@ -312,7 +323,7 @@ let main () = begin
           (get_objfiles ~with_ocamlparam:false) target);
       Warnings.check_fatal ();
     end
-    else if not !compile_only && !objfiles <> [] then begin
+    else if not !compile_only then begin
       let target =
         if !output_c_object then
           let s = extract_output !output_name in

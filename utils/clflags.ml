@@ -401,6 +401,40 @@ let error_style_reader = {
 
 let unboxed_types = ref false
 
+module Compiler_ir = struct
+  type t = Ast | Typed | Lambda | Cmm | Mach | Linear
+  let extension t =
+    let ext =
+    match t with
+    | Ast -> "ast"
+    | Typed -> "typed"
+    | Lambda -> "lambda"
+    | Cmm -> "cmm"
+    | Mach -> "mach"
+    | Linear -> "linear"
+    in
+    ".cmir-" ^ ext
+
+  let magic t =
+    let open Config in
+    match t with
+    | Ast -> ast_impl_magic_number
+    | Typed -> typedast_magic_number
+    | Lambda -> lambda_magic_number
+    | Cmm -> cmm_magic_number
+    | Mach -> mach_magic_number
+    | Linear -> linear_magic_number
+
+  let all = [
+    Ast;
+    Typed;
+    Lambda;
+    Cmm;
+    Mach;
+    Linear;
+  ]
+end
+
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct
   (* If you add a new pass, the following must be updated:
@@ -408,27 +442,57 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing
+  type t = Parsing | Typing | Linearize | Emit
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
+    | Linearize -> "linearize"
+    | Emit -> "emit"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
+    | "linearize" -> Some Linearize
+    | "emit" -> Some Emit
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Linearize -> 50
+    | Emit -> 60
+
+  let compare a b =
+    compare (rank a) (rank b)
+
+  let is_compilation_pass _ = true
+
+  let can_start_from = function
+    | Parsing | Typing | Emit -> true
+    | _ -> false
+
+  let can_save_ir_after = function
+    | Parsing | Typing | Linearize -> true
+    | _ -> false
+
+  let can_stop_after = can_save_ir_after
 
   let passes = [
     Parsing;
     Typing;
+    Linearize;
+    Emit;
   ]
-  let pass_names = List.map to_string passes
+
+  let pass_names pred =
+    List.filter pred passes
+    |> List.map to_string
 end
+
+let pass_names_stop_after = Compiler_pass.(pass_names can_stop_after)
+let pass_names_save_ir_after = Compiler_pass.(pass_names can_save_ir_after)
+let pass_names_start_from = Compiler_pass.(pass_names can_start_from)
 
 let stop_after = ref None (* -stop-after *)
 
@@ -436,6 +500,41 @@ let should_stop_after pass =
   match !stop_after with
   | None -> false
   | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
+
+let start_from = ref None (* -start-from *)
+
+let should_start_from pass =
+  match !start_from with
+  | None -> pass = Compiler_pass.Parsing
+  | Some start ->
+    let start = Compiler_pass.rank start in
+    let cur = Compiler_pass.rank pass in
+    start = cur
+
+let should_run pass =
+  match !start_from, !stop_after with
+  | None, None -> true
+  | None, Some last ->
+    Compiler_pass.rank pass <= Compiler_pass.rank last
+  | Some first, None ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+  | Some first, Some last ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+    && Compiler_pass.rank last >= Compiler_pass.rank pass
+
+let save_ir_after = ref []
+let should_save_ir_after pass =
+  List.mem pass !save_ir_after
+
+let set_save_ir_after pass enabled =
+  let other_passes = List.filter ((<>) pass) !save_ir_after in
+  let new_passes =
+    if enabled then
+      pass :: other_passes
+    else
+      other_passes
+  in
+  save_ir_after := new_passes
 
 module String = Misc.Stdlib.String
 

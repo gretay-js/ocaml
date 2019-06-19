@@ -3,9 +3,11 @@
 (*                                 OCaml                                  *)
 (*                                                                        *)
 (*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                    Greta Yorsh, Jane Street Europe                     *)
 (*                                                                        *)
 (*   Copyright 1996 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
+(*   Copyright 2019 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,33 +15,21 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* From lambda to assembly code *)
+(* Format of .cmir-linear files *)
 
-val compile_implementation_flambda :
-    ?toplevel:(string -> bool) ->
-    string ->
-    required_globals:Ident.Set.t ->
-    backend:(module Backend_intf.S) ->
-    ppf_dump:Format.formatter -> Flambda.program -> unit
+(* Compiler can optionally save Linear representation of a compilation unit,
+   along with other information required to emit assembly. *)
+type linear_item_info =
+  | Func of Linear.fundecl
+  | Data of Cmm.data_item list
 
-val compile_implementation_clambda :
-    ?toplevel:(string -> bool) ->
-    string ->
-    ppf_dump:Format.formatter -> Lambda.program -> unit
+type linear_unit_info =
+  {
+    mutable unit_name : string;
+    mutable items : linear_item_info list;
+  }
 
-val compile_implementation_linear :
-    string ->
-    ppf_dump:Format.formatter -> progname:string -> unit
-
-val compile_phrase :
-    ppf_dump:Format.formatter -> Cmm.phrase -> unit
-
-type error = Assembler_error of string
-exception Error of error
-val report_error: Format.formatter -> error -> unit
-
-
-val compile_unit:
-  string(*prefixname*) ->
-  string(*asm file*) -> bool(*keep asm*) ->
-  string(*obj file*) -> (unit -> unit) -> unit
+(* Marshal and unmashal a compilation unit in Linear format.
+   Save and restores global state required for Emit. *)
+val save : string -> linear_unit_info -> unit
+val restore : string -> linear_unit_info * Digest.t

@@ -22,7 +22,7 @@ open Arch
 open Proc
 open Reg
 open Mach
-open Linearize
+open Linear
 open Emitaux
 
 (* Reserved space at bottom of stack *)
@@ -36,6 +36,12 @@ let reserved_stack_space =
 (* Layout of the stack.  The stack is kept 16-aligned. *)
 
 let stack_offset = ref 0
+
+let num_stack_slots = Array.make Proc.num_register_classes 0
+
+let prologue_required = ref false
+
+let contains_calls = ref false
 
 let frame_size () =
   let size =
@@ -1035,6 +1041,11 @@ let fundecl fundecl =
   call_gc_label := 0;
   float_literals := [];
   jumptables := []; jumptables_lbl := -1;
+  for i = 0 to Proc.num_register_classes - 1 do
+    num_stack_slots.(i) <- fundecl.fun_num_stack_slots.(i);
+  done;
+  prologue_required := fundecl.fun_prologue_required;
+  contains_calls := fundecl.fun_contains_calls;
   begin match abi with
   | ELF32 ->
     emit_string code_space;

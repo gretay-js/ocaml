@@ -95,6 +95,14 @@ let module_of_filename inputfile outputprefix =
   name
 ;;
 
+let check_pass_order () =
+  match !start_from, !stop_after with
+  | None, _ | _, None -> ();
+  | Some start, Some stop ->
+    if (Compiler_pass.compare stop start) < 0 then
+      fatal "When using \"-stop-after <last>\" and \"-start-from <first>\", \
+             <first> last must be before <last>"
+
 type filename = string
 
 type readenv_position =
@@ -434,17 +442,39 @@ let read_one_param ppf position name v =
   | "stop-after" ->
     let module P = Clflags.Compiler_pass in
     begin match P.of_string v with
-    | None ->
-        Printf.ksprintf (print_error ppf)
-          "bad value %s for option \"stop-after\" (expected one of: %s)"
-          v (String.concat ", " P.pass_names)
-    | Some pass ->
+    | Some pass when P.can_stop_after pass ->
         Clflags.stop_after := Some pass;
-        begin match pass with
-        | P.Parsing | P.Typing ->
-            compile_only := true
-        end;
+        compile_only := P.is_compilation_pass pass;
+        check_pass_order ()
+    | _ ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_stop_after)
     end
+
+ | "save-ir-after" ->
+    let module P = Clflags.Compiler_pass in
+    begin match P.of_string v with
+    | Some pass when P.can_save_ir_after pass ->
+        Clflags.set_save_ir_after pass true
+    | _ ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_save_ir_after)
+    end
+
+  | "start-from" ->
+    let module P = Clflags.Compiler_pass in
+    begin match P.of_string v with
+    | Some pass when P.can_start_from pass ->
+        Clflags.start_from := Some pass;
+        check_pass_order ()
+    | _ ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_start_from)
+    end
+
   | _ ->
     if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
@@ -573,11 +603,6 @@ let get_objfiles ~with_ocamlparam =
   else
     List.rev !objfiles
 
-
-
-
-
-
 type deferred_action =
   | ProcessImplementation of string
   | ProcessInterface of string
@@ -589,14 +614,73 @@ type deferred_action =
 let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
+let check_ir name =
+  let check_suffix () =
+    let ext = Filename.extension name in
+    let ext_len = String.length ext in
+    if ext_len <= 0 then
+      None
+    else begin
+      List.find_opt (fun ir ->
+        let s = Compiler_ir.extension ir in
+        (* check whether [ext] starts with [s]  *)
+        let s_len = String.length s in
+        s_len <= ext_len && s = String.sub ext 0 s_len)
+        Compiler_ir.all
+    end
+  in
+  let check_magic () =
+    let ic = open_in_bin name in
+    Misc.try_finally
+      (fun () ->
+         let len = String.length Config.ast_impl_magic_number in
+         let buffer = really_input_string ic len in
+         List.find_opt (fun ir ->
+           let magic = Compiler_ir.magic ir in
+           assert (String.length magic = len);
+           if buffer = magic then true
+           else if String.sub buffer 0 9 = String.sub magic 0 9 then
+             Misc.fatal_errorf "OCaml and %s have incompatible versions"
+               name ()
+           else false)
+           Compiler_ir.all
+      )
+      ~always:(fun () -> close_in ic)
+  in
+  let ir = match check_suffix () with
+    | Some ir -> Some ir
+    | None -> check_magic ()
+  in match ir with
+  | None -> false
+  | Some Ast ->
+    if not ((should_start_from Compiler_pass.Parsing)
+            || (should_start_from Compiler_pass.Typing)) then
+      raise(Arg.Bad("Format of the input file " ^ name ^
+                    " is incompatible with the given -start-from <pass>."));
+    true
+  | Some Linear ->
+    if not (should_start_from Compiler_pass.Emit) then
+      if (!start_from = None) then
+        raise(Arg.Bad("Format of the input file " ^ name
+                      ^ " requires -start-from emit."))
+      else
+        raise(Arg.Bad("Format of the input file " ^ name ^
+                      " is incompatible with the given -start-from <pass>."));
+    true
+  | Some (Typed | Lambda | Cmm | Mach) ->
+    raise(Arg.Bad("Format of " ^ name ^ " is not supported."))
+
 let process_action
     (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+  let impl name =
+    readenv ppf (Before_compile name);
+    let opref = output_prefix name in
+    implementation ~source_file:name ~output_prefix:opref;
+    objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+  in
   match action with
   | ProcessImplementation name ->
-      readenv ppf (Before_compile name);
-      let opref = output_prefix name in
-      implementation ~source_file:name ~output_prefix:opref;
-      objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+      impl name
   | ProcessInterface name ->
       readenv ppf (Before_compile name);
       let opref = output_prefix name in
@@ -622,6 +706,8 @@ let process_action
         ccobjs := name :: !ccobjs
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
+      else if check_ir name then
+        impl name
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
 

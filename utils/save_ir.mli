@@ -118,4 +118,3 @@ val passes_finished
   -> (Format.formatter -> 'a -> unit)
   -> 'a
   -> 'a
-

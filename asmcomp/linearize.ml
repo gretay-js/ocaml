@@ -13,91 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Transformation of Mach code into a list of pseudo-instructions. *)
-
 open Reg
 open Mach
+open Linear
 
-type label = Cmm.label
-
-type instruction =
-  { mutable desc: instruction_desc;
-    mutable next: instruction;
-    arg: Reg.t array;
-    res: Reg.t array;
-    dbg: Debuginfo.t;
-    live: Reg.Set.t;
-    id: int;
-  }
-
-and instruction_desc =
-  | Lprologue
-  | Lend
-  | Lop of operation
-  | Lreloadretaddr
-  | Lreturn
-  | Llabel of label
-  | Lbranch of label
-  | Lcondbranch of test * label
-  | Lcondbranch3 of label option * label option * label option
-  | Lswitch of label array
-  | Lentertrap
-  | Ladjust_trap_depth of { delta_traps : int }
-  | Lpushtrap of {lbl_handler:label}
-  | Lpoptrap
-  | Lraise of Cmm.raise_kind
-
-let has_fallthrough = function
-  | Lreturn | Lbranch _ | Lswitch _ | Lraise _
-  | Lop Itailcall_ind _ | Lop (Itailcall_imm _) -> false
-  | _ -> true
-
-type fundecl =
-  { fun_name: string;
-    fun_body: instruction;
-    fun_fast: bool;
-    fun_dbg : Debuginfo.t;
-    fun_spacetime_shape : Mach.spacetime_shape option;
-  }
-
-(* Invert a test *)
-
-let invert_integer_test = function
-    Isigned cmp -> Isigned(Cmm.negate_integer_comparison cmp)
-  | Iunsigned cmp -> Iunsigned(Cmm.negate_integer_comparison cmp)
-
-let invert_test = function
-    Itruetest -> Ifalsetest
-  | Ifalsetest -> Itruetest
-  | Iinttest(cmp) -> Iinttest(invert_integer_test cmp)
-  | Iinttest_imm(cmp, n) -> Iinttest_imm(invert_integer_test cmp, n)
-  | Ifloattest(cmp) -> Ifloattest(Cmm.negate_float_comparison cmp)
-  | Ieventest -> Ioddtest
-  | Ioddtest -> Ieventest
-
-(* The "end" instruction *)
-
-let rec end_instr =
-  { desc = Lend;
-    next = end_instr;
-    arg = [||];
-    res = [||];
-    dbg = Debuginfo.none;
-    live = Reg.Set.empty;
-    id = 0;
-  }
-
-(* Cons an instruction (live, debug empty) *)
-
-let instr_cons d a r n =
-  { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
+(* Transformation of Mach code into a list of pseudo-instructions. *)
 
 (* Cons a simple instruction (arg, res, live empty) *)
 
 let cons_instr d n =
   { desc = d; next = n; arg = [||]; res = [||];
-    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
+    dbg = Debuginfo.none; live = Reg.Set.empty; }
 
 (* Build an instruction with arg, res, dbg, live taken from
    the given Mach.instruction *)
@@ -105,7 +31,7 @@ let cons_instr d n =
 let copy_instr d i n =
   { desc = d; next = n;
     arg = i.Mach.arg; res = i.Mach.res;
-    dbg = i.Mach.dbg; live = i.Mach.live; id = 0; }
+    dbg = i.Mach.dbg; live = i.Mach.live; }
 
 (*
    Label the beginning of the given instruction sequence.
@@ -185,6 +111,8 @@ let add_branch lbl n =
   else
     discard_dead_code n
 
+let contains_calls = ref false
+
 let try_depth = ref 0
 
 (* Association list: exit handler -> (handler label, try-nesting factor) *)
@@ -226,7 +154,7 @@ let rec linear i n =
       copy_instr (Lop op) i (linear i.Mach.next n)
   | Ireturn ->
       let n1 = copy_instr Lreturn i (discard_dead_code n) in
-      if !Proc.contains_calls
+      if !contains_calls
       then cons_instr Lreloadretaddr n1
       else n1
   | Iifthenelse(test, ifso, ifnot) ->
@@ -360,7 +288,6 @@ let add_prologue first_insn =
     res = [| |];
     dbg = insn.dbg;
     live = insn.live;
-    id = 0;
   }
 
 
@@ -429,6 +356,7 @@ let rec discard_branch_fallthrough i =
   | _ -> {i with next = discard_branch_fallthrough i.next }
 
 let fundecl f =
+  contains_calls := f.Mach.fun_contains_calls;
   let fun_body = discard_branch_fallthrough
                    (add_prologue
                       (linear (discard_moves f.Mach.fun_body) end_instr))
@@ -438,4 +366,8 @@ let fundecl f =
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
     fun_dbg  = f.Mach.fun_dbg;
     fun_spacetime_shape = f.Mach.fun_spacetime_shape;
+    fun_contains_calls = !contains_calls;
+    fun_num_stack_slots = f.Mach.fun_num_stack_slots;
+    fun_frame_required = Proc.frame_required f;
+    fun_prologue_required = Proc.prologue_required f;
   }

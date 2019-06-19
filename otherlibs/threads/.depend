@@ -41,21 +41,25 @@ mutex.cmx : \
     mutex.cmi
 mutex.cmi :
 stdlib.cmo : \
-    unix.cmo \
-    marshal.cmo
+    unix.cmi \
+    marshal.cmo \
+    stdlib.cmi
 stdlib.cmx : \
     unix.cmx \
-    marshal.cmx
+    marshal.cmx \
+    stdlib.cmi
+stdlib.cmi : \
+    marshal.cmo
 thread.cmo : \
-    unix.cmo \
+    unix.cmi \
     thread.cmi
 thread.cmx : \
     unix.cmx \
     thread.cmi
 thread.cmi : \
-    unix.cmo
+    unix.cmi
 threadUnix.cmo : \
-    unix.cmo \
+    unix.cmi \
     thread.cmi \
     threadUnix.cmi
 threadUnix.cmx : \
@@ -63,8 +67,12 @@ threadUnix.cmx : \
     thread.cmx \
     threadUnix.cmi
 threadUnix.cmi : \
-    unix.cmo
+    unix.cmi
 unix.cmo : \
-    stdlib.cmo
+    stdlib.cmi \
+    unix.cmi
 unix.cmx : \
-    stdlib.cmx
+    stdlib.cmx \
+    unix.cmi
+unix.cmi : \
+    stdlib.cmi
