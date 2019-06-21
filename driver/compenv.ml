@@ -571,13 +571,16 @@ let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
 let process_action
-    (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
-  match action with
-  | ProcessImplementation name ->
-      readenv ppf (Before_compile name);
+      (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+  let impl name =
+    readenv ppf (Before_compile name);
       let opref = output_prefix name in
       implementation ppf name opref;
       objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+  in
+  match action with
+  | ProcessImplementation name ->
+      impl name
   | ProcessInterface name ->
       readenv ppf (Before_compile name);
       let opref = output_prefix name in
@@ -603,6 +606,9 @@ let process_action
         ccobjs := name :: !ccobjs
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
+      else if Filename.check_suffix name ".linear" then begin
+        impl name
+      end
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
 
