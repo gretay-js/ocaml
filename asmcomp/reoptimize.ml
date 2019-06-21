@@ -89,6 +89,9 @@ let add_linear_discriminators f =
   }
 
 let marshal f =
+  (* Alternative is to marshal the entire compilation unit.
+     Move this code to asmgen.
+  *)
   let filename = (to_symbol f.fun_name) ^ ".linear" in
   try
     let oc = open_out_bin filename in
