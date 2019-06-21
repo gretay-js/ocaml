@@ -106,6 +106,7 @@ and ast_intf_magic_number = "Caml1999N023"
 and cmxs_magic_number = "Caml1999D023"
     (* cmxs_magic_number is duplicated in otherlibs/dynlink/natdynlink.ml *)
 and cmt_magic_number = "Caml1999T024"
+and linear_magic_number = "Caml2019L001"
 
 let load_path = ref ([] : string list)
 
