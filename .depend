@@ -2732,6 +2732,7 @@ asmcomp/cmmgen.cmo : \
     utils/targetint.cmi \
     bytecomp/switch.cmi \
     asmcomp/strmatch.cmi \
+    bytecomp/semantics_of_primitives.cmi \
     asmcomp/proc.cmi \
     bytecomp/printlambda.cmi \
     typing/primitive.cmi \
@@ -2756,6 +2757,7 @@ asmcomp/cmmgen.cmx : \
     utils/targetint.cmx \
     bytecomp/switch.cmx \
     asmcomp/strmatch.cmx \
+    bytecomp/semantics_of_primitives.cmx \
     asmcomp/proc.cmx \
     bytecomp/printlambda.cmx \
     typing/primitive.cmx \
@@ -2860,12 +2862,14 @@ asmcomp/deadcode.cmo : \
     asmcomp/proc.cmi \
     asmcomp/mach.cmi \
     utils/config.cmi \
+    asmcomp/cmm.cmi \
     asmcomp/deadcode.cmi
 asmcomp/deadcode.cmx : \
     asmcomp/reg.cmx \
     asmcomp/proc.cmx \
     asmcomp/mach.cmx \
     utils/config.cmx \
+    asmcomp/cmm.cmx \
     asmcomp/deadcode.cmi
 asmcomp/deadcode.cmi : \
     asmcomp/mach.cmi
