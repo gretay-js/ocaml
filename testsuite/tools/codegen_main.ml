@@ -71,6 +71,7 @@ let main() =
      "-dalloc", Arg.Set dump_regalloc, "";
      "-dreload", Arg.Set dump_reload, "";
      "-dscheduling", Arg.Set dump_scheduling, "";
+     "-dreoptimize", Arg.Set dump_reoptimize, "";
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
     ] compile_file usage

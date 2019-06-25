@@ -151,6 +151,7 @@ val dump_prefer : bool ref
 val dump_regalloc : bool ref
 val dump_reload : bool ref
 val dump_scheduling : bool ref
+val dump_reoptimize : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
 val keep_startup_file : bool ref
