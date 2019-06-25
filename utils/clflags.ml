@@ -408,24 +408,30 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing
+  type t = Parsing | Typing | Linearize
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
+    | Linearize -> "linearize"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
+    | "linearize" -> Some Linearize
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Linearize -> 50
+
+  let is_compilation_pass _ = true
 
   let passes = [
     Parsing;
     Typing;
+    Linearize;
   ]
   let pass_names = List.map to_string passes
 end

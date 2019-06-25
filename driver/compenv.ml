@@ -440,10 +440,7 @@ let read_one_param ppf position name v =
           v (String.concat ", " P.pass_names)
     | Some pass ->
         Clflags.stop_after := Some pass;
-        begin match pass with
-        | P.Parsing | P.Typing ->
-            compile_only := true
-        end;
+        compile_only := Clflags.Compiler_pass.is_compilation_pass pass;
     end
   | _ ->
     if not (List.mem name !can_discard) then begin
