@@ -325,3 +325,4 @@ let reset () =
 let binary_backend_available = ref false
 let create_asm_file = ref true
 
+let linear_channel = ref None

@@ -241,6 +241,9 @@ end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool
 
+val set_save_ir_after : Compiler_pass.t -> bool -> unit
+val should_save_ir_after : Compiler_pass.t -> bool
+
 val arg_spec : (string * Arg.spec * string) list ref
 
 (* [add_arguments __LOC__ args] will add the arguments from [args] at
