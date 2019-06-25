@@ -238,6 +238,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _dalloc = set dump_regalloc
   let _dreload = set dump_reload
   let _dscheduling = set dump_scheduling
+  let _dreoptimize = set dump_reoptimize
   let _dlinear = set dump_linear
   let _dinterval = set dump_interval
   let _dstartup = set keep_startup_file
