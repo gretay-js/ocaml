@@ -231,11 +231,12 @@ val error_style_reader : Misc.Error_style.setting env_reader
 val unboxed_types : bool ref
 
 module Compiler_pass : sig
-  type t = Parsing | Typing
+  type t = Parsing | Typing | Linearize
   val of_string : string -> t option
   val to_string : t -> string
   val passes : t list
   val pass_names : string list
+  val is_compilation_pass : t -> bool
 end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool

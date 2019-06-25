@@ -55,6 +55,16 @@ let flambda_raw_clambda_dump_if ppf
   if !dump_cmm then Format.fprintf ppf "@.cmm:@.";
   input
 
+let should_emit () =
+  if should_stop_after Compiler_pass.Linearize then false
+  else true
+
+let if_emit_do f x = if should_emit () then f x else ()
+let emit_begin_assembly = if_emit_do Emit.begin_assembly
+let emit_end_assembly = if_emit_do Emit.end_assembly
+let emit_fundecl = if_emit_do Emit.fundecl
+let emit_data = if_emit_do Emit.data
+
 type clambda_and_constants =
   Clambda.ulambda *
   Clambda.preallocated_block list *
@@ -128,14 +138,13 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "reoptimize" Reoptimize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_reoptimize "After reoptimize"
   ++ Profile.record ~accumulate:true "linear invariants" Linear_invariants.check
-  ++ Profile.record ~accumulate:true "emit" Emit.fundecl
+  ++ if_emit_do (Profile.record ~accumulate:true "emit" emit_fundecl)
 
 let compile_phrase ~ppf_dump p =
   if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
   match p with
   | Cfunction fd -> compile_fundecl ~ppf_dump fd
-  | Cdata dl -> Emit.data dl
-
+  | Cdata dl -> emit_data dl
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
@@ -147,9 +156,21 @@ let compile_genfuns ~ppf_dump f =
        | _ -> ())
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
+let assemble ~asm_filename ~obj_filename =
+  if should_stop_after Compiler_pass.Linearize then
+    Misc.fatal_error "Assemble should not be called";
+  let assemble_result =
+    Profile.record "assemble"
+      (Proc.assemble_file asm_filename) obj_filename
+  in
+  if assemble_result <> 0
+  then raise(Error(Assembler_error asm_filename))
+
 let compile_unit _output_prefix asm_filename keep_asm
       obj_filename gen =
-  let create_asm = keep_asm || not !Emitaux.binary_backend_available in
+  let create_asm = should_emit () &&
+                   (keep_asm || not !Emitaux.binary_backend_available)
+  in
   Emitaux.create_asm_file := create_asm;
   Misc.try_finally
     ~exceptionally:(fun () -> remove_file obj_filename)
@@ -159,13 +180,8 @@ let compile_unit _output_prefix asm_filename keep_asm
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
-             if create_asm && not keep_asm then remove_file asm_filename);
-       let assemble_result =
-         Profile.record "assemble"
-           (Proc.assemble_file asm_filename) obj_filename
-       in
-       if assemble_result <> 0
-       then raise(Error(Assembler_error asm_filename));
+           if create_asm && not keep_asm then remove_file asm_filename);
+       if should_emit () then assemble ~asm_filename ~obj_filename;
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
@@ -175,7 +191,7 @@ let set_export_info (ulambda, prealloc, structured_constants, export) =
 
 let end_gen_implementation ?toplevel ~ppf_dump
     (clambda:clambda_and_constants) =
-  Emit.begin_assembly ();
+  emit_begin_assembly ();
   clambda
   ++ Profile.record "cmm" (Cmmgen.compunit ~ppf_dump)
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
@@ -193,7 +209,7 @@ let end_gen_implementation ?toplevel ~ppf_dump
        (List.filter (fun s -> s <> "" && s.[0] <> '%')
           (List.map Primitive.native_name !Translmod.primitive_declarations))
     );
-  Emit.end_assembly ()
+  emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
     (program:Flambda.program) =
