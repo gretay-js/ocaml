@@ -443,6 +443,20 @@ let should_stop_after pass =
   | None -> false
   | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
 
+let save_ir_after = ref []
+let should_save_ir_after pass =
+  List.mem pass !save_ir_after
+
+let set_save_ir_after pass enabled =
+  let other_passes = List.filter ((<>) pass) !save_ir_after in
+  let new_passes =
+    if enabled then
+      pass :: other_passes
+    else
+      other_passes
+  in
+  save_ir_after := new_passes
+
 module String = Misc.Stdlib.String
 
 let arg_spec = ref []

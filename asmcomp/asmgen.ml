@@ -29,6 +29,48 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
+let with_linear ~output_prefix f =
+  if should_save_ir_after Compiler_pass.Linearize then begin
+    let filename = output_prefix ^ ".linear" in
+    let ch = open_out_bin filename in
+    Emitaux.linear_channel := Some ch;
+    let finally = (fun () ->
+      close_out ch;
+      Emitaux.linear_channel := None) in
+    let exceptionally = (fun () ->
+      Misc.fatal_errorf "Failed to marshal IR to file %s" filename) in
+    Misc.try_finally (fun () ->
+      output_string ch Config.linear_magic_number;
+      flush ch;
+      f ())
+      ~always:finally ~exceptionally
+  end else f ()
+
+let save_linear phrase =
+  begin
+    match !Emitaux.linear_channel with
+    | None -> ()
+    | Some ch ->
+      begin try
+        Marshal.to_channel ch phrase [Marshal.Closures];
+      with _ -> Misc.fatal_error "Marshaling error" end;
+      flush ch
+  end;
+  phrase
+
+let save_data dl =
+  begin
+    match !Emitaux.linear_channel with
+    | None -> ()
+    | Some ch ->
+      Marshal.to_channel ch (List.length dl) [];
+      List.iter (fun d ->
+        Marshal.to_channel ch d [Marshal.Closures])
+        dl;
+      flush ch
+  end;
+  dl
+
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
 
@@ -133,18 +175,24 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ save_linear
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "reoptimize" Reoptimize.fundecl
-  ++ pass_dump_linear_if ppf_dump dump_reoptimize "After reoptimize"
+  ++ pass_dump_linear_if ppf_dump dump_scheduling "After reoptimize"
   ++ Profile.record ~accumulate:true "linear invariants" Linear_invariants.check
   ++ if_emit_do (Profile.record ~accumulate:true "emit" emit_fundecl)
+
+let compile_data dl =
+  dl
+  ++ save_data
+  ++ emit_data
 
 let compile_phrase ~ppf_dump p =
   if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
   match p with
   | Cfunction fd -> compile_fundecl ~ppf_dump fd
-  | Cdata dl -> emit_data dl
+  | Cdata dl -> compile_data dl
 
 (* For the native toplevel: generates generic functions unless
    they are already available in the process *)
@@ -166,7 +214,7 @@ let assemble ~asm_filename ~obj_filename =
   if assemble_result <> 0
   then raise(Error(Assembler_error asm_filename))
 
-let compile_unit _output_prefix asm_filename keep_asm
+let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available)
@@ -176,7 +224,8 @@ let compile_unit _output_prefix asm_filename keep_asm
     ~exceptionally:(fun () -> remove_file obj_filename)
     (fun () ->
        if create_asm then Emitaux.output_channel := open_out asm_filename;
-       Misc.try_finally gen
+       Misc.try_finally
+         (fun () -> with_linear ~output_prefix gen)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
