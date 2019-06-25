@@ -29,6 +29,43 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
+type linear_program =
+  { funcs = Linearize.t list;
+    data = Cmm.data_item list;
+  }
+
+let read_linear ~filename =
+  let ic = open_in_bin filename in
+  Misc.try_finally ~always:(fun () -> close_in ic)
+    (fun () ->
+       let buffer = really_input_string ic
+                      (String.length Config.linear_magic_number) in
+       if buffer <> linear_magic_number then begin
+         Misc.fatal_errorf "Expected linear file in %s" filename ()
+       end else begin
+         let num = input_binary_int ic in
+         (* reads return the content in reversed order *)
+         let read_data n t =
+           if n = 0 then t
+           else begin
+             let d : Cmm.phrase = Marshal.from_channel ic in
+             read_data (n-1) d::t
+           end
+         in
+         let read_func t =
+           try
+             let f : Linearize.funcdecl = Marshal.from_channel ic in
+             read_func f::t
+           with End_of_file -> t
+         in
+         let data = read_data num [] in
+         let funcs = read_func [] in
+         { funcs = List.rev funcs;
+           data = Cdata (List.rev data);
+         }
+       end
+    )
+
 let with_linear ~output_prefix f =
   if should_save_ir_after Compiler_pass.Linearize then begin
     let filename = output_prefix ^ ".linear" in
@@ -241,11 +278,6 @@ let set_export_info (ulambda, prealloc, structured_constants, export) =
 let end_gen_implementation ?toplevel ~ppf_dump
     (clambda:clambda_and_constants) =
   emit_begin_assembly ();
-  clambda
-  ++ Profile.record "cmm" (Cmmgen.compunit ~ppf_dump)
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
-  ++ (fun () -> ());
-  (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
 
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
@@ -258,6 +290,13 @@ let end_gen_implementation ?toplevel ~ppf_dump
        (List.filter (fun s -> s <> "" && s.[0] <> '%')
           (List.map Primitive.native_name !Translmod.primitive_declarations))
     );
+
+  clambda
+  ++ Profile.record "cmm" (Cmmgen.compunit ~ppf_dump)
+  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
+  ++ (fun () -> ());
+  (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
+
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
@@ -334,6 +373,12 @@ let compile_implementation_flambda ?toplevel prefixname
     ~required_globals ~backend ~ppf_dump (program:Flambda.program) =
   compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
+
+let compile_implementation_linear ?toplevel ~prefixname
+      ~ppf_dump ~progname =
+  compile_implementation_gen ?toplevel prefixname
+    ~required_globals:Ident.Set.empty
+    ~ppf_dump linear_gen_implementation progname
 
 (* Error report *)
 
