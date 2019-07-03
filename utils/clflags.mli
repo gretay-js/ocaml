@@ -245,7 +245,6 @@ val set_save_ir_after : Compiler_pass.t -> bool -> unit
 val should_save_ir_after : Compiler_pass.t -> bool
 
 val start_from : Compiler_pass.t option ref
-val should_start_from : Compiler_pass.t -> bool
 
 val arg_spec : (string * Arg.spec * string) list ref
 

@@ -29,8 +29,7 @@ val compile_implementation_clambda :
 
 val compile_implementation_linear :
     ?toplevel:(string -> bool) ->
-    prefixname:string ->
-    ppf_dump:Format.formatter -> progname:string -> unit
+    ppf_dump:Format.formatter -> string -> unit
 
 val compile_phrase :
     ppf_dump:Format.formatter -> Cmm.phrase -> unit
