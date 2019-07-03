@@ -30,8 +30,8 @@ exception Error of error
 let liveness phrase = Liveness.fundecl phrase; phrase
 
 type linear_program =
-  { funcs = Linearize.t list;
-    data = Cmm.data_item list;
+  { funcs : Linearize.fundecl list;
+    data : Cmm.data_item list;
   }
 
 let read_linear ~filename =
@@ -45,23 +45,23 @@ let read_linear ~filename =
        end else begin
          let num = input_binary_int ic in
          (* reads return the content in reversed order *)
-         let read_data n t =
+         let rec read_data n t =
            if n = 0 then t
            else begin
-             let d : Cmm.phrase = Marshal.from_channel ic in
-             read_data (n-1) d::t
+             let d : Cmm.data_item = Marshal.from_channel ic in
+             read_data (n-1) (d::t)
            end
          in
-         let read_func t =
+         let rec read_func t =
            try
-             let f : Linearize.funcdecl = Marshal.from_channel ic in
-             read_func f::t
+             let f : Linearize.fundecl = Marshal.from_channel ic in
+             read_func (f::t)
            with End_of_file -> t
          in
          let data = read_data num [] in
          let funcs = read_func [] in
          { funcs = List.rev funcs;
-           data = Cdata (List.rev data);
+           data = List.rev data;
          }
        end
     )
@@ -299,6 +299,13 @@ let end_gen_implementation ?toplevel ~ppf_dump
 
   emit_end_assembly ()
 
+let linear_gen_implementation ?toplevel ~ppf_dump filename =
+  let linear_prog = read_linear ~filename in
+  emit_begin_assembly ();
+  emit_data linear_prog.data;
+  Profile.record "Emit" (List.iter emit_fundecl) linear_prog.funcs;
+  emit_end_assembly ()
+
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
     (program:Flambda.program) =
   let export = Build_export_info.build_transient ~backend program in
@@ -374,9 +381,9 @@ let compile_implementation_flambda ?toplevel prefixname
   compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
 
-let compile_implementation_linear ?toplevel ~prefixname
+let compile_implementation_linear ~prefixname
       ~ppf_dump ~progname =
-  compile_implementation_gen ?toplevel prefixname
+  compile_implementation_gen prefixname
     ~required_globals:Ident.Set.empty
     ~ppf_dump linear_gen_implementation progname
 

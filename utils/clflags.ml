@@ -444,10 +444,6 @@ let should_stop_after pass =
   | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
 
 let start_from = ref None (* -start-from *)
-let should_start_from pass =
-  match !start_from with
-  | None -> false
-  | Some start ->
 
 let save_ir_after = ref []
 let should_save_ir_after pass =
