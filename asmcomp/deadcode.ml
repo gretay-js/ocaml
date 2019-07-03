@@ -107,6 +107,125 @@ let rec deadcode i =
                   (Int.Set.union body'.exits handler'.exits);
       }
 
+(* Invariants checking for ICatch *)
+type counters = { handlers : Int.Set.t; exits : Int.Set.t; }
+
+(* Check handlers are unique and collect all exits that are used regardless of
+   scope to check that they are all defined at the end. *)
+let rec check_unique_handlers msg present i =
+  match i.desc with
+  | Iend -> present
+  | Icatch(_, handlers, body) ->
+    let present = check_unique_handlers msg present body in
+    let present =
+      List.fold_left (fun p (n,h) ->
+        assert (not (Int.Set.mem n p.handlers));
+        let p = { p with handlers = Int.Set.add n p.handlers } in
+        check_unique_handlers msg p h)
+        present
+        handlers in
+    check_unique_handlers msg present i.next
+   | Itrywith(body, handler) ->
+     let p = check_unique_handlers msg present body in
+     let p = check_unique_handlers msg p handler in
+     check_unique_handlers msg p i.next
+   | Iswitch(_, cases) ->
+     let p = Array.fold_left (check_unique_handlers msg) present cases in
+     check_unique_handlers msg p i.next
+   | Iifthenelse(_, ifso, ifnot) ->
+     let p = check_unique_handlers msg present ifso in
+     let p = check_unique_handlers msg p ifnot in
+     check_unique_handlers msg p i.next
+   | Ireturn | Iop(Itailcall_ind _) | Iop(Itailcall_imm _)
+   | Iraise _  | Iop _ |  Iexit _ ->
+     check_unique_handlers msg present i.next
+
+
+(* Check that handler indexes are unique and that Iexit instructions
+   are correctly scoped. *)
+let rec check_invariants msg present i =
+  match i.desc with
+  | Iend -> present
+  | Iexit nfail ->
+    (* Scope check: exit refers to an enclosing handler,
+       and the order of traversal of Icatch guarantees
+       that we haven't added it to handlers yet. *)
+    assert (not (Int.Set.mem nfail present.handlers));
+    let present =
+      { present with exits = Int.Set.add nfail present.exits } in
+    check_invariants msg present i.next
+  | Icatch(rec_flag, handlers, body) ->
+    (* New scope entry *)
+    let exits_before = present.exits in
+    let present = { present with exits = Int.Set.empty } in
+    let present = check_invariants msg present body in
+    let check_and_add_handlers p =
+       let nh =
+          List.fold_left (fun p (n,_) ->
+            assert (not (Int.Set.mem n p));
+            Int.Set.add n p)
+            p.handlers
+            handlers in
+       { p with handlers = nh } in
+    let present =
+      match rec_flag with
+      | Cmm.Nonrecursive ->
+        List.fold_left (fun p (_n,h) -> check_invariants msg p h)
+          (check_and_add_handlers present)
+          handlers
+      | Cmm.Recursive ->
+        (* First, recursively check all handlers.*)
+        let present =
+          List.fold_left (fun p (_n,h) -> check_invariants msg p h)
+            present
+            handlers in
+        (* Then, add them. *)
+        check_and_add_handlers present
+    in
+    (* Scope check: all handlers are live. *)
+    (* Scope exit: remove exits that are captured by this catch *)
+    let present =
+      List.fold_left (fun p (n,_h) ->
+        (* exits before are not in scope of this catch,
+           must not refer to handlers in this patch. *)
+        assert (not (Int.Set.mem n exits_before));
+        if not (Int.Set.mem n p.exits) then begin
+          Printf.printf "%s: Dead handler %d\n" msg n; p
+        end else
+          { p with exits = Int.Set.remove n p.exits })
+        present
+        handlers in
+    let present =
+      { present with exits = Int.Set.union present.exits exits_before } in
+    check_invariants msg present i.next
+   | Itrywith(body, handler) ->
+     let p = check_invariants msg present body in
+     let p = check_invariants msg p handler in
+     check_invariants msg p i.next
+   | Iswitch(_, cases) ->
+     let p = Array.fold_left (check_invariants msg) present cases in
+     check_invariants msg p i.next
+   | Iifthenelse(_, ifso, ifnot) ->
+     let p = check_invariants msg present ifso in
+     let p = check_invariants msg p ifnot in
+     check_invariants msg p i.next
+   | Ireturn | Iop(Itailcall_ind _) | Iop(Itailcall_imm _)
+   | Iraise _  | Iop _ -> check_invariants msg present i.next
+
+let cmm_invariants f msg =
+  let emp = { handlers = Int.Set.empty; exits = Int.Set.empty; } in
+  let _res = check_unique_handlers msg emp f.fun_body in
+  let res = check_invariants msg emp f.fun_body in
+  if (not (Int.Set.is_empty res.exits)) then begin
+    Printf.printf "%s: exits is not empty:\n" msg;
+    Int.Set.iter (fun n -> Printf.printf "%d\n" n) res.exits;
+    (* assert false; *)
+  end;
+  ()
+
 let fundecl f =
+  cmm_invariants f "before";
   let new_body = deadcode f.fun_body in
-  {f with fun_body = new_body.i}
+  let newf = {f with fun_body = new_body.i } in
+  cmm_invariants newf "after";
+  newf
