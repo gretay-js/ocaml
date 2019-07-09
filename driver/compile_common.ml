@@ -111,6 +111,12 @@ let typecheck_impl i parsetree =
       Printtyped.implementation_with_coercion
   )
 
+(* Emit assembly directly from Linear IR*)
+let emit i =
+  Compilenv.reset ?packname:!Clflags.for_package i.module_name;
+  Asmgen.compile_implementation_linear
+    i.output_prefix ~ppf_dump:i.ppf_dump ~progname:i.source_file
+
 let implementation info ~backend =
   Profile.record_call info.source_file @@ fun () ->
   let exceptionally () =
@@ -118,11 +124,15 @@ let implementation info ~backend =
     List.iter (fun suf -> remove_file (suf info)) sufs;
   in
   Misc.try_finally ?always:None ~exceptionally (fun () ->
-    let parsed = parse_impl info in
-    if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
-      let typed = typecheck_impl info parsed in
-      if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
-        backend info typed
+    if Clflags.(should_start_from Compiler_pass.Linearize) then begin
+      emit info
+    end else begin
+      let parsed = parse_impl info in
+      if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
+        let typed = typecheck_impl info parsed in
+        if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
+          backend info typed
+        end;
       end;
     end;
     Warnings.check_fatal ();

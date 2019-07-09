@@ -44,7 +44,7 @@ let read_linear ~filename =
          Misc.fatal_errorf "Expected linear file in %s" filename ()
        end else begin
          let num = input_binary_int ic in
-         (* reads return the content in reversed order *)
+         (* reads and returns the content in reversed order *)
          let rec read_data n t =
            if n = 0 then t
            else begin
@@ -299,7 +299,7 @@ let end_gen_implementation ?toplevel ~ppf_dump
 
   emit_end_assembly ()
 
-let linear_gen_implementation ?toplevel ~ppf_dump filename =
+let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
   let linear_prog = read_linear ~filename in
   emit_begin_assembly ();
   emit_data linear_prog.data;
@@ -381,7 +381,7 @@ let compile_implementation_flambda ?toplevel prefixname
   compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
 
-let compile_implementation_linear ~prefixname
+let compile_implementation_linear prefixname
       ~ppf_dump ~progname =
   compile_implementation_gen prefixname
     ~required_globals:Ident.Set.empty

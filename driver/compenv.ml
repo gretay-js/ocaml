@@ -95,6 +95,14 @@ let module_of_filename inputfile outputprefix =
   name
 ;;
 
+let check_pass_order () =
+  match !start_from, !stop_after with
+  | None, _ | _, None -> ();
+  | Some start, Some stop ->
+    if (Compiler_pass.compare stop start) < 0 then
+      fatal "When using \"-stop-after <last>\" and \"-start-from <first>\", \
+             <first> last must be before <last>"
+
 type filename = string
 
 type readenv_position =
