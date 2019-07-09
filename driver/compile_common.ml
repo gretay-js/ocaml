@@ -94,6 +94,24 @@ let interface info =
 
 
 (** Frontend for a .ml file *)
+let write_typed ~filename typed =
+  let oc = open_out_bin filename in
+  output_string oc Config.ast_impl_magic_number;
+  output_value oc (!Location.input_name : string);
+  output_value oc (ast : a);
+  close_out oc
+
+let read_typed ~filename =
+  let ic = open_in_bin filename in
+  Misc.try_finally
+    ~always:(fun () -> close_in ic)
+    (fun () ->
+       let magic = magic_of_kind kind in
+       let buffer = really_input_string ic (String.length magic) in
+       assert(buffer = magic); (* already checked by apply_rewriter *)
+       Location.input_name := (input_value ic : string);
+       (input_value ic : a)
+    )
 
 let parse_impl i =
   Pparse.parse_implementation ~tool_name:i.tool_name i.source_file
@@ -110,12 +128,13 @@ let typecheck_impl i parsetree =
     |> print_if i.ppf_dump Clflags.dump_typedtree
       Printtyped.implementation_with_coercion
   )
+  |> (fun typed ->
+    if Clflags.(should_save_ir_after Compiler_pass.Typing) then begin
+      let filename = i.source_file ^ ".typed" in
+      write_typed ~filename typed;
+      typed
+    end)
 
-(* Emit assembly directly from Linear IR*)
-let emit i =
-  Compilenv.reset ?packname:!Clflags.for_package i.module_name;
-  Asmgen.compile_implementation_linear
-    i.output_prefix ~ppf_dump:i.ppf_dump ~progname:i.source_file
 
 let implementation info ~backend =
   Profile.record_call info.source_file @@ fun () ->
@@ -124,15 +143,11 @@ let implementation info ~backend =
     List.iter (fun suf -> remove_file (suf info)) sufs;
   in
   Misc.try_finally ?always:None ~exceptionally (fun () ->
-    if Clflags.(should_start_from Compiler_pass.Linearize) then begin
-      emit info
-    end else begin
-      let parsed = parse_impl info in
-      if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
-        let typed = typecheck_impl info parsed in
-        if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
-          backend info typed
-        end;
+    let parsed = parse_impl info in
+    if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
+      let typed = typecheck_impl info parsed in
+      if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
+        backend info typed
       end;
     end;
     Warnings.check_fatal ();

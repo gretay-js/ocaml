@@ -456,6 +456,15 @@ let should_start_from pass =
     let cur = Compiler_pass.rank pass in
     start = cur
 
+let should_run pass =
+  match !start_from, !stop_after with
+  | None, _ -> should_stop_after pass
+  | Some first, None ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+  | Some first, Some last ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+    && Compiler_pass.rank last >= Compiler_pass.rank pass
+
 let save_ir_after = ref []
 let should_save_ir_after pass =
   List.mem pass !save_ir_after
