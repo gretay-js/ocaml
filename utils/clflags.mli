@@ -234,6 +234,7 @@ module Compiler_pass : sig
   type t = Parsing | Typing | Linearize
   val of_string : string -> t option
   val to_string : t -> string
+  val compare : t -> t -> int
   val passes : t list
   val pass_names : string list
   val is_compilation_pass : t -> bool
@@ -245,6 +246,7 @@ val set_save_ir_after : Compiler_pass.t -> bool -> unit
 val should_save_ir_after : Compiler_pass.t -> bool
 
 val start_from : Compiler_pass.t option ref
+val should_start_from : Compiler_pass.t -> bool
 
 val arg_spec : (string * Arg.spec * string) list ref
 

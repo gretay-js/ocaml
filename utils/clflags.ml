@@ -426,6 +426,9 @@ module Compiler_pass = struct
     | Typing -> 1
     | Linearize -> 50
 
+  let compare a b =
+    compare (rank a) (rank b)
+
   let is_compilation_pass _ = true
 
   let passes = [
@@ -444,6 +447,14 @@ let should_stop_after pass =
   | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
 
 let start_from = ref None (* -start-from *)
+
+let should_start_from pass =
+  match !start_from with
+  | None -> pass = Compiler_pass.Parsing
+  | Some start ->
+    let start = Compiler_pass.rank start in
+    let cur = Compiler_pass.rank pass in
+    start = cur
 
 let save_ir_after = ref []
 let should_save_ir_after pass =
