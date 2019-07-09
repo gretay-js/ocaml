@@ -117,6 +117,9 @@ val cmxs_magic_number: string
 val cmt_magic_number: string
 (** Magic number for compiled interface files *)
 
+val typed_magic_number: string
+(** Magic number for typed parse trees *)
+
 val linear_magic_number: string
 (** Magic number for linear internal representation files *)
 
@@ -256,4 +259,3 @@ val config_var : string -> string option
 
 val extended_debug : bool
 (** Whether to generate extended debug info by default *)
-

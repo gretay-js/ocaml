@@ -181,6 +181,7 @@ let file_aux ~tool_name inputfile (type a) parse_fun invariant_fun
         (* if all_ppx <> [], invariant_fun will be called by apply_rewriters *)
         ast
       end else begin
+        assert Clflags.(should_run Compiler_pass.Parsing);
         seek_in ic 0;
         let lexbuf = Lexing.from_channel ic in
         Location.init lexbuf inputfile;
@@ -218,7 +219,14 @@ let parse_file ~tool_name invariant_fun parse kind sourcefile =
   Misc.try_finally
     (fun () ->
        Profile.record_call "parsing" @@ fun () ->
-       file_aux ~tool_name inputfile parse invariant_fun kind)
+       file_aux ~tool_name inputfile parse invariant_fun kind
+       |> (fun ast ->
+         if Clflags.(should_save_ir_after Compiler_pass.Parsing) then begin
+           let fn = sourcefile ^ ".ast" in
+           write_ast kind fn ast;
+         end;
+         ast)
+    )
     ~always:(fun () -> remove_preprocessed inputfile)
 
 module ImplementationHooks = Misc.MakeHooks(struct
@@ -230,7 +238,7 @@ module InterfaceHooks = Misc.MakeHooks(struct
 
 let parse_implementation ~tool_name sourcefile =
   parse_file ~tool_name Ast_invariants.structure
-      (parse Structure) Structure sourcefile
+    (parse Structure) Structure sourcefile
   |> ImplementationHooks.apply_hooks { Misc.sourcefile }
 
 let parse_interface ~tool_name sourcefile =
