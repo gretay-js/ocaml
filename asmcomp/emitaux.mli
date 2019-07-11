@@ -74,5 +74,3 @@ val binary_backend_available: bool ref
 
 val create_asm_file: bool ref
     (** Are we actually generating the textual assembly file? *)
-
-val linear_channel : out_channel option ref
