@@ -30,28 +30,42 @@ exception Error of error
 let liveness phrase = Liveness.fundecl phrase; phrase
 
 type linear =
-  | Func of Linearize.fundecl
+  | Func of { decl : Linearize.fundecl;
+              contains_calls : bool;
+              num_stack_slots : int array;
+            }
   | Data of Cmm.data_item list
 
-let linear_program = ref []
+type linear_program =
+  {
+    last_label : Cmm.label;
+    items : linear list;
+  }
+
+let linear_items = ref []
 
 let save_data dl =
-  linear_program := (Data dl) :: !linear_program
+  linear_items := (Data dl) :: !linear_items;
+  dl
 
 let save_linear f =
-  linear_program := (Func dl) :: !linear_program
+  linear_items := (Func {decl=f;
+                         contains_calls = !Proc.contains_calls;
+                         num_stack_slots = Proc.num_stack_slots;
+                        }) :: !linear_items;
+  f
 
-let emit_from_linear = function
-  | Func f -> emit_func f
-  | Data dl -> emit_data dl
-
-let write_linear ~output_prefix =
+let write_linear output_prefix =
   if should_save_ir_after Compiler_pass.Linearize then begin
+    let linear_program =
+      { last_label = Cmm.cur_label ();
+        items = List.rev !linear_items;
+      } in
     let filename = output_prefix ^ ".linear" in
     let ch = open_out_bin filename in
     Misc.try_finally (fun () ->
       output_string ch Config.linear_magic_number;
-      output_value ch (List.rev !linear_program)
+      output_value ch linear_program
     )
       ~always:(fun () -> close_out ch)
       ~exceptionally:(fun () ->
@@ -66,7 +80,7 @@ let read_linear ~filename =
                       (String.length Config.linear_magic_number) in
        if buffer <> linear_magic_number then
          Misc.fatal_errorf "Expected linear file in %s" filename ();
-       input_value ic : linear list
+       (input_value ic : linear_program)
     )
     ~always:(fun () -> close_in ic)
 
@@ -261,9 +275,18 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_end_assembly ()
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
-  let linear_prog = read_linear ~filename in
+  let linear_program = read_linear ~filename in
+  Cmm.set_label linear_program.last_label;
+  let emit_from_linear = function
+    | Data dl -> emit_data dl
+    | Func f ->
+      Proc.contains_calls := f.contains_calls;
+      assert (Proc.num_stack_slots = f.num_stack_slots);
+      Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots;
+      emit_fundecl f.decl
+  in
   emit_begin_assembly ();
-  Profile.record "Emit" (List.iter emit_from_linear) linear_prog;
+  Profile.record "Emit" (List.iter emit_from_linear) linear_program.items;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump

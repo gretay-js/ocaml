@@ -110,6 +110,12 @@ let label_counter = ref 99
 
 let new_label() = incr label_counter; !label_counter
 
+let set_label l =
+  assert (l >= !label_counter);
+  label_counter := l
+
+let cur_label () = !label_counter
+
 type raise_kind =
   | Raise_withtrace
   | Raise_notrace
