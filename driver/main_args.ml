@@ -101,7 +101,8 @@ let mk_stop_after f =
 
 let mk_save_ir_after f =
   "-save-ir-after", Arg.Symbol (Clflags.pass_names_save_ir_after, f),
-  " Save intermediate representation after the given compilation pass."
+  " Save intermediate representation after the given compilation pass\
+    (may be specified more than once)."
 
 let mk_start_from f =
   "-start-from", Arg.Symbol (Clflags.pass_names_start_from, f),
@@ -468,7 +469,7 @@ let mk_save_ir f =
   let langs = String.concat ", " Save_ir.all_languages in
   "-save-ir", Arg.String f,
   ("<language>  Save intermediate representation(s) to file (may be \
-    given more than once); valid languages: %s" ^ langs)
+    given more than once); valid languages: " ^ langs)
 ;;
 
 let mk_shared f =

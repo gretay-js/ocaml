@@ -442,7 +442,7 @@ module Compiler_pass = struct
     | Parsing | Typing | Linearize -> true
     | _ -> false
 
-  let can_stop_after = can_save_ir
+  let can_stop_after = can_save_ir_after
 
   let passes = [
     Parsing;
