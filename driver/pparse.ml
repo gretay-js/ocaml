@@ -103,6 +103,19 @@ let read_ast (type a) (kind : a ast_kind) fn : a =
        (input_value ic : a)
     )
 
+let read_saved_ast (type a) (kind : a ast_kind) fn : a =
+  let ic = open_in_bin fn in
+  Misc.try_finally
+    ~always:(fun () -> close_in ic)
+    (fun () ->
+       let magic = magic_of_kind kind in
+       let buffer = really_input_string ic (String.length magic) in
+       if not (magic = buffer) then
+         raise (Error (IncompatibleInputFormat fn));
+       Location.input_name := (input_value ic : string);
+       (input_value ic : a)
+    )
+
 let rewrite kind ppxs ast =
   let fn = Filename.temp_file "camlppx" "" in
   write_ast kind fn ast;

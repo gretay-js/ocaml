@@ -93,6 +93,25 @@ let interface info =
   end
 
 (** Frontend for a .ml file *)
+let write_impl prefix typed =
+  let filename = prefix ^ ".typed" in
+  let oc = open_out_bin filename in
+  output_string oc Config.typedast_magic_number;
+  output_value oc typed;
+  close_out oc
+
+let _read_impl filename =
+  let ic = open_in_bin filename in
+  Misc.try_finally
+    ~always:(fun () -> close_in ic)
+    (fun () ->
+       let magic = Config.typedast_magic_number in
+       let buffer = really_input_string ic (String.length magic) in
+       if not (magic = buffer) then
+         raise Pparse.(Error (IncompatibleInputFormat filename));
+       (input_value ic : Typedtree.structure * Typedtree.module_coercion)
+    )
+
 let parse_impl i =
   Pparse.parse_implementation ~tool_name:i.tool_name i.source_file
   |> print_if i.ppf_dump Clflags.dump_parsetree Printast.implementation
@@ -110,7 +129,7 @@ let typecheck_impl i parsetree =
   )
   |> (fun typed ->
     if Clflags.(should_save_ir_after Compiler_pass.Typing) then
-      Typemod.write_impl i.source_file typed;
+      write_impl i.source_file typed;
     typed)
 
 
@@ -123,7 +142,7 @@ let implementation info ~backend =
   Misc.try_finally ?always:None ~exceptionally (fun () ->
     let parsed =
       if Clflags.(should_start_from Compiler_pass.Typing) then
-        Pparse.read_ast (Structure) info.source_file
+        Pparse.(read_saved_ast Structure info.source_file)
       else
         parse_impl info
     in
