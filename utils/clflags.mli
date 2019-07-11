@@ -270,14 +270,3 @@ val print_arguments : string -> unit
 
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
-
-(* Move to pass manager *)
-
-val write_impl
-  : string
-  -> Typedtree.structure * Typedtree.module_coercion
-  -> unit
-
-val read_impl
-  : string
-  -> Typedtree.structure * Typedtree.module_coercion

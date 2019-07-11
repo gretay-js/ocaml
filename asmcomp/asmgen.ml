@@ -48,16 +48,19 @@ let read_linear ~filename =
          let rec read_data n t =
            if n = 0 then t
            else begin
-             let d : Cmm.data_item = Marshal.from_channel ic in
+             let d : Cmm.data_item = input_value ic in
              read_data (n-1) (d::t)
            end
          in
          let rec read_func t =
            try
-             let f : Linearize.fundecl = Marshal.from_channel ic in
+             Printf.printf "in read_func\n";
+             let f : Linearize.fundecl = input_value ic in
              read_func (f::t)
            with End_of_file -> t
          in
+         Printf.printf "num=%d\n" num;
+         assert (num >= 0);
          let data = read_data num [] in
          let funcs = read_func [] in
          { funcs = List.rev funcs;
@@ -65,6 +68,33 @@ let read_linear ~filename =
          }
        end
     )
+
+let save_linear (phrase:Linearize.fundecl) =
+  begin
+    match !Emitaux.linear_channel with
+    | None -> ()
+    | Some ch ->
+      begin try
+        Printf.printf "in save_linear of %s\n" phrase.fun_name;
+        output_value ch (phrase : Linearize.fundecl);
+      with _ -> Misc.fatal_error "Marshaling error" end;
+      flush ch
+  end;
+  phrase
+
+let save_data dl =
+  begin
+    match !Emitaux.linear_channel with
+    | None -> ()
+    | Some ch ->
+      Printf.printf "num=%d\n" (List.length dl);
+      output_binary_int ch (List.length dl);
+      List.iter (fun d ->
+        Marshal.to_channel ch d [])
+        dl;
+      flush ch
+  end;
+  dl
 
 let with_linear ~output_prefix f =
   if should_save_ir_after Compiler_pass.Linearize then begin
@@ -82,31 +112,6 @@ let with_linear ~output_prefix f =
       f ())
       ~always:finally ~exceptionally
   end else f ()
-
-let save_linear phrase =
-  begin
-    match !Emitaux.linear_channel with
-    | None -> ()
-    | Some ch ->
-      begin try
-        Marshal.to_channel ch phrase [Marshal.Closures];
-      with _ -> Misc.fatal_error "Marshaling error" end;
-      flush ch
-  end;
-  phrase
-
-let save_data dl =
-  begin
-    match !Emitaux.linear_channel with
-    | None -> ()
-    | Some ch ->
-      Marshal.to_channel ch (List.length dl) [];
-      List.iter (fun d ->
-        Marshal.to_channel ch d [Marshal.Closures])
-        dl;
-      flush ch
-  end;
-  dl
 
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
@@ -278,24 +283,21 @@ let set_export_info (ulambda, prealloc, structured_constants, export) =
 let end_gen_implementation ?toplevel ~ppf_dump
     (clambda:clambda_and_constants) =
   emit_begin_assembly ();
-
-  (* We add explicit references to external primitive symbols.  This
-     is to ensure that the object files that define these symbols,
-     when part of a C library, won't be discarded by the linker.
-     This is important if a module that uses such a symbol is later
-     dynlinked. *)
-
-  compile_phrase ~ppf_dump
-    (Cmmgen.reference_symbols
-       (List.filter (fun s -> s <> "" && s.[0] <> '%')
-          (List.map Primitive.native_name !Translmod.primitive_declarations))
-    );
-
   clambda
   ++ Profile.record "cmm" (Cmmgen.compunit ~ppf_dump)
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
+  (* We add explicit references to external primitive symbols.  This
+     is to ensure that the object files that define these symbols,
+     when part of a C library, won't be discarded by the linker.
+     This is important if a module that uses such a symbol is later
+     dynlinked. *)
+  compile_phrase ~ppf_dump
+    (Cmmgen.reference_symbols
+       (List.filter (fun s -> s <> "" && s.[0] <> '%')
+          (List.map Primitive.native_name !Translmod.primitive_declarations))
+    );
 
   emit_end_assembly ()
 
