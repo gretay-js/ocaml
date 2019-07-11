@@ -442,14 +442,39 @@ let read_one_param ppf position name v =
   | "stop-after" ->
     let module P = Clflags.Compiler_pass in
     begin match P.of_string v with
-    | None ->
-        Printf.ksprintf (print_error ppf)
-          "bad value %s for option \"stop-after\" (expected one of: %s)"
-          v (String.concat ", " P.pass_names)
-    | Some pass ->
+    | Some pass when P.can_stop_after pass ->
         Clflags.stop_after := Some pass;
-        compile_only := Clflags.Compiler_pass.is_compilation_pass pass;
+        compile_only := P.is_compilation_pass pass;
+        check_pass_order ()
+    | None ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_stop_after)
     end
+
+ | "save-ir-after" ->
+    let module P = Clflags.Compiler_pass in
+    begin match P.of_string v with
+    | Some pass when P.can_save_ir_after pass ->
+        Clflags.set_save_ir_after pass true
+    | None ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_save_ir_after)
+    end
+
+  | "start-from" ->
+    let module P = Clflags.Compiler_pass in
+    begin match P.of_string v with
+    | Some pass when P.can_start_from pass ->
+        Clflags.start_from := Some pass;
+        check_pass_order ()
+    | None ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for option \"stop-after\" (expected one of: %s)"
+        v (String.concat ", " Clflags.pass_names_start_from)
+    end
+
   | _ ->
     if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
@@ -595,12 +620,12 @@ let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
 let process_action
-      (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+    (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
   let impl name =
     readenv ppf (Before_compile name);
-      let opref = output_prefix name in
-      implementation ~source_file:name ~output_prefix:opref;
-      objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+    let opref = output_prefix name in
+    implementation ~source_file:name ~output_prefix:opref;
+    objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
   in
   match action with
   | ProcessImplementation name ->
@@ -641,6 +666,7 @@ let process_action
         impl name
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
+
 
 let action_of_file name =
   if Filename.check_suffix name ".ml"
