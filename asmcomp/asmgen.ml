@@ -29,89 +29,46 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
-type linear_program =
-  { funcs : Linearize.fundecl list;
-    data : Cmm.data_item list;
-  }
+type linear =
+  | Func of Linearize.fundecl
+  | Data of Cmm.data_item list
 
-let read_linear ~filename =
-  let ic = open_in_bin filename in
-  Misc.try_finally ~always:(fun () -> close_in ic)
-    (fun () ->
-       let buffer = really_input_string ic
-                      (String.length Config.linear_magic_number) in
-       if buffer <> linear_magic_number then begin
-         Misc.fatal_errorf "Expected linear file in %s" filename ()
-       end else begin
-         let num = input_binary_int ic in
-         (* reads and returns the content in reversed order *)
-         let rec read_data n t =
-           if n = 0 then t
-           else begin
-             let d : Cmm.data_item = input_value ic in
-             read_data (n-1) (d::t)
-           end
-         in
-         let rec read_func t =
-           try
-             Printf.printf "in read_func\n";
-             let f : Linearize.fundecl = input_value ic in
-             read_func (f::t)
-           with End_of_file -> t
-         in
-         Printf.printf "num=%d\n" num;
-         assert (num >= 0);
-         let data = read_data num [] in
-         let funcs = read_func [] in
-         { funcs = List.rev funcs;
-           data = List.rev data;
-         }
-       end
-    )
-
-let save_linear (phrase:Linearize.fundecl) =
-  begin
-    match !Emitaux.linear_channel with
-    | None -> ()
-    | Some ch ->
-      begin try
-        Printf.printf "in save_linear of %s\n" phrase.fun_name;
-        output_value ch (phrase : Linearize.fundecl);
-      with _ -> Misc.fatal_error "Marshaling error" end;
-      flush ch
-  end;
-  phrase
+let linear_program = ref []
 
 let save_data dl =
-  begin
-    match !Emitaux.linear_channel with
-    | None -> ()
-    | Some ch ->
-      Printf.printf "num=%d\n" (List.length dl);
-      output_binary_int ch (List.length dl);
-      List.iter (fun d ->
-        Marshal.to_channel ch d [])
-        dl;
-      flush ch
-  end;
-  dl
+  linear_program := (Data dl) :: !linear_program
 
-let with_linear ~output_prefix f =
+let save_linear f =
+  linear_program := (Func dl) :: !linear_program
+
+let emit_from_linear = function
+  | Func f -> emit_func f
+  | Data dl -> emit_data dl
+
+let write_linear ~output_prefix =
   if should_save_ir_after Compiler_pass.Linearize then begin
     let filename = output_prefix ^ ".linear" in
     let ch = open_out_bin filename in
-    Emitaux.linear_channel := Some ch;
-    let finally = (fun () ->
-      close_out ch;
-      Emitaux.linear_channel := None) in
-    let exceptionally = (fun () ->
-      Misc.fatal_errorf "Failed to marshal IR to file %s" filename) in
     Misc.try_finally (fun () ->
       output_string ch Config.linear_magic_number;
-      flush ch;
-      f ())
-      ~always:finally ~exceptionally
-  end else f ()
+      output_value ch (List.rev !linear_program)
+    )
+      ~always:(fun () -> close_out ch)
+      ~exceptionally:(fun () ->
+        Misc.fatal_errorf "Failed to marshal IR to file %s" filename)
+  end
+
+let read_linear ~filename =
+  let ic = open_in_bin filename in
+  Misc.try_finally
+    (fun () ->
+       let buffer = really_input_string ic
+                      (String.length Config.linear_magic_number) in
+       if buffer <> linear_magic_number then
+         Misc.fatal_errorf "Expected linear file in %s" filename ();
+       input_value ic : linear list
+    )
+    ~always:(fun () -> close_in ic)
 
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
@@ -267,7 +224,9 @@ let compile_unit output_prefix asm_filename keep_asm
     (fun () ->
        if create_asm then Emitaux.output_channel := open_out asm_filename;
        Misc.try_finally
-         (fun () -> with_linear ~output_prefix gen)
+         (fun () ->
+            gen ();
+            write_linear output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
@@ -304,8 +263,7 @@ let end_gen_implementation ?toplevel ~ppf_dump
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
   let linear_prog = read_linear ~filename in
   emit_begin_assembly ();
-  emit_data linear_prog.data;
-  Profile.record "Emit" (List.iter emit_fundecl) linear_prog.funcs;
+  Profile.record "Emit" (List.iter emit_from_linear) linear_prog;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
