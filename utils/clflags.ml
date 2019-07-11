@@ -458,7 +458,9 @@ let should_start_from pass =
 
 let should_run pass =
   match !start_from, !stop_after with
-  | None, _ -> should_stop_after pass
+  | None, None -> true
+  | None, Some last ->
+    Compiler_pass.rank pass <= Compiler_pass.rank last
   | Some first, None ->
     Compiler_pass.rank first <= Compiler_pass.rank pass
   | Some first, Some last ->
@@ -515,3 +517,24 @@ let parse_arguments f msg =
   with
   | Arg.Bad msg -> Printf.eprintf "%s" msg; exit 2
   | Arg.Help msg -> Printf.printf "%s" msg; exit 0
+
+(* Move to pass manager *)
+
+let write_impl prefix typed =
+  let filename = prefix ^ ".typed" in
+  let oc = open_out_bin filename in
+  output_string oc Config.typedast_magic_number;
+  output_value oc typed;
+  close_out oc
+
+let read_impl filename =
+  let ic = open_in_bin filename in
+  Misc.try_finally
+    ~always:(fun () -> close_in ic)
+    (fun () ->
+       let magic = Config.typedast_magic_number in
+       let buffer = really_input_string ic (String.length magic) in
+       if not (magic = buffer) then
+         raise Pparse.(Error (IncompatibleInputFormat filename));
+       (input_value ic : Typedtree.structure * Typedtree.module_coercion)
+    )
