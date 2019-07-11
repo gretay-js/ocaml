@@ -117,11 +117,20 @@ val cmxs_magic_number: string
 val cmt_magic_number: string
 (** Magic number for compiled interface files *)
 
-val typed_magic_number: string
+val typedast_magic_number: string
 (** Magic number for typed parse trees *)
 
+val lambda_magic_number : string
+(** Magic number for lambda internal representation files *)
+
+val cmm_magic_number : string
+(** Magic number for Cmm internal representation files *)
+
+val mach_magic_number  : string
+(** Magic number for Mach internal representation files *)
+
 val linear_magic_number: string
-(** Magic number for linear internal representation files *)
+(** Magic number for Linear internal representation files *)
 
 val max_tag: int
 (** Biggest tag that can be stored in the header of a regular block. *)
