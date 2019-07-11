@@ -408,36 +408,57 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Linearize
+  type t = Parsing | Typing | Linearize | Emit
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Linearize -> "linearize"
+    | Emit -> "emit"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "linearize" -> Some Linearize
+    | "emit" -> Some Emit
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
     | Linearize -> 50
+    | Emit -> 60
 
   let compare a b =
     compare (rank a) (rank b)
 
   let is_compilation_pass _ = true
 
+  let can_start_from = function
+    | Parsing | Typing | Emit -> true
+    | _ -> false
+
+  let can_save_ir_after = function
+    | Parsing | Typing | Linearize -> true
+    | _ -> false
+
+  let can_stop_after = can_save_ir
+
   let passes = [
     Parsing;
     Typing;
     Linearize;
+    Emit;
   ]
-  let pass_names = List.map to_string passes
+
+  let pass_names pred =
+    List.filter pred passes
+    |> List.map to_string
 end
+
+let pass_names_stop_after = Compiler_pass.(pass_names can_stop_after)
+let pass_names_save_ir_after = Compiler_pass.(pass_names can_save_ir_after)
+let pass_names_start_from = Compiler_pass.(pass_names can_start_from)
 
 let stop_after = ref None (* -stop-after *)
 

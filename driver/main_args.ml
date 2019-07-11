@@ -95,16 +95,16 @@ let mk_dllpath f =
 ;;
 
 let mk_stop_after f =
-  "-stop-after", Arg.Symbol (Clflags.Compiler_pass.pass_names, f),
+  "-stop-after", Arg.Symbol (Clflags.pass_names_stop_after, f),
   " Stop after the given compilation pass."
 ;;
 
 let mk_save_ir_after f =
-  "-save-ir-after", Arg.Symbol (Clflags.Compiler_pass.pass_names, f),
+  "-save-ir-after", Arg.Symbol (Clflags.pass_names_save_ir_after, f),
   " Save intermediate representation after the given compilation pass."
 
 let mk_start_from f =
-  "-start-from", Arg.Symbol (Clflags.Compiler_pass.pass_names, f),
+  "-start-from", Arg.Symbol (Clflags.pass_names_start_from, f),
   " Start from the given compilation pass."
 ;;
 
