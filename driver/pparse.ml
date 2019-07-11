@@ -110,10 +110,13 @@ let read_saved_ast (type a) (kind : a ast_kind) fn : a =
     (fun () ->
        let magic = magic_of_kind kind in
        let buffer = really_input_string ic (String.length magic) in
-       if not (magic = buffer) then
+       if (magic = buffer) then begin
+         Location.input_name := (input_value ic : string);
+         (input_value ic : a)
+       end else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
+         raise (Error (Outdated_version fn));
+       else
          raise (Error (IncompatibleInputFormat fn));
-       Location.input_name := (input_value ic : string);
-       (input_value ic : a)
     )
 
 let rewrite kind ppxs ast =
@@ -165,9 +168,9 @@ let open_and_check_magic inputfile ast_magic =
       let buffer = really_input_string ic (String.length ast_magic) in
       if buffer = ast_magic then true
       else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
-        raise Outdated_version
+        raise (Error (Outdated_version "preprocessor"))
       else false
-    with
+    with _ -> ()
       Outdated_version ->
         Misc.fatal_error "OCaml and preprocessor have incompatible versions"
     | _ -> false

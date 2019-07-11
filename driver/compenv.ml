@@ -446,7 +446,7 @@ let read_one_param ppf position name v =
         Clflags.stop_after := Some pass;
         compile_only := P.is_compilation_pass pass;
         check_pass_order ()
-    | None ->
+    | _ ->
       Printf.ksprintf (print_error ppf)
         "bad value %s for option \"stop-after\" (expected one of: %s)"
         v (String.concat ", " Clflags.pass_names_stop_after)
@@ -457,7 +457,7 @@ let read_one_param ppf position name v =
     begin match P.of_string v with
     | Some pass when P.can_save_ir_after pass ->
         Clflags.set_save_ir_after pass true
-    | None ->
+    | _ ->
       Printf.ksprintf (print_error ppf)
         "bad value %s for option \"stop-after\" (expected one of: %s)"
         v (String.concat ", " Clflags.pass_names_save_ir_after)
@@ -469,7 +469,7 @@ let read_one_param ppf position name v =
     | Some pass when P.can_start_from pass ->
         Clflags.start_from := Some pass;
         check_pass_order ()
-    | None ->
+    | _ ->
       Printf.ksprintf (print_error ppf)
         "bad value %s for option \"stop-after\" (expected one of: %s)"
         v (String.concat ", " Clflags.pass_names_start_from)
@@ -619,6 +619,39 @@ type deferred_action =
 let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
+let check_ir name =
+  let suffixes = [".ast";
+                  ".typed";
+                  ".lambda";
+                  ".cmm";
+                  ".mach";
+                  ".linear";
+                 ] in
+  let magic_numbers = Config.[ ast_impl_magic_number;
+                        ast_intf_magic_number;
+                        typedast_magic_number;
+                        lambda_magic_number;
+                        cmm_magic_number;
+                        mach_magic_number;
+                        linear_magic_number;
+                      ] in
+  let check_magic magic =
+    let ic = open_in_bin name in
+
+    Misc.try_finally
+      (fun () ->
+         let buffer = really_input_string ic (String.length magic) in
+         if buffer = magic then true
+         else if String.sub buffer 0 9 = String.sub magic 0 9 then
+           Misc.fatal_errorf "OCaml and %s have incompatible versions"
+             name ()
+         else false)
+      ~always:(fun () -> close_in ic)
+  in
+  (List.exists (Filename.check_suffix name) suffixes) ||
+  (List.exists check_magic magic_numbers)
+
+
 let process_action
     (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
   let impl name =
@@ -655,14 +688,7 @@ let process_action
         ccobjs := name :: !ccobjs
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
-      else if List.exists (fun suff -> Filename.check_suffix name suff)
-             [".ast";
-              ".typed";
-              ".lambda";
-              ".cmm";
-              ".mach";
-              ".linear";
-             ] then
+      else if check_ir name then
         impl name
       else
         raise(Arg.Bad("don't know what to do with " ^ name))

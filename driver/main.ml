@@ -46,7 +46,7 @@ module Options = Main_args.Make_bytecomp_options (struct
     print_types := true;
     compile_only := true;
     stop_after := Some Compiler_pass.Typing;
-    ()
+    check_pass_order ()
   let _stop_after pass =
     let module P = Compiler_pass in
     begin match P.of_string pass with
@@ -191,7 +191,6 @@ let main () =
            [make_archive;make_package;compile_only;output_c_object])
         > 1
     then begin
-      let module P = Clflags.Compiler_pass in
       match !stop_after with
       | None ->
         fatal "Please specify at most one of -pack, -a, -c, -output-obj";
@@ -199,7 +198,7 @@ let main () =
           Printf.ksprintf fatal
             "Options -i and -stop-after (%s)\
              are  incompatible with -pack, -a, -output-obj"
-            (String.concat "|" P.pass_names)
+            (String.concat "|" Clflags.pass_names_stop_after)
     end;
     if !make_archive then begin
       Compmisc.init_path false;

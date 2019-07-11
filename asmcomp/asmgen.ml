@@ -78,9 +78,13 @@ let read_linear ~filename =
     (fun () ->
        let buffer = really_input_string ic
                       (String.length Config.linear_magic_number) in
-       if buffer <> linear_magic_number then
+       if buffer = linear_magic_number then
+         (input_value ic : linear_program)
+       else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
+         Misc.fatal_errorf "Ocaml and %s have incompatible versions"
+           filename ();
+       else
          Misc.fatal_errorf "Expected linear file in %s" filename ();
-       (input_value ic : linear_program)
     )
     ~always:(fun () -> close_in ic)
 
