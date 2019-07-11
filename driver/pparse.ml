@@ -18,6 +18,7 @@ open Format
 type error =
   | CannotRun of string
   | WrongMagic of string
+  | IncompatibleInputFormat of string
 
 exception Error of error
 
@@ -181,7 +182,8 @@ let file_aux ~tool_name inputfile (type a) parse_fun invariant_fun
         (* if all_ppx <> [], invariant_fun will be called by apply_rewriters *)
         ast
       end else begin
-        assert Clflags.(should_run Compiler_pass.Parsing);
+        if not (Clflags.(should_run Compiler_pass.Parsing)) then
+          raise (Error (IncompatibleInputFormat inputfile));
         seek_in ic 0;
         let lexbuf = Lexing.from_channel ic in
         Location.init lexbuf inputfile;
@@ -205,6 +207,9 @@ let report_error ppf = function
   | WrongMagic cmd ->
       fprintf ppf "External preprocessor does not produce a valid file@.\
                    Command line: %s@." cmd
+  | IncompatibleInputFormat filename ->
+      fprintf ppf "File format of %s is incompatible with -start-from@."
+        filename
 
 let () =
   Location.register_error_of_exn

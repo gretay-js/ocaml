@@ -25,6 +25,7 @@ open Format
 type error =
   | CannotRun of string
   | WrongMagic of string
+  | IncompatibleInputFormat of string
 
 exception Error of error
 

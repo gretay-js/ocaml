@@ -630,12 +630,17 @@ let process_action
         ccobjs := name :: !ccobjs
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
-      else if Filename.check_suffix name ".linear" then begin
+      else if List.exists (fun suff -> Filename.check_suffix name suff)
+             [".ast";
+              ".typed";
+              ".lambda";
+              ".cmm";
+              ".mach";
+              ".linear";
+             ] then
         impl name
-      end
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
-
 
 let action_of_file name =
   if Filename.check_suffix name ".ml"

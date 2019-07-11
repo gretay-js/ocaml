@@ -248,6 +248,8 @@ val should_save_ir_after : Compiler_pass.t -> bool
 val start_from : Compiler_pass.t option ref
 val should_start_from : Compiler_pass.t -> bool
 
+val should_run : Compiler_pass.t -> bool
+
 val arg_spec : (string * Arg.spec * string) list ref
 
 (* [add_arguments __LOC__ args] will add the arguments from [args] at
@@ -268,3 +270,14 @@ val print_arguments : string -> unit
 
 (* [reset_arguments ()] clear all declared arguments *)
 val reset_arguments : unit -> unit
+
+(* Move to pass manager *)
+
+val write_impl
+  : string
+  -> Typedtree.structure * Typedtree.module_coercion
+  -> unit
+
+val read_impl
+  : string
+  -> Typedtree.structure * Typedtree.module_coercion
