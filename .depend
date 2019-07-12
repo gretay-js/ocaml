@@ -3136,6 +3136,23 @@ asmcomp/interval.cmx : \
 asmcomp/interval.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi
+asmcomp/linear.cmo : \
+    asmcomp/reg.cmi \
+    asmcomp/mach.cmi \
+    middle_end/debuginfo.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/linear.cmi
+asmcomp/linear.cmx : \
+    asmcomp/reg.cmx \
+    asmcomp/mach.cmx \
+    middle_end/debuginfo.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/linear.cmi
+asmcomp/linear.cmi : \
+    asmcomp/reg.cmi \
+    asmcomp/mach.cmi \
+    middle_end/debuginfo.cmi \
+    asmcomp/cmm.cmi
 asmcomp/linear_invariants.cmo : \
     asmcomp/printlinear.cmi \
     utils/misc.cmi \
@@ -3167,10 +3184,8 @@ asmcomp/linearize.cmx : \
     asmcomp/cmm.cmx \
     asmcomp/linearize.cmi
 asmcomp/linearize.cmi : \
-    asmcomp/reg.cmi \
     asmcomp/mach.cmi \
-    middle_end/debuginfo.cmi \
-    asmcomp/cmm.cmi
+    asmcomp/linear.cmi
 asmcomp/linscan.cmo : \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
@@ -3376,12 +3391,14 @@ asmcomp/reloadgen.cmi : \
     asmcomp/mach.cmi
 asmcomp/reoptimize.cmo : \
     asmcomp/x86_proc.cmi \
+    utils/misc.cmi \
     asmcomp/linearize.cmi \
     middle_end/debuginfo.cmi \
     utils/clflags.cmi \
     asmcomp/reoptimize.cmi
 asmcomp/reoptimize.cmx : \
     asmcomp/x86_proc.cmx \
+    utils/misc.cmx \
     asmcomp/linearize.cmx \
     middle_end/debuginfo.cmx \
     utils/clflags.cmx \
