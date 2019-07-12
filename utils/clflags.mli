@@ -230,6 +230,13 @@ val error_style_reader : Misc.Error_style.setting env_reader
 
 val unboxed_types : bool ref
 
+module Compiler_ir : sig
+  type t = Ast | Typed | Lambda | Cmm | Mach | Linear
+  val suffix : t -> string
+  val magic : t -> string
+  val all : t list
+end
+
 module Compiler_pass : sig
   type t = Parsing | Typing | Linearize | Emit
   val of_string : string -> t option

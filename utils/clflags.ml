@@ -401,6 +401,36 @@ let error_style_reader = {
 
 let unboxed_types = ref false
 
+module Compiler_ir = struct
+  type t = Ast | Typed | Lambda | Cmm | Mach | Linear
+  let suffix = function
+    | Ast -> ".ast"
+    | Typed -> ".typed"
+    | Lambda -> ".lambda"
+    | Cmm -> ".cmm"
+    | Mach -> ".mach"
+    | Linear -> ".linear"
+
+  let magic ir =
+    let open Config in
+    match ir with
+    | Ast -> ast_intf_magic_number
+    | Typed -> typedast_magic_number
+    | Lambda -> lambda_magic_number
+    | Cmm -> cmm_magic_number
+    | Mach -> mach_magic_number
+    | Linear -> linear_magic_number
+
+  let all = [
+    Ast;
+    Typed;
+    Lambda;
+    Cmm;
+    Mach;
+    Linear;
+  ]
+end
+
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct
   (* If you add a new pass, the following must be updated:
