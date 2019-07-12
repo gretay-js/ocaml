@@ -19,6 +19,7 @@ type error =
   | CannotRun of string
   | WrongMagic of string
   | IncompatibleInputFormat of string
+  | OutdatedVersion of string
 
 exception Error of error
 
@@ -113,10 +114,10 @@ let read_saved_ast (type a) (kind : a ast_kind) fn : a =
        if (magic = buffer) then begin
          Location.input_name := (input_value ic : string);
          (input_value ic : a)
-       end else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
-         raise (Error (Outdated_version fn));
+       end else if String.sub buffer 0 9 = String.sub magic 0 9 then
+         raise (Error (OutdatedVersion fn))
        else
-         raise (Error (IncompatibleInputFormat fn));
+         raise (Error (IncompatibleInputFormat fn))
     )
 
 let rewrite kind ppxs ast =
@@ -168,14 +169,15 @@ let open_and_check_magic inputfile ast_magic =
       let buffer = really_input_string ic (String.length ast_magic) in
       if buffer = ast_magic then true
       else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
-        raise (Error (Outdated_version "preprocessor"))
+        raise Outdated_version
       else false
-    with _ -> ()
+    with
       Outdated_version ->
-        Misc.fatal_error "OCaml and preprocessor have incompatible versions"
+        raise (Error (OutdatedVersion "preprocessor"))
     | _ -> false
   in
   (ic, is_ast_file)
+
 
 let parse (type a) (kind : a ast_kind) lexbuf : a =
   match kind with
@@ -225,6 +227,9 @@ let report_error ppf = function
                    Command line: %s@." cmd
   | IncompatibleInputFormat filename ->
       fprintf ppf "File format of %s is incompatible with -start-from@."
+        filename
+  | OutdatedVersion filename ->
+      fprintf ppf "OCaml and %s have incompatible versions."
         filename
 
 let () =
