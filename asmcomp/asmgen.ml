@@ -76,15 +76,15 @@ let read_linear ~filename =
   let ic = open_in_bin filename in
   Misc.try_finally
     (fun () ->
-       let buffer = really_input_string ic
-                      (String.length Config.linear_magic_number) in
+       let magic = Config.linear_magic_number in
+       let buffer = really_input_string ic (String.length magic) in
        if buffer = linear_magic_number then
          (input_value ic : linear_program)
-       else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
+       else if String.sub buffer 0 9 = String.sub magic 0 9 then
          Misc.fatal_errorf "Ocaml and %s have incompatible versions"
-           filename ();
+           filename ()
        else
-         Misc.fatal_errorf "Expected linear file in %s" filename ();
+         Misc.fatal_errorf "Expected linear file in %s" filename ()
     )
     ~always:(fun () -> close_in ic)
 

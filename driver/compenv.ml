@@ -634,7 +634,7 @@ let check_ir name =
                         cmm_magic_number;
                         mach_magic_number;
                         linear_magic_number;
-                      ] in
+                             ] in
   let check_magic magic =
     let ic = open_in_bin name in
 

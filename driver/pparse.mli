@@ -26,6 +26,7 @@ type error =
   | CannotRun of string
   | WrongMagic of string
   | IncompatibleInputFormat of string
+  | OutdatedVersion of string
 
 exception Error of error
 
