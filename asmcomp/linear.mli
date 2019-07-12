@@ -57,3 +57,20 @@ type fundecl =
     fun_dbg : Debuginfo.t;
     fun_spacetime_shape : Mach.spacetime_shape option;
   }
+
+(* marshal and unmashal of compilation unit in linear format *)
+type linear =
+  | Func of { decl : fundecl;
+              contains_calls : bool;
+              num_stack_slots : int array;
+            }
+  | Data of Cmm.data_item list
+
+type linear_program =
+  {
+    last_label : Cmm.label;
+    items : linear list;
+  }
+
+val write : string -> linear_program -> unit
+val read : string -> linear_program

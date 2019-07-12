@@ -29,64 +29,28 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
-type linear =
-  | Func of { decl : Linear.fundecl;
-              contains_calls : bool;
-              num_stack_slots : int array;
-            }
-  | Data of Cmm.data_item list
-
-type linear_program =
-  {
-    last_label : Cmm.label;
-    items : linear list;
-  }
-
 let linear_items = ref []
 
 let save_data dl =
-  linear_items := (Data dl) :: !linear_items;
+  linear_items := (Linear.Data dl) :: !linear_items;
   dl
 
 let save_linear f =
-  linear_items := (Func {decl=f;
-                         contains_calls = !Proc.contains_calls;
-                         num_stack_slots = Proc.num_stack_slots;
-                        }) :: !linear_items;
+  linear_items := (Linear.Func {decl=f;
+                                contains_calls = !Proc.contains_calls;
+                                num_stack_slots = Proc.num_stack_slots;
+                               }) :: !linear_items;
   f
 
 let write_linear output_prefix =
-  if should_save_ir_after Compiler_pass.Linearize then begin
+   if should_save_ir_after Compiler_pass.Linearize then begin
     let linear_program =
-      { last_label = Cmm.cur_label ();
+      { Linear.last_label = Cmm.cur_label ();
         items = List.rev !linear_items;
       } in
     let filename = output_prefix ^ ".linear" in
-    let ch = open_out_bin filename in
-    Misc.try_finally (fun () ->
-      output_string ch Config.linear_magic_number;
-      output_value ch linear_program
-    )
-      ~always:(fun () -> close_out ch)
-      ~exceptionally:(fun () ->
-        Misc.fatal_errorf "Failed to marshal IR to file %s" filename)
+    Linear.write filename linear_program
   end
-
-let read_linear ~filename =
-  let ic = open_in_bin filename in
-  Misc.try_finally
-    (fun () ->
-       let magic = Config.linear_magic_number in
-       let buffer = really_input_string ic (String.length magic) in
-       if buffer = linear_magic_number then
-         (input_value ic : linear_program)
-       else if String.sub buffer 0 9 = String.sub magic 0 9 then
-         Misc.fatal_errorf "Ocaml and %s have incompatible versions"
-           filename ()
-       else
-         Misc.fatal_errorf "Expected linear file in %s" filename ()
-    )
-    ~always:(fun () -> close_in ic)
 
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
@@ -280,11 +244,11 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_end_assembly ()
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
-  let linear_program = read_linear ~filename in
+  let linear_program = Linear.read filename in
   Cmm.set_label linear_program.last_label;
   let emit_from_linear = function
-    | Data dl -> emit_data dl
-    | Func f ->
+    | Linear.Data dl -> emit_data dl
+    | Linear.Func f ->
       Proc.contains_calls := f.contains_calls;
       assert (Proc.num_stack_slots = f.num_stack_slots);
       Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots;
