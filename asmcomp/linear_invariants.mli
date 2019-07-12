@@ -16,8 +16,8 @@
 
 (** Invariant checks on code produced by [Linearize]. *)
 
-val check : Linearize.fundecl -> Linearize.fundecl
+val check : Linear.fundecl -> Linear.fundecl
 
-module LabelMap : Map.S with type key = Linearize.label
+module LabelMap : Map.S with type key = Linear.label
 
-val compute_trap_depths : Linearize.fundecl -> int LabelMap.t
+val compute_trap_depths : Linear.fundecl -> int LabelMap.t

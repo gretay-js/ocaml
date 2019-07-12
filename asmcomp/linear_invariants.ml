@@ -18,7 +18,7 @@
 
 module LabelMap = Map.Make(
 struct
-  type t = Linearize.label
+  type t = Linear.label
   let compare (x:t) y = compare x y
 end)
 
@@ -50,7 +50,7 @@ let record_trap_depth_at_label_opt ~state ~insn ~label =
   | None -> state
   | Some label -> record_trap_depth_at_label ~state ~insn ~label
 
-let check_instruction (insn : Linearize.instruction) ~state =
+let check_instruction (insn : Linear.instruction) ~state =
   assert (state.trap_depth >= 0);
   (* CR gyorsh: enable the following check after trap_analysis is merged. *)
   (* if state.trap_depth <> insn.trap_depth then begin
@@ -97,7 +97,7 @@ let check_instruction (insn : Linearize.instruction) ~state =
     else
       Misc.fatal_errorf "Lpoptrap moves the trap depth below zero"
 
-let rec check_instructions (insn : Linearize.instruction) ~state =
+let rec check_instructions (insn : Linear.instruction) ~state =
   let state = check_instruction insn ~state in
   if not (insn.next == insn) then begin
     check_instructions insn.next ~state
@@ -105,7 +105,7 @@ let rec check_instructions (insn : Linearize.instruction) ~state =
   else
     state
 
-let compute_trap_depths (fundecl : Linearize.fundecl) =
+let compute_trap_depths (fundecl : Linear.fundecl) =
   let state =
     { trap_depth = 0;
       trap_depth_at_labels = LabelMap.empty;
@@ -114,6 +114,6 @@ let compute_trap_depths (fundecl : Linearize.fundecl) =
   let state = check_instructions fundecl.fun_body ~state in
   state.trap_depth_at_labels
 
-let check (fundecl : Linearize.fundecl) =
+let check (fundecl : Linear.fundecl) =
   ignore (compute_trap_depths fundecl);
   fundecl
