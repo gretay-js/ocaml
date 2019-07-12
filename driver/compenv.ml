@@ -603,11 +603,6 @@ let get_objfiles ~with_ocamlparam =
   else
     List.rev !objfiles
 
-
-
-
-
-
 type deferred_action =
   | ProcessImplementation of string
   | ProcessInterface of string
@@ -620,37 +615,50 @@ let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
 let check_ir name =
-  let suffixes = [".ast";
-                  ".typed";
-                  ".lambda";
-                  ".cmm";
-                  ".mach";
-                  ".linear";
-                 ] in
-  let magic_numbers = Config.[ ast_impl_magic_number;
-                        ast_intf_magic_number;
-                        typedast_magic_number;
-                        lambda_magic_number;
-                        cmm_magic_number;
-                        mach_magic_number;
-                        linear_magic_number;
-                             ] in
-  let check_magic magic =
+  let check_suffix () =
+    List.find_opt (fun ir ->
+      Filename.check_suffix name (Compiler_ir.suffix ir) )
+      Compiler_ir.all in
+  let check_magic () =
     let ic = open_in_bin name in
-
     Misc.try_finally
       (fun () ->
-         let buffer = really_input_string ic (String.length magic) in
-         if buffer = magic then true
-         else if String.sub buffer 0 9 = String.sub magic 0 9 then
-           Misc.fatal_errorf "OCaml and %s have incompatible versions"
-             name ()
-         else false)
+         let len = String.length Config.ast_impl_magic_number in
+         let buffer = really_input_string ic len in
+         List.find_opt (fun ir ->
+           let magic = Compiler_ir.magic ir in
+           assert (String.length magic = len);
+           if buffer = magic then true
+           else if String.sub buffer 0 9 = String.sub magic 0 9 then
+             Misc.fatal_errorf "OCaml and %s have incompatible versions"
+               name ()
+           else false)
+           Compiler_ir.all
+      )
       ~always:(fun () -> close_in ic)
   in
-  (List.exists (Filename.check_suffix name) suffixes) ||
-  (List.exists check_magic magic_numbers)
-
+  let ir = match check_suffix () with
+    | Some ir -> Some ir
+    | None -> check_magic ()
+  in match ir with
+  | None -> false
+  | Some Ast ->
+    if not ((should_start_from Compiler_pass.Parsing)
+            || (should_start_from Compiler_pass.Typing)) then
+      raise(Arg.Bad("Format of the input file " ^ name ^
+                    " is incompatible with the given -start-from <pass>."));
+    true
+  | Some Linear ->
+    if not (should_start_from Compiler_pass.Emit) then
+      if (!start_from = None) then
+        raise(Arg.Bad("Format of the input file " ^ name
+                      ^ " requires -start-from emit."))
+      else
+        raise(Arg.Bad("Format of the input file " ^ name ^
+                      " is incompatible with the given -start-from <pass>."));
+    true
+  | Some (Typed | Lambda | Cmm | Mach) ->
+    raise(Arg.Bad("Format of " ^ name ^ " is not supported."))
 
 let process_action
     (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
