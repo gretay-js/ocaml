@@ -21,7 +21,7 @@
    binaries back to linear IR for profile-guided optimizations.
    Optionally, apply intra-procedural optimizations, such as block reordering
    and peephole optimizations. *)
-open Linearize
+open Linear
 
 (* Transformation is an identity function by default *)
 let transform = ref (fun fundecl -> fundecl)

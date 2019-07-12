@@ -15,7 +15,7 @@
 (**************************************************************************)
 
 open Mach
-open Linearize
+open Linear
 
 module Make (T : Branch_relaxation_intf.S) = struct
   let label_map code =

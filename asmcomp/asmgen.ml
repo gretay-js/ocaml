@@ -30,7 +30,7 @@ exception Error of error
 let liveness phrase = Liveness.fundecl phrase; phrase
 
 type linear =
-  | Func of { decl : Linearize.fundecl;
+  | Func of { decl : Linear.fundecl;
               contains_calls : bool;
               num_stack_slots : int array;
             }
