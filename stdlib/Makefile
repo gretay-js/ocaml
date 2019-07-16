@@ -31,6 +31,9 @@ OPTCOMPFLAGS=-O3
 else
 OPTCOMPFLAGS=
 endif
+ifeq "$(FUNCTION_SECTIONS)" "true"
+OPTCOMPFLAGS += -function-sections
+endif
 OPTCOMPILER=$(ROOTDIR)/ocamlopt
 CAMLOPT=$(CAMLRUN) $(OPTCOMPILER)
 CAMLDEP=$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend
