@@ -23,7 +23,7 @@ open Linear
 
 let cons_instr d n =
   { desc = d; next = n; arg = [||]; res = [||];
-    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
+    dbg = Debuginfo.none; live = Reg.Set.empty; }
 
 (* Build an instruction with arg, res, dbg, live taken from
    the given Mach.instruction *)
@@ -31,7 +31,7 @@ let cons_instr d n =
 let copy_instr d i n =
   { desc = d; next = n;
     arg = i.Mach.arg; res = i.Mach.res;
-    dbg = i.Mach.dbg; live = i.Mach.live; id = 0; }
+    dbg = i.Mach.dbg; live = i.Mach.live; }
 
 (*
    Label the beginning of the given instruction sequence.
@@ -286,7 +286,6 @@ let add_prologue first_insn =
     res = [| |];
     dbg = insn.dbg;
     live = insn.live;
-    id = 0;
   }
 
 

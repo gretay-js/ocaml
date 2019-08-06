@@ -24,7 +24,6 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     live: Reg.Set.t;
-    id: int;
   }
 
 and instruction_desc =
@@ -81,7 +80,6 @@ let rec end_instr =
     res = [||];
     dbg = Debuginfo.none;
     live = Reg.Set.empty;
-    id = 0;
   }
 
 
@@ -89,7 +87,7 @@ let rec end_instr =
 
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty; id = 0; }
+    dbg = Debuginfo.none; live = Reg.Set.empty; }
 
 (* marshal and unmashal of compilation unit in linear format *)
 

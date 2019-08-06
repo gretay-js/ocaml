@@ -24,7 +24,6 @@ type instruction =
     res: Reg.t array;
     dbg: Debuginfo.t;
     live: Reg.Set.t;
-    id: int;
   }
 
 and instruction_desc =
