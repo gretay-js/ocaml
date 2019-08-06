@@ -3,6 +3,7 @@ catch-rec.cmm
 catch-try.cmm
 catch-float.cmm
 catch-try-float.cmm
+catch-rec-deadhandler.cmm
 checkbound.cmm
 even-odd-spill.cmm
 even-odd-spill-float.cmm
