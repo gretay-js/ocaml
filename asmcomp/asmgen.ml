@@ -32,24 +32,28 @@ let liveness phrase = Liveness.fundecl phrase; phrase
 let linear_items = ref []
 
 let save_data dl =
-  linear_items := (Linear.Data dl) :: !linear_items;
+  if should_save_ir_after Compiler_pass.Linearize then
+    linear_items := (Linear_format.Data dl) :: !linear_items;
   dl
 
 let save_linear f =
-  linear_items := (Linear.Func {decl=f;
-                                contains_calls = !Proc.contains_calls;
-                                num_stack_slots = Proc.num_stack_slots;
-                               }) :: !linear_items;
+  if should_save_ir_after Compiler_pass.Linearize then
+    linear_items :=
+      (Linear_format.Func {decl=f;
+                           contains_calls = !Proc.contains_calls;
+                           num_stack_slots = Proc.num_stack_slots;
+                          })
+      :: !linear_items;
   f
 
 let write_linear output_prefix =
    if should_save_ir_after Compiler_pass.Linearize then begin
-    let linear_program =
-      { Linear.last_label = Cmm.cur_label ();
+    let linear_unit_info =
+      { Linear_format.last_label = Cmm.cur_label ();
         items = List.rev !linear_items;
       } in
-    let filename = output_prefix ^ ".linear" in
-    Linear.write filename linear_program
+    let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
+    Linear_format.write filename linear_unit_info
   end
 
 let dump_if ppf flag message phrase =
@@ -244,18 +248,22 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_end_assembly ()
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
-  let linear_program = Linear.read filename in
-  Cmm.set_label linear_program.last_label;
+  let linear_unit_info = Linear_format.read filename in
+  Cmm.set_label linear_unit_info.last_label;
   let emit_from_linear = function
-    | Linear.Data dl -> emit_data dl
-    | Linear.Func f ->
+    | Linear_format.Data dl -> emit_data dl
+    | Linear_format.Func f ->
       Proc.contains_calls := f.contains_calls;
-      assert (Proc.num_stack_slots = f.num_stack_slots);
+      let len = Array.length Proc.num_stack_slots in
+      (assert (len = Array.length f.num_stack_slots));
+      for i = 0 to (len - 1) do
+        Proc.num_stack_slots.(i) <- f.num_stack_slots.(i);
+      done;
       Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots;
       emit_fundecl f.decl
   in
   emit_begin_assembly ();
-  Profile.record "Emit" (List.iter emit_from_linear) linear_program.items;
+  Profile.record "Emit" (List.iter emit_from_linear) linear_unit_info.items;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump

@@ -181,7 +181,8 @@ ASMCOMP=\
   asmcomp/linscan.cmo \
   asmcomp/reloadgen.cmo asmcomp/reload.cmo \
   asmcomp/deadcode.cmo \
-  asmcomp/printlinear.cmo asmcomp/linear.cmo asmcomp/linearize.cmo \
+  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linear_format.cmo \
+  asmcomp/linearize.cmo \
   asmcomp/linear_invariants.cmo \
   asmcomp/reoptimize.cmo \
   asmcomp/debug/available_regs.cmo \

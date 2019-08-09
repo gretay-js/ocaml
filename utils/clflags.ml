@@ -403,18 +403,22 @@ let unboxed_types = ref false
 
 module Compiler_ir = struct
   type t = Ast | Typed | Lambda | Cmm | Mach | Linear
-  let suffix = function
-    | Ast -> ".ast"
-    | Typed -> ".typed"
-    | Lambda -> ".lambda"
-    | Cmm -> ".cmm"
-    | Mach -> ".mach"
-    | Linear -> ".linear"
+  let extension t =
+    let ext =
+    match t with
+    | Ast -> "ast"
+    | Typed -> "typed"
+    | Lambda -> "lambda"
+    | Cmm -> "cmm"
+    | Mach -> "mach"
+    | Linear -> "linear"
+    in
+    ".cmir-" ^ ext
 
-  let magic ir =
+  let magic t =
     let open Config in
-    match ir with
-    | Ast -> ast_intf_magic_number
+    match t with
+    | Ast -> ast_impl_magic_number
     | Typed -> typedast_magic_number
     | Lambda -> lambda_magic_number
     | Cmm -> cmm_magic_number

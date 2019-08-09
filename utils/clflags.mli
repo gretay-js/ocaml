@@ -232,7 +232,7 @@ val unboxed_types : bool ref
 
 module Compiler_ir : sig
   type t = Ast | Typed | Lambda | Cmm | Mach | Linear
-  val suffix : t -> string
+  val extension : t -> string
   val magic : t -> string
   val all : t list
 end

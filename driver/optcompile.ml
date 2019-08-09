@@ -91,7 +91,7 @@ let implementation ~backend ~source_file ~output_prefix =
     else clambda info typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
-  if Clflags.(should_start_from Compiler_pass.Linearize) then
+  if Clflags.(should_start_from Compiler_pass.Emit) then
     emit info
   else
     Compile_common.implementation info ~backend

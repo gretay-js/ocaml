@@ -616,8 +616,11 @@ let c_object_of_filename name =
 
 let check_ir name =
   let check_suffix () =
+    let ext = Filename.extension name in
     List.find_opt (fun ir ->
-      Filename.check_suffix name (Compiler_ir.suffix ir) )
+      let s = Compiler_ir.extension ir in
+      (* check whether [ext] starts with [s]  *)
+      s = String.sub ext 0 (String.length s))
       Compiler_ir.all in
   let check_magic () =
     let ic = open_in_bin name in

@@ -3,9 +3,11 @@
 (*                                 OCaml                                  *)
 (*                                                                        *)
 (*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                    Greta Yorsh, Jane Street Europe                     *)
 (*                                                                        *)
 (*   Copyright 1996 Institut National de Recherche en Informatique et     *)
 (*     en Automatique.                                                    *)
+(*   Copyright 2019 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,46 +15,25 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* List of pseudo-instructions. *)
+(* Format of .cmir-linear files *)
 
-type label = Cmm.label
+(* Compiler can optionally save Linear representation of a compilation unit,
+   along with other information required to emit assembly. *)
+open Linear
 
-type instruction =
-  { mutable desc: instruction_desc;
-    mutable next: instruction;
-    arg: Reg.t array;
-    res: Reg.t array;
-    dbg: Debuginfo.t;
-    live: Reg.Set.t;
+type linear_item_info =
+  | Func of { decl : fundecl;
+              contains_calls : bool;
+              num_stack_slots : int array;
+            }
+  | Data of Cmm.data_item list
+
+type linear_unit_info =
+  {
+    last_label : Cmm.label;
+    items : linear_item_info list;
   }
 
-and instruction_desc =
-  | Lprologue
-  | Lend
-  | Lop of Mach.operation
-  | Lreloadretaddr
-  | Lreturn
-  | Llabel of label
-  | Lbranch of label
-  | Lcondbranch of Mach.test * label
-  | Lcondbranch3 of label option * label option * label option
-  | Lswitch of label array
-  | Lentertrap
-  | Ladjust_trap_depth of { delta_traps : int }
-  | Lpushtrap of {lbl_handler:label}
-  | Lpoptrap
-  | Lraise of Cmm.raise_kind
-
-val has_fallthrough :  instruction_desc -> bool
-val end_instr: instruction
-val instr_cons:
-  instruction_desc -> Reg.t array -> Reg.t array -> instruction -> instruction
-val invert_test: Mach.test -> Mach.test
-
-type fundecl =
-  { fun_name: string;
-    fun_body: instruction;
-    fun_fast: bool;
-    fun_dbg : Debuginfo.t;
-    fun_spacetime_shape : Mach.spacetime_shape option;
-  }
+(* marshal and unmashal a compilation unit in linear format *)
+val write : string -> linear_unit_info -> unit
+val read : string -> linear_unit_info

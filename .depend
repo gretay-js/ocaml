@@ -1255,6 +1255,7 @@ typing/typedecl.cmi : \
     typing/types.cmi \
     typing/typedtree.cmi \
     typing/typedecl_variance.cmi \
+    typing/typedecl_unboxed.cmi \
     typing/typedecl_immediacy.cmi \
     typing/path.cmi \
     parsing/parsetree.cmi \
@@ -1478,6 +1479,7 @@ typing/typemod.cmi : \
 typing/typeopt.cmo : \
     typing/types.cmi \
     typing/typedtree.cmi \
+    typing/typedecl_unboxed.cmi \
     typing/typedecl.cmi \
     typing/predef.cmi \
     typing/path.cmi \
@@ -1491,6 +1493,7 @@ typing/typeopt.cmo : \
 typing/typeopt.cmx : \
     typing/types.cmx \
     typing/typedtree.cmx \
+    typing/typedecl_unboxed.cmx \
     typing/typedecl.cmx \
     typing/predef.cmx \
     typing/path.cmx \
@@ -2351,6 +2354,7 @@ asmcomp/asmgen.cmo : \
     middle_end/base_types/linkage_name.cmi \
     asmcomp/linearize.cmi \
     asmcomp/linear_invariants.cmi \
+    asmcomp/linear_format.cmi \
     bytecomp/lambda.cmi \
     asmcomp/interval.cmi \
     asmcomp/interf.cmi \
@@ -2400,6 +2404,7 @@ asmcomp/asmgen.cmx : \
     middle_end/base_types/linkage_name.cmx \
     asmcomp/linearize.cmx \
     asmcomp/linear_invariants.cmx \
+    asmcomp/linear_format.cmx \
     bytecomp/lambda.cmx \
     asmcomp/interval.cmx \
     asmcomp/interf.cmx \
@@ -3138,26 +3143,35 @@ asmcomp/interval.cmi : \
     asmcomp/mach.cmi
 asmcomp/linear.cmo : \
     asmcomp/reg.cmi \
-    utils/misc.cmi \
     asmcomp/mach.cmi \
-    asmcomp/linear.cmi \
     middle_end/debuginfo.cmi \
-    utils/config.cmi \
     asmcomp/cmm.cmi \
     asmcomp/linear.cmi
 asmcomp/linear.cmx : \
     asmcomp/reg.cmx \
-    utils/misc.cmx \
     asmcomp/mach.cmx \
-    asmcomp/linear.cmx \
     middle_end/debuginfo.cmx \
-    utils/config.cmx \
     asmcomp/cmm.cmx \
     asmcomp/linear.cmi
 asmcomp/linear.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi \
     middle_end/debuginfo.cmi \
+    asmcomp/cmm.cmi
+asmcomp/linear_format.cmo : \
+    utils/misc.cmi \
+    asmcomp/linear.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/linear_format.cmi
+asmcomp/linear_format.cmx : \
+    utils/misc.cmx \
+    asmcomp/linear.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/linear_format.cmi
+asmcomp/linear_format.cmi : \
+    asmcomp/linear.cmi \
     asmcomp/cmm.cmi
 asmcomp/linear_invariants.cmo : \
     asmcomp/printlinear.cmi \
@@ -3398,17 +3412,11 @@ asmcomp/reloadgen.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi
 asmcomp/reoptimize.cmo : \
-    asmcomp/x86_proc.cmi \
-    utils/misc.cmi \
     asmcomp/linear.cmi \
-    middle_end/debuginfo.cmi \
     utils/clflags.cmi \
     asmcomp/reoptimize.cmi
 asmcomp/reoptimize.cmx : \
-    asmcomp/x86_proc.cmx \
-    utils/misc.cmx \
     asmcomp/linear.cmx \
-    middle_end/debuginfo.cmx \
     utils/clflags.cmx \
     asmcomp/reoptimize.cmi
 asmcomp/reoptimize.cmi : \
