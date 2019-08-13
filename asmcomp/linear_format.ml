@@ -88,3 +88,14 @@ let restore filename =
   let linear_unit_info = read filename in
   Cmm.set_label linear_unit_info.last_label;
   linear_unit_info.items
+
+let restore_item = function
+  | Data _ -> ()
+  | Func f ->
+    Proc.contains_calls := f.contains_calls;
+    let len = Array.length Proc.num_stack_slots in
+    (assert (len = Array.length f.num_stack_slots));
+    for i = 0 to (len - 1) do
+      Proc.num_stack_slots.(i) <- f.num_stack_slots.(i);
+    done;
+    Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots

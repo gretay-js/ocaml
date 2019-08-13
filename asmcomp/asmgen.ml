@@ -32,13 +32,6 @@ let liveness phrase = Liveness.fundecl phrase; phrase
 let should_save_after_linearize = ref false
 let should_emit = ref true
 
-let reset () =
-  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
-  should_emit :=
-    if should_stop_after Compiler_pass.Linearize then false
-    else true;
-  Linear_format.reset ()
-
 let save_data dl =
   if !should_save_after_linearize then Linear_format.add_data dl;
   dl
@@ -195,7 +188,11 @@ let assemble ~asm_filename ~obj_filename =
 
 let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
-  reset ();
+  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
+  should_emit :=
+    if should_stop_after Compiler_pass.Linearize then false
+    else true;
+  Linear_format.reset ();
   let create_asm = !should_emit &&
                    (keep_asm || not !Emitaux.binary_backend_available)
   in
@@ -242,23 +239,18 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_end_assembly ()
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
-  let items = Linear_format.restore filename in
-  let emit_from_linear = function
-    | Linear_format.Data dl -> emit_data dl
-    | Linear_format.Func f ->
-      (* CR gyorsh: this should be removed,
-         once the fields move from Proc to Linear.fundecl *)
-      Proc.contains_calls := f.contains_calls;
-      let len = Array.length Proc.num_stack_slots in
-      (assert (len = Array.length f.num_stack_slots));
-      for i = 0 to (len - 1) do
-        Proc.num_stack_slots.(i) <- f.num_stack_slots.(i);
-      done;
-      Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots;
-      emit_fundecl f.decl
+  let open Linear_format in
+  let items = restore filename in
+  let emit_item item =
+    (* CR gyorsh: restore_item should be removed
+       once the fields move from Proc to Linear.fundecl *)
+    restore_item item;
+    match item with
+    | Data dl -> emit_data dl
+    | Func f -> emit_fundecl f.decl
   in
   emit_begin_assembly ();
-  Profile.record "Emit" (List.iter emit_from_linear) items;
+  Profile.record "Emit" (List.iter emit_item) items;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
