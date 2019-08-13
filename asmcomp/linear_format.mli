@@ -38,5 +38,6 @@ val add_data : Cmm.data_item list -> unit
 val save : string -> unit
 val restore : string -> linear_item_info list
 
-(* Hack to restore per-function state, until we move it from Proc to Linear. *)
+(* Hack to restore per-function state required for Emit,
+   until we move it from Proc to Linear. *)
 val restore_item : linear_item_info -> unit

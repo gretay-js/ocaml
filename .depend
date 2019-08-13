@@ -3159,12 +3159,14 @@ asmcomp/linear.cmi : \
     middle_end/debuginfo.cmi \
     asmcomp/cmm.cmi
 asmcomp/linear_format.cmo : \
+    asmcomp/proc.cmi \
     utils/misc.cmi \
     asmcomp/linear.cmi \
     utils/config.cmi \
     asmcomp/cmm.cmi \
     asmcomp/linear_format.cmi
 asmcomp/linear_format.cmx : \
+    asmcomp/proc.cmx \
     utils/misc.cmx \
     asmcomp/linear.cmx \
     utils/config.cmx \
