@@ -29,31 +29,28 @@ exception Error of error
 
 let liveness phrase = Liveness.fundecl phrase; phrase
 
-let linear_items = ref []
+let should_save_after_linearize = ref false
+let should_emit = ref true
+
+let reset () =
+  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
+  should_emit :=
+    if should_stop_after Compiler_pass.Linearize then false
+    else true;
+  Linear_format.reset ()
 
 let save_data dl =
-  if should_save_ir_after Compiler_pass.Linearize then
-    linear_items := (Linear_format.Data dl) :: !linear_items;
+  if !should_save_after_linearize then Linear_format.add_data dl;
   dl
 
 let save_linear f =
-  if should_save_ir_after Compiler_pass.Linearize then
-    linear_items :=
-      (Linear_format.Func {decl=f;
-                           contains_calls = !Proc.contains_calls;
-                           num_stack_slots = Proc.num_stack_slots;
-                          })
-      :: !linear_items;
+  if !should_save_after_linearize then Linear_format.add_fun f;
   f
 
 let write_linear output_prefix =
-   if should_save_ir_after Compiler_pass.Linearize then begin
-    let linear_unit_info =
-      { Linear_format.last_label = Cmm.cur_label ();
-        items = List.rev !linear_items;
-      } in
+  if !should_save_after_linearize then begin
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
-    Linear_format.write filename linear_unit_info
+    Linear_format.save filename
   end
 
 let dump_if ppf flag message phrase =
@@ -82,15 +79,13 @@ let flambda_raw_clambda_dump_if ppf
   if !dump_cmm then Format.fprintf ppf "@.cmm:@.";
   input
 
-let should_emit () =
-  if should_stop_after Compiler_pass.Linearize then false
-  else true
-
-let if_emit_do f x = if should_emit () then f x else ()
+let if_emit_do f x = if !should_emit then f x else ()
 let emit_begin_assembly = if_emit_do Emit.begin_assembly
 let emit_end_assembly = if_emit_do Emit.end_assembly
-let emit_fundecl = if_emit_do Emit.fundecl
 let emit_data = if_emit_do Emit.data
+let emit_fundecl =
+  if_emit_do
+    (Profile.record ~accumulate:true "emit" Emit.fundecl)
 
 type clambda_and_constants =
   Clambda.ulambda *
@@ -166,7 +161,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "reoptimize" Reoptimize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After reoptimize"
   ++ Profile.record ~accumulate:true "linear invariants" Linear_invariants.check
-  ++ if_emit_do (Profile.record ~accumulate:true "emit" emit_fundecl)
+  ++ emit_fundecl
 
 let compile_data dl =
   dl
@@ -191,8 +186,6 @@ let compile_genfuns ~ppf_dump f =
     (Cmmgen.generic_functions true [Compilenv.current_unit_infos ()])
 
 let assemble ~asm_filename ~obj_filename =
-  if should_stop_after Compiler_pass.Linearize then
-    Misc.fatal_error "Assemble should not be called";
   let assemble_result =
     Profile.record "assemble"
       (Proc.assemble_file asm_filename) obj_filename
@@ -202,7 +195,8 @@ let assemble ~asm_filename ~obj_filename =
 
 let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
-  let create_asm = should_emit () &&
+  reset ();
+  let create_asm = !should_emit &&
                    (keep_asm || not !Emitaux.binary_backend_available)
   in
   Emitaux.create_asm_file := create_asm;
@@ -218,7 +212,7 @@ let compile_unit output_prefix asm_filename keep_asm
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
            if create_asm && not keep_asm then remove_file asm_filename);
-       if should_emit () then assemble ~asm_filename ~obj_filename;
+       if !should_emit then assemble ~asm_filename ~obj_filename;
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
@@ -248,11 +242,12 @@ let end_gen_implementation ?toplevel ~ppf_dump
   emit_end_assembly ()
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
-  let linear_unit_info = Linear_format.read filename in
-  Cmm.set_label linear_unit_info.last_label;
+  let items = Linear_format.restore filename in
   let emit_from_linear = function
     | Linear_format.Data dl -> emit_data dl
     | Linear_format.Func f ->
+      (* CR gyorsh: this should be removed,
+         once the fields move from Proc to Linear.fundecl *)
       Proc.contains_calls := f.contains_calls;
       let len = Array.length Proc.num_stack_slots in
       (assert (len = Array.length f.num_stack_slots));
@@ -263,7 +258,7 @@ let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
       emit_fundecl f.decl
   in
   emit_begin_assembly ();
-  Profile.record "Emit" (List.iter emit_from_linear) linear_unit_info.items;
+  Profile.record "Emit" (List.iter emit_from_linear) items;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
