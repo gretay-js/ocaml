@@ -392,6 +392,10 @@ method schedule_fundecl f =
       fun_fast = f.fun_fast;
       fun_dbg  = f.fun_dbg;
       fun_spacetime_shape = f.fun_spacetime_shape;
+      fun_contains_calls = f.fun_contains_calls;
+      fun_num_stack_slots = f.fun_num_stack_slots;
+      fun_frame_required = f.fun_frame_required;
+      fun_prologue_required = f.fun_prologue_required;
     }
   end else
     f

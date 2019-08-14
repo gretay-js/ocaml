@@ -2802,10 +2802,12 @@ asmcomp/cmx_format.cmi : \
     asmcomp/export_info.cmi \
     asmcomp/clambda.cmi
 asmcomp/coloring.cmo : \
+    asmcomp/reloadgen.cmi \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
     asmcomp/coloring.cmi
 asmcomp/coloring.cmx : \
+    asmcomp/reloadgen.cmx \
     asmcomp/reg.cmx \
     asmcomp/proc.cmx \
     asmcomp/coloring.cmi
@@ -3211,11 +3213,13 @@ asmcomp/linearize.cmi : \
     asmcomp/mach.cmi \
     asmcomp/linear.cmi
 asmcomp/linscan.cmo : \
+    asmcomp/reloadgen.cmi \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
     asmcomp/interval.cmi \
     asmcomp/linscan.cmi
 asmcomp/linscan.cmx : \
+    asmcomp/reloadgen.cmx \
     asmcomp/reg.cmx \
     asmcomp/proc.cmx \
     asmcomp/interval.cmx \
@@ -3402,11 +3406,13 @@ asmcomp/reload.cmi : \
     asmcomp/mach.cmi
 asmcomp/reloadgen.cmo : \
     asmcomp/reg.cmi \
+    asmcomp/proc.cmi \
     utils/misc.cmi \
     asmcomp/mach.cmi \
     asmcomp/reloadgen.cmi
 asmcomp/reloadgen.cmx : \
     asmcomp/reg.cmx \
+    asmcomp/proc.cmx \
     utils/misc.cmx \
     asmcomp/mach.cmx \
     asmcomp/reloadgen.cmi

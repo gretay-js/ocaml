@@ -374,8 +374,9 @@ let op_is_pure = function
 
 (* Layout of the stack frame *)
 
-let num_stack_slots = [| 0; 0 |]
-let contains_calls = ref false
+let frame_required fd =
+  fp || fd.fun_contains_calls ||
+  fd.fun_num_stack_slots.(0) > 0 || fd.fun_num_stack_slots.(1) > 0
 
 (* Calling the assembler *)
 
