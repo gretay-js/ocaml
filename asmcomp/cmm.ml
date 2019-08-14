@@ -106,7 +106,9 @@ let negate_float_comparison = Lambda.negate_float_comparison
 let swap_float_comparison = Lambda.swap_float_comparison
 type label = int
 
-let label_counter = ref 99
+let init_label = 99
+
+let label_counter = ref init_label
 
 let new_label() = incr label_counter; !label_counter
 
@@ -115,6 +117,9 @@ let set_label l =
   label_counter := l
 
 let cur_label () = !label_counter
+
+let reset_label () =
+  label_counter := init_label
 
 type raise_kind =
   | Raise_withtrace
@@ -223,6 +228,3 @@ type phrase =
 
 let ccatch (i, ids, e1, e2)=
   Ccatch(Nonrecursive, [i, ids, e2], e1)
-
-let reset () =
-  label_counter := 99

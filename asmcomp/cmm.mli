@@ -220,4 +220,4 @@ val ccatch :
        * expression * expression
   -> expression
 
-val reset : unit -> unit
+val reset_label : unit -> unit

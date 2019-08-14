@@ -86,6 +86,7 @@ let add_data dl =
 
 let restore filename =
   let linear_unit_info = read filename in
+  Cmm.reset_label ();
   Cmm.set_label linear_unit_info.last_label;
   linear_unit_info.items
 
