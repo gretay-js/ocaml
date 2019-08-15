@@ -16,14 +16,8 @@
 (**************************************************************************)
 
 (* marshal and unmashal a compilation unit in linear format *)
-open Linear
-
 type linear_item_info =
-  | Func of { decl : fundecl;
-              (* the following fields should be part of Linear.fundecl *)
-              contains_calls : bool;
-              num_stack_slots : int array;
-            }
+  | Func of Linear.fundecl
   | Data of Cmm.data_item list
 
 type linear_unit_info =
@@ -58,45 +52,15 @@ let read filename =
     )
     ~always:(fun () -> close_in ic)
 
-let linear_items = ref []
-
-let save filename =
+let save filename linear_items =
   let linear_unit_info =
     { last_label = Cmm.cur_label ();
-      items = List.rev !linear_items;
+      items = List.rev linear_items;
     } in
   write filename linear_unit_info
-
-let reset () =
-  linear_items := []
-
-let add_fun f =
-  linear_items := (Func {decl=f;
-                         (* CR gyorsh: make this independent of Proc.
-                            move these fields to Linear.fundecl,
-                            then we won't need to save/restore them
-                            manually. *)
-                        contains_calls = !Proc.contains_calls;
-                        num_stack_slots = Proc.num_stack_slots;
-                       })
-                  :: !linear_items
-
-let add_data dl =
-  linear_items := (Data dl) :: !linear_items
 
 let restore filename =
   let linear_unit_info = read filename in
   Cmm.reset_label ();
   Cmm.set_label linear_unit_info.last_label;
   linear_unit_info.items
-
-let restore_item = function
-  | Data _ -> ()
-  | Func f ->
-    Proc.contains_calls := f.contains_calls;
-    let len = Array.length Proc.num_stack_slots in
-    (assert (len = Array.length f.num_stack_slots));
-    for i = 0 to (len - 1) do
-      Proc.num_stack_slots.(i) <- f.num_stack_slots.(i);
-    done;
-    Array.iteri (fun i n -> Proc.num_stack_slots.(i) <- n) f.num_stack_slots

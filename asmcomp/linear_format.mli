@@ -20,24 +20,10 @@
 (* Compiler can optionally save Linear representation of a compilation unit,
    along with other information required to emit assembly. *)
 type linear_item_info =
-  | Func of { decl : Linear.fundecl;
-              contains_calls : bool;
-              num_stack_slots : int array;
-            }
+  | Func of Linear.fundecl
   | Data of Cmm.data_item list
-
-(* Reset unit info *)
-val reset : unit -> unit
-
-(* Add items to the current unit info *)
-val add_fun : Linear.fundecl -> unit
-val add_data : Cmm.data_item list -> unit
 
 (* Marshal and unmashal a compilation unit in linear format.
    Save and restores global state required for Emit *)
-val save : string -> unit
+val save : string -> linear_item_info list -> unit
 val restore : string -> linear_item_info list
-
-(* Hack to restore per-function state required for Emit,
-   until we move it from Proc to Linear. *)
-val restore_item : linear_item_info -> unit

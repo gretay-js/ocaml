@@ -31,19 +31,22 @@ let liveness phrase = Liveness.fundecl phrase; phrase
 
 let should_save_after_linearize = ref false
 let should_emit = ref true
+let linear_items = ref []
 
 let save_data dl =
-  if !should_save_after_linearize then Linear_format.add_data dl;
+  if !should_save_after_linearize then
+    linear_items := Linear_format.(Data dl) :: !linear_items;
   dl
 
 let save_linear f =
-  if !should_save_after_linearize then Linear_format.add_fun f;
+  if !should_save_after_linearize then
+    linear_items := Linear_format.(Func f) :: !linear_items;
   f
 
 let write_linear output_prefix =
   if !should_save_after_linearize then begin
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
-    Linear_format.save filename
+    Linear_format.save filename !linear_items
   end
 
 let dump_if ppf flag message phrase =
@@ -192,7 +195,7 @@ let compile_unit output_prefix asm_filename keep_asm
   should_emit :=
     if should_stop_after Compiler_pass.Linearize then false
     else true;
-  Linear_format.reset ();
+  linear_items := [];
   let create_asm = !should_emit &&
                    (keep_asm || not !Emitaux.binary_backend_available)
   in
@@ -241,13 +244,9 @@ let end_gen_implementation ?toplevel ~ppf_dump
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
   let open Linear_format in
   let items = restore filename in
-  let emit_item item =
-    (* CR gyorsh: restore_item should be removed
-       once the fields move from Proc to Linear.fundecl *)
-    restore_item item;
-    match item with
+  let emit_item = function
     | Data dl -> emit_data dl
-    | Func f -> emit_fundecl f.decl
+    | Func f -> emit_fundecl f
   in
   emit_begin_assembly ();
   Profile.record "Emit" (List.iter emit_item) items;
