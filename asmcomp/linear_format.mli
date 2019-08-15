@@ -23,7 +23,13 @@ type linear_item_info =
   | Func of Linear.fundecl
   | Data of Cmm.data_item list
 
-(* Marshal and unmashal a compilation unit in linear format.
-   Save and restores global state required for Emit *)
-val save : string -> linear_item_info list -> unit
-val restore : string -> linear_item_info list
+type linear_unit_info =
+  {
+    mutable unit_name : string;
+    mutable items : linear_item_info list;
+  }
+
+(* Marshal and unmashal a compilation unit in Linear format.
+   Save and restores global state required for Emit. *)
+val save : filename:string -> linear_unit_info -> unit
+val restore : string -> linear_unit_info

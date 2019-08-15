@@ -31,23 +31,35 @@ let liveness phrase = Liveness.fundecl phrase; phrase
 
 let should_save_after_linearize = ref false
 let should_emit = ref true
-let linear_items = ref []
+let linear_unit_info = { Linear_format.
+                         unit_name = "";
+                         items = [];
+                       }
+
+let reset () =
+  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
+  should_emit :=
+    if should_stop_after Compiler_pass.Linearize then false
+    else true;
+  if !should_save_after_linearize then begin
+    linear_unit_info.unit_name <- Compilenv.current_unit_name ();
+    linear_unit_info.items <- [];
+  end
 
 let save_data dl =
   if !should_save_after_linearize then
-    linear_items := Linear_format.(Data dl) :: !linear_items;
+    linear_unit_info.items <- Linear_format.(Data dl) :: linear_unit_info.items;
   dl
 
 let save_linear f =
   if !should_save_after_linearize then
-    linear_items := Linear_format.(Func f) :: !linear_items;
+    linear_unit_info.items <- Linear_format.(Func f) :: linear_unit_info.items;
   f
 
 let write_linear output_prefix =
-  if !should_save_after_linearize then begin
+  if !should_save_after_linearize then
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
-    Linear_format.save filename !linear_items
-  end
+    Linear_format.save ~filename linear_unit_info
 
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase
@@ -191,11 +203,7 @@ let assemble ~asm_filename ~obj_filename =
 
 let compile_unit output_prefix asm_filename keep_asm
       obj_filename gen =
-  should_save_after_linearize := should_save_ir_after Compiler_pass.Linearize;
-  should_emit :=
-    if should_stop_after Compiler_pass.Linearize then false
-    else true;
-  linear_items := [];
+  reset ();
   let create_asm = !should_emit &&
                    (keep_asm || not !Emitaux.binary_backend_available)
   in
@@ -243,13 +251,13 @@ let end_gen_implementation ?toplevel ~ppf_dump
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
   let open Linear_format in
-  let items = restore filename in
+  let linear_unit_info = restore filename in
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f
   in
   emit_begin_assembly ();
-  Profile.record "Emit" (List.iter emit_item) items;
+  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
   emit_end_assembly ()
 
 let flambda_gen_implementation ?toplevel ~backend ~ppf_dump
