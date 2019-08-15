@@ -26,6 +26,14 @@ type linear_unit_info =
     items : linear_item_info list;
   }
 
+type error =
+    Wrong_format of string
+  | Wrong_version of string
+  | Corrupted of string
+  | Marshal_failed of string
+
+exception Error of error
+
 let write filename linear_unit_info =
   let ch = open_out_bin filename in
   Misc.try_finally (fun () ->
@@ -33,8 +41,7 @@ let write filename linear_unit_info =
     output_value ch linear_unit_info
   )
     ~always:(fun () -> close_out ch)
-    ~exceptionally:(fun () ->
-      Misc.fatal_errorf "Failed to marshal IR to file %s" filename)
+    ~exceptionally:(fun () -> raise(Error(Marshal_failed(filename))))
 
 let read filename =
   let ic = open_in_bin filename in
@@ -42,13 +49,17 @@ let read filename =
     (fun () ->
        let magic = Config.linear_magic_number in
        let buffer = really_input_string ic (String.length magic) in
-       if buffer = magic then
-         (input_value ic : linear_unit_info)
+       if buffer = magic then begin
+         try
+           (input_value ic : linear_unit_info)
+         with End_of_file | Failure _ ->
+              raise(Error(Corrupted(filename)))
+            | Error e -> raise (Error e)
+       end
        else if String.sub buffer 0 9 = String.sub magic 0 9 then
-         Misc.fatal_errorf "Ocaml and %s have incompatible versions"
-           filename ()
+         raise(Error(Wrong_version(filename)))
        else
-         Misc.fatal_errorf "Expected linear file in %s" filename ()
+         raise(Error(Wrong_format(filename)))
     )
     ~always:(fun () -> close_in ic)
 
@@ -64,3 +75,30 @@ let restore filename =
   Cmm.reset_label ();
   Cmm.set_label linear_unit_info.last_label;
   linear_unit_info.items
+
+
+(* Error report *)
+
+open Format
+
+let report_error ppf = function
+  | Wrong_format filename ->
+      fprintf ppf "Expected Linear format. Incompatible file %a@"
+        Location.print_filename filename
+  | Wrong_version filename ->
+      fprintf ppf
+        "%a@ is not compatible with this version of OCaml"
+        Location.print_filename filename
+  | Corrupted filename ->
+      fprintf ppf "Corrupted format@ %a"
+        Location.print_filename filename
+  | Marshal_failed filename ->
+      fprintf ppf "Failed to marshal Linear to file@ %a"
+        Location.print_filename filename
+
+let () =
+  Location.register_error_of_exn
+    (function
+      | Error err -> Some (Location.error_of_printer_file report_error err)
+      | _ -> None
+    )
