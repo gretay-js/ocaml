@@ -323,7 +323,7 @@ let main () = begin
           (get_objfiles ~with_ocamlparam:false) target);
       Warnings.check_fatal ();
     end
-    else if not !compile_only && !objfiles <> [] then begin
+    else if not !compile_only then begin
       let target =
         if !output_c_object then
           let s = extract_output !output_name in
