@@ -251,7 +251,7 @@ let end_gen_implementation ?toplevel ~ppf_dump
 
 let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
   let open Linear_format in
-  let linear_unit_info = restore filename in
+  let linear_unit_info,_ = restore filename in
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f

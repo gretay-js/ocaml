@@ -34,18 +34,22 @@ type error =
 
 exception Error of error
 
-let write filename linear_unit_info =
+let save ~filename linear_unit_info =
   let ch = open_out_bin filename in
   Misc.try_finally (fun () ->
     output_string ch Config.linear_magic_number;
     output_value ch linear_unit_info;
     (* Saved because linear and emit depend on cmm.label. *)
-    output_value ch (Cmm.cur_label ())
+    output_value ch (Cmm.cur_label ());
+    (* Compute digest of the contents and append it to the file. *)
+    flush ch;
+    let crc = Digest.file filename in
+    output_value ch crc
   )
     ~always:(fun () -> close_out ch)
     ~exceptionally:(fun () -> raise(Error(Marshal_failed(filename))))
 
-let read filename =
+let restore filename =
   let ic = open_in_bin filename in
   Misc.try_finally
     (fun () ->
@@ -55,7 +59,10 @@ let read filename =
          try
            let linear_unit_info = (input_value ic : linear_unit_info) in
            let last_label = (input_value ic : Cmm.label) in
-           (linear_unit_info, last_label)
+           Cmm.reset_label ();
+           Cmm.set_label last_label;
+           let crc = (input_value ic : Digest.t) in
+           (linear_unit_info, crc)
          with End_of_file | Failure _ -> raise(Error(Corrupted(filename)))
             | Error e -> raise (Error e)
        end
@@ -65,15 +72,6 @@ let read filename =
          raise(Error(Wrong_format(filename)))
     )
     ~always:(fun () -> close_in ic)
-
-let save ~filename linear_unit_info =
-  write filename linear_unit_info
-
-let restore filename =
-  let linear_unit_info,last_label = read filename in
-  Cmm.reset_label ();
-  Cmm.set_label last_label;
-  linear_unit_info
 
 (* Error report *)
 
