@@ -31,5 +31,5 @@ type linear_unit_info =
 
 (* Marshal and unmashal a compilation unit in Linear format.
    Save and restores global state required for Emit. *)
-val save : filename:string -> linear_unit_info -> unit
+val save : string -> linear_unit_info -> unit
 val restore : string -> linear_unit_info * Digest.t

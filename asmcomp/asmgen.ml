@@ -59,7 +59,7 @@ let save_linear f =
 let write_linear output_prefix =
   if !should_save_after_linearize then
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
-    Linear_format.save ~filename linear_unit_info
+    Linear_format.save filename linear_unit_info
 
 let dump_if ppf flag message phrase =
   if !flag then Printmach.phase message ppf phrase

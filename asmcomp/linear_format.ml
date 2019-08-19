@@ -34,7 +34,7 @@ type error =
 
 exception Error of error
 
-let save ~filename linear_unit_info =
+let save filename linear_unit_info =
   let ch = open_out_bin filename in
   Misc.try_finally (fun () ->
     output_string ch Config.linear_magic_number;
