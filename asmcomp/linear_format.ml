@@ -79,7 +79,7 @@ open Format
 
 let report_error ppf = function
   | Wrong_format filename ->
-      fprintf ppf "Expected Linear format. Incompatible file %a@"
+      fprintf ppf "Expected Linear format. Incompatible file %a"
         Location.print_filename filename
   | Wrong_version filename ->
       fprintf ppf
