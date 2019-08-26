@@ -59,11 +59,11 @@ let main () =
       match !stop_after with
       | None ->
         fatal "Please specify at most one of -pack, -a, -c, -output-obj";
-      | Some (P.Parsing | P.Typing) ->
+      | Some _ ->
           Printf.ksprintf fatal
             "Options -i and -stop-after (%s)\
              are  incompatible with -pack, -a, -output-obj"
-            (String.concat "|" P.pass_names)
+            (String.concat "|" (P.pass_names P.can_stop_after false))
     end;
     if !make_archive then begin
       Compmisc.init_path ();
