@@ -72,10 +72,7 @@ module Options = Main_args.Make_optcomp_options (struct
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some pass ->
         stop_after := Some pass;
-        begin match pass with
-        | P.Parsing | P.Typing ->
-            compile_only := true
-        end;
+        compile_only := P.is_compilation_pass pass
     end
   let _I dir = include_dirs := dir :: !include_dirs
   let _impl = impl

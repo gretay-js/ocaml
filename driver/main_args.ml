@@ -106,8 +106,9 @@ let mk_function_sections f =
     "-function-sections", Arg.Unit err, " (option not available)"
 ;;
 
-let mk_stop_after f =
-  "-stop-after", Arg.Symbol (Clflags.Compiler_pass.pass_names, f),
+let mk_stop_after ~native f =
+  "-stop-after",
+  Arg.Symbol (Clflags.Compiler_pass.(pass_names can_stop_after native), f),
   " Stop after the given compilation pass."
 ;;
 
@@ -1110,7 +1111,7 @@ struct
     mk_dtypes F._annot;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
-    mk_stop_after F._stop_after;
+    mk_stop_after ~native:false F._stop_after;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
@@ -1282,7 +1283,7 @@ struct
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
-    mk_stop_after F._stop_after;
+    mk_stop_after ~native:true F._stop_after;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;

@@ -53,10 +53,7 @@ module Options = Main_args.Make_bytecomp_options (struct
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some pass ->
         stop_after := Some pass;
-        begin match pass with
-        | P.Parsing | P.Typing ->
-            compile_only := true
-        end;
+        compile_only := P.is_compilation_pass pass
     end
   let _I s = include_dirs := s :: !include_dirs
   let _impl = impl
@@ -182,11 +179,11 @@ let main () =
       match !stop_after with
       | None ->
         fatal "Please specify at most one of -pack, -a, -c, -output-obj";
-      | Some (P.Parsing | P.Typing) ->
+      | Some _ ->
           Printf.ksprintf fatal
             "Options -i and -stop-after (%s)\
              are  incompatible with -pack, -a, -output-obj"
-            (String.concat "|" P.pass_names)
+            (String.concat "|" (P.pass_names P.can_stop_after false))
     end;
     if !make_archive then begin
       Compmisc.init_path false;
