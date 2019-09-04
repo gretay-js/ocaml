@@ -112,6 +112,12 @@ let mk_stop_after ~native f =
   " Stop after the given compilation pass."
 ;;
 
+let mk_save_ir_after ~native f =
+  "-save-ir-after",
+  Arg.Symbol (Clflags.Compiler_pass.(pass_names can_save_ir_after native), f),
+  " Save intermediate representation after the given compilation pass\
+    (may be specified more than once)."
+
 let mk_dtypes f =
   "-dtypes", Arg.Unit f, " (deprecated) same as -annot"
 ;;
@@ -932,6 +938,7 @@ module type Compiler_options = sig
   val _for_pack : string -> unit
   val _g : unit -> unit
   val _stop_after : string -> unit
+  val _save_ir_after : string -> unit
   val _i : unit -> unit
   val _impl : string -> unit
   val _intf : string -> unit
@@ -1131,6 +1138,7 @@ struct
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
+    mk_save_ir_after ~native:false F._save_ir_after;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
@@ -1305,6 +1313,7 @@ struct
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
+    mk_save_ir_after ~native:true F._save_ir_after;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;

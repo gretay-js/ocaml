@@ -176,7 +176,8 @@ ASMCOMP=\
   asmcomp/interf.cmo asmcomp/coloring.cmo \
   asmcomp/linscan.cmo \
   asmcomp/deadcode.cmo \
-  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linearize.cmo \
+  asmcomp/linear.cmo asmcomp/printlinear.cmo file_formats/linear_format.cmo \
+  asmcomp/linearize.cmo \
   asmcomp/debug/available_regs.cmo \
   asmcomp/debug/compute_ranges_intf.cmo \
   asmcomp/debug/compute_ranges.cmo \

@@ -74,6 +74,11 @@ module Options = Main_args.Make_optcomp_options (struct
         stop_after := Some pass;
         compile_only := P.is_compilation_pass pass
     end
+  let _save_ir_after pass =
+    begin match Compiler_pass.of_string pass with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some pass -> set_save_ir_after pass true
+    end
   let _I dir = include_dirs := dir :: !include_dirs
   let _impl = impl
   let _inline spec =

@@ -61,6 +61,13 @@ module Options = Main_args.Make_bytecomp_options (struct
         stop_after := Some pass;
         compile_only := P.is_compilation_pass pass
     end
+  let _save_ir_after pass =
+    let module P = Compiler_pass in
+    begin match P.of_string pass with
+    | None -> () (* this should not occur as we use Arg.Symbol *)
+    | Some pass ->
+        set_save_ir_after pass true
+    end
   let _I s = include_dirs := s :: !include_dirs
   let _impl = impl
   let _intf = intf
