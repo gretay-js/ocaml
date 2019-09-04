@@ -229,6 +229,13 @@ val error_style_reader : Misc.Error_style.setting env_reader
 
 val unboxed_types : bool ref
 
+module Compiler_ir : sig
+  type t = Linear
+  val extension : t -> string
+  val magic : t -> string
+  val all : t list
+end
+
 module Compiler_pass : sig
   type t = Parsing | Typing | Scheduling
   val of_string : string -> t option
@@ -237,9 +244,12 @@ module Compiler_pass : sig
   val pass_names : (t -> bool) -> bool -> string list
   val is_compilation_pass : t -> bool
   val can_stop_after : t -> bool
+  val can_save_ir_after : t -> bool
 end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool
+val set_save_ir_after : Compiler_pass.t -> bool -> unit
+val should_save_ir_after : Compiler_pass.t -> bool
 
 val arg_spec : (string * Arg.spec * string) list ref
 

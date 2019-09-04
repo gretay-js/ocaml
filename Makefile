@@ -186,7 +186,8 @@ ASMCOMP=\
   asmcomp/interf.cmo asmcomp/coloring.cmo \
   asmcomp/linscan.cmo \
   asmcomp/deadcode.cmo \
-  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linearize.cmo \
+  asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linear_format.cmo \
+  asmcomp/linearize.cmo \
   asmcomp/debug/available_regs.cmo \
   asmcomp/schedgen.cmo asmcomp/scheduling.cmo \
   asmcomp/branch_relaxation_intf.cmo \

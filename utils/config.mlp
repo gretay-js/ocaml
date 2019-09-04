@@ -105,6 +105,7 @@ and ast_intf_magic_number = "Caml1999N025"
 and cmxs_magic_number = "Caml1999D025"
     (* cmxs_magic_number is duplicated in otherlibs/dynlink/natdynlink.ml *)
 and cmt_magic_number = "Caml1999T025"
+and linear_magic_number = "Caml1999L025"
 
 let interface_suffix = ref ".mli"
 
@@ -216,6 +217,7 @@ let configuration_variables =
   p "ast_intf_magic_number" ast_intf_magic_number;
   p "cmxs_magic_number" cmxs_magic_number;
   p "cmt_magic_number" cmt_magic_number;
+  p "linear_magic_number" linear_magic_number;
 ]
 
 let print_config_value oc = function

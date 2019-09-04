@@ -2343,6 +2343,7 @@ asmcomp/asmgen.cmo : \
     asmcomp/linscan.cmi \
     middle_end/base_types/linkage_name.cmi \
     asmcomp/linearize.cmi \
+    asmcomp/linear_format.cmi \
     bytecomp/lambda.cmi \
     asmcomp/interval.cmi \
     asmcomp/interf.cmi \
@@ -2390,6 +2391,7 @@ asmcomp/asmgen.cmx : \
     asmcomp/linscan.cmx \
     middle_end/base_types/linkage_name.cmx \
     asmcomp/linearize.cmx \
+    asmcomp/linear_format.cmx \
     bytecomp/lambda.cmx \
     asmcomp/interval.cmx \
     asmcomp/interf.cmx \
@@ -3144,6 +3146,23 @@ asmcomp/linear.cmi : \
     asmcomp/reg.cmi \
     asmcomp/mach.cmi \
     middle_end/debuginfo.cmi \
+    asmcomp/cmm.cmi
+asmcomp/linear_format.cmo : \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    asmcomp/linear.cmi \
+    utils/config.cmi \
+    asmcomp/cmm.cmi \
+    asmcomp/linear_format.cmi
+asmcomp/linear_format.cmx : \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    asmcomp/linear.cmx \
+    utils/config.cmx \
+    asmcomp/cmm.cmx \
+    asmcomp/linear_format.cmi
+asmcomp/linear_format.cmi : \
+    asmcomp/linear.cmi \
     asmcomp/cmm.cmi
 asmcomp/linearize.cmo : \
     asmcomp/reg.cmi \
