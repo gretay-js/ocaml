@@ -627,7 +627,19 @@ code such as C stubs.
 \notop{
 \item["-stop-after" \var{pass}]
 Stop compilation after the given compilation pass. The currently
-supported passes are: "parsing", "typing".
+supported passes are: "parsing", "typing", "scheduling", "emit".
+}%notop
+
+\notop{
+\item["-start-from" \var{pass}]
+Start compilation from the given compilation pass. The currently
+supported passes are: "parsing", "typing", "emit".
+}%notop
+
+\notop{
+\item["-save-ir-after" \var{pass}]
+Save intermediate representation after the given compilation pass. The currently
+supported passes are: "scheduling".
 }%notop
 
 \nat{%
