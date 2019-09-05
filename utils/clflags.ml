@@ -414,11 +414,15 @@ let unboxed_types = ref false
 
 (* This is used by the -save-ir-after option. *)
 module Compiler_ir = struct
-  type t = Linear
+  type t = Ast | Linear
+
+  (* Filename extensions are a convension, but not required. Any filename works,
+     as long as the file starts with the correct magic number. *)
   let extension t =
     let ext =
     match t with
-    | Linear -> "linear"
+      | Linear -> "linear"
+      | Ast -> "ast"
     in
     ".cmir-" ^ ext
 
@@ -426,9 +430,11 @@ module Compiler_ir = struct
     let open Config in
     match t with
     | Linear -> linear_magic_number
+    | Ast -> ast_impl_magic_number
 
   let all = [
     Linear;
+    Ast;
   ]
 end
 
@@ -439,33 +445,37 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling
+  type t = Parsing | Typing | Scheduling | Emit
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Scheduling -> "scheduling"
+    | Emit -> "emit"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "scheduling" -> Some Scheduling
+    | "emit" -> Some Emit
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
     | Scheduling -> 50
+    | Emit -> 60
 
   let passes = [
     Parsing;
     Typing;
     Scheduling;
+    Emit;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
-    | Scheduling -> true
-    | _ -> true
+    | Scheduling | Emit -> true
+    | _ -> false
 
   let enabled is_native t = is_native || not (is_native_only t)
   let can_stop_after _ = true
@@ -473,11 +483,18 @@ module Compiler_pass = struct
     | Scheduling -> true
     | _ -> false
 
+  let can_start_from = function
+    | Parsing | Typing | Emit -> true
+    | Scheduling -> false
+
   let pass_names filter is_native =
     passes
     |> List.filter (enabled is_native)
     |> List.filter filter
     |> List.map to_string
+
+  let compare a b =
+    compare (rank a) (rank b)
 end
 
 let stop_after = ref None (* -stop-after *)
@@ -501,6 +518,28 @@ let set_save_ir_after pass enabled =
       other_passes
   in
   save_ir_after := new_passes
+
+let start_from = ref None (* -start-from *)
+
+let should_start_from pass =
+  match !start_from with
+  | None -> pass = Compiler_pass.Parsing
+  | Some start ->
+    let start = Compiler_pass.rank start in
+    let cur = Compiler_pass.rank pass in
+    start = cur
+
+let should_run pass =
+  match !start_from, !stop_after with
+  | None, None -> true
+  | None, Some last ->
+    Compiler_pass.rank pass <= Compiler_pass.rank last
+  | Some first, None ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+  | Some first, Some last ->
+    Compiler_pass.rank first <= Compiler_pass.rank pass
+    && Compiler_pass.rank last >= Compiler_pass.rank pass
+
 
 module String = Misc.Stdlib.String
 

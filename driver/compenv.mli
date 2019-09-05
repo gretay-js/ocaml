@@ -48,6 +48,9 @@ val is_unit_name : string -> bool
    on [ppf] if [name] should not be used as a module name. *)
 val check_unit_name : string -> string -> unit
 
+(* Check that start_from pass is before stop_after *)
+val check_pass_order : unit -> unit
+
 (* Deferred actions of the compiler, while parsing arguments *)
 
 type deferred_action =
