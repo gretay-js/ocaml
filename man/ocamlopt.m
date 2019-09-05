@@ -564,7 +564,21 @@ is saved in the file
 Stop compilation after the given compilation pass. The currently
 supported passes are:
 .BR parsing ,
-.BR typing .
+.BR typing ,
+.BR scheduling ,
+.BR emit .
+.TP
+.BI \-start\-from \ pass
+Start compilation from the given compilation pass. The currently
+supported passes are:
+.BR parsing ,
+.BR typing ,
+.BR emit .
+.TP
+.BI \-save\-ir\-after \ pass
+Save intermediate representation after the given compilation pass. The currently
+supported passes are:
+.BR scheduling .
 .TP
 .B \-safe\-string
 Enforce the separation between types
