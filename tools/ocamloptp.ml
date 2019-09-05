@@ -71,6 +71,7 @@ module Options = Main_args.Make_optcomp_options (struct
   let _g = option "-g"
   let _stop_after = option_with_arg "-stop-after"
   let _save_ir_after = option_with_arg "-save-ir-after"
+  let _start_from = option_with_arg "-start-from"
   let _i = option "-i"
   let _I s = option_with_arg "-I" s
   let _impl s = with_impl := true; option_with_arg "-impl" s

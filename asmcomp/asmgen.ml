@@ -298,6 +298,17 @@ let lambda_gen_implementation ?toplevel ~ppf_dump
   raw_clambda_dump_if ppf_dump clambda_and_constants;
   end_gen_implementation ?toplevel ~ppf_dump clambda_and_constants
 
+let linear_gen_implementation ?toplevel:_ ~ppf_dump:_ filename =
+  let open Linear_format in
+  let linear_unit_info,_ = restore filename in
+  let emit_item = function
+    | Data dl -> emit_data dl
+    | Func f -> emit_fundecl f
+  in
+  emit_begin_assembly ();
+  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
+  emit_end_assembly ()
+
 let compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump gen_implementation program =
   let asmfile =
@@ -320,6 +331,12 @@ let compile_implementation_flambda ?toplevel prefixname
     ~required_globals ~backend ~ppf_dump (program:Flambda.program) =
   compile_implementation_gen ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
+
+let compile_implementation_linear prefixname
+      ~ppf_dump ~progname =
+  compile_implementation_gen prefixname
+    ~required_globals:Ident.Set.empty
+    ~ppf_dump linear_gen_implementation progname
 
 (* Error report *)
 
