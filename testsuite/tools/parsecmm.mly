@@ -221,13 +221,12 @@ expr:
         let lbl1 = Lambda.next_raise_count () in
         let body =
           match $3 with
-            Cconst_int (x, _) when x <> 0 -> $4
-          | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
-                             (Cexit(lbl0,[])),
-                             debuginfo ()) in
-        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
+            Cconst_int x when x <> 0 -> $4
+          | _ -> Cifthenelse($3, $4,
+                             (Cexit(lbl0,[]))) in
+        Ccatch(Nonrecursive, [lbl0, [], Ctuple []],
           Ccatch(Recursive,
-            [lbl1, [], Csequence(body, Cexit(lbl1, [])), debuginfo ()],
+            [lbl1, [], Csequence(body, Cexit(lbl1, []))],
             Cexit(lbl1, []))) }
   | LPAREN EXIT IDENT exprlist RPAREN
     { Cexit(find_label $3, List.rev $4) }
