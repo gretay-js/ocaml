@@ -1,5 +1,5 @@
 opam-version: "2.0"
-version: "4.08.0"
+version: "4.08.0+dev"
 synopsis: "OCaml release 4.08.0"
 depends: [
   "ocaml" {= "4.08.0" & post}
@@ -9,11 +9,15 @@ depends: [
 ]
 conflict-class: "ocaml-core-compiler"
 flags: compiler
-setenv: CAML_LD_LIBRARY_PATH = "%{lib}%/stublibs"
+setenv: [
+        [CAML_LD_LIBRARY_PATH = "%{lib}%/stublibs"]
+        # [LDFLAGS="-Xlinker --emit-relocs"]
+        ]
 build: [
-  ["./configure" "--prefix=%{prefix}%"]
+  ["./configure" "--prefix=%{prefix}%" "--disable-ocamldoc" "--enable-flambda"]
   [make "-j%{jobs}%" "world"]
   [make "-j%{jobs}%" "world.opt"]
+  [make "-j%{jobs}%" "ocamlnat"]
 ]
 install: [make "install"]
 maintainer: "caml-list@inria.fr"
