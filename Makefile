@@ -619,6 +619,9 @@ endif
 	$(INSTALL_DATA) \
 	    asmcomp/*.cmi \
 	    "$(INSTALL_COMPLIBDIR)"
+	$(INSTALL_DATA) \
+	    asmcomp/debug/*.cmi \
+	    "$(INSTALL_COMPLIBDIR)"
 ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
 	    middle_end/*.cmt middle_end/*.cmti \
@@ -631,6 +634,10 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
 	    asmcomp/*.cmt asmcomp/*.cmti \
 	    asmcomp/*.mli \
+	    "$(INSTALL_COMPLIBDIR)"
+	$(INSTALL_DATA) \
+	    asmcomp/debug/*.cmt asmcomp/debug/*.cmti \
+	    asmcomp/debug/*.mli \
 	    "$(INSTALL_COMPLIBDIR)"
 endif
 	$(INSTALL_DATA) \
@@ -671,6 +678,7 @@ installoptopt:
 	$(INSTALL_DATA) \
 	   utils/*.cmx parsing/*.cmx typing/*.cmx bytecomp/*.cmx \
 	   driver/*.cmx asmcomp/*.cmx middle_end/*.cmx \
+	   asmcomp/debug/*.cmx \
 	   middle_end/base_types/*.cmx "$(INSTALL_COMPLIBDIR)"
 	$(INSTALL_DATA) \
            compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlcommon.$(A) \
@@ -701,7 +709,7 @@ ifeq "$(INSTALL_SOURCE_ARTIFACTS)" "true"
 	$(INSTALL_DATA) \
 	   utils/*.ml parsing/*.ml typing/*.ml bytecomp/*.ml driver/*.ml \
 	   toplevel/*.ml middle_end/*.ml middle_end/base_types/*.ml \
-	   asmcomp/*.ml \
+	   asmcomp/*.ml asmcmp/debug/*.ml \
 	   "$(INSTALL_COMPLIBDIR)"
 endif
 
