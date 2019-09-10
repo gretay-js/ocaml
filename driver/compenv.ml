@@ -643,16 +643,18 @@ let check_ir name =
     Misc.try_finally
       (fun () ->
          let len = String.length Config.linear_magic_number in
-         let buffer = really_input_string ic len in
-         List.find_opt (fun ir ->
-           let magic = Compiler_ir.magic ir in
-           assert (String.length magic = len);
-           if buffer = magic then true
-           else if String.sub buffer 0 9 = String.sub magic 0 9 then
-             Misc.fatal_errorf "OCaml and %s have incompatible versions"
-               name ()
-           else false)
-           Compiler_ir.all
+         try
+           let buffer = really_input_string ic len in
+           List.find_opt (fun ir ->
+             let magic = Compiler_ir.magic ir in
+             assert (String.length magic = len);
+             if buffer = magic then true
+             else if String.sub buffer 0 9 = String.sub magic 0 9 then
+               Misc.fatal_errorf "OCaml and %s have incompatible versions"
+                 name ()
+             else false)
+             Compiler_ir.all
+         with End_of_file -> None
       )
       ~always:(fun () -> close_in ic)
   in
