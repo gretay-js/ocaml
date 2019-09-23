@@ -651,6 +651,10 @@ AS_CASE([$CC,$host],
 )
 
 
+# Respect LDFLAGS and CFLAGS
+common_cflags="$common_cflags $CFLAGS"
+oc_ldflags="$oc_ldflags $LDFLAGS"
+
 ## Program to use to install files
 AC_PROG_INSTALL
 
