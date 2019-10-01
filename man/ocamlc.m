@@ -634,7 +634,17 @@ suffix is supported and gives a debug version of the runtime.
 Stop compilation after the given compilation pass. The currently
 supported passes are:
 .BR parsing ,
-.BR typing .
+.BR typing ,
+.TP
+.BI \-start\-from \ pass
+Start compilation from the given compilation pass. The currently
+supported passes are:
+.BR parsing ,
+.BR typing ,
+.TP
+.BI \-save\-ir\-after \ pass
+Save intermediate representation after the given compilation pass.
+No passes are currently supported by the bytecode compiler.
 .TP
 .B \-safe\-string
 Enforce the separation between types
