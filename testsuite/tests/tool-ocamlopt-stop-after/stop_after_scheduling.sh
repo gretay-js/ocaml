@@ -10,9 +10,9 @@ if [ -e "$asm" ]; then
 else if [ -e "$obj" ]; then
          test_result=${TEST_FAIL};
      else if [ -e "$cmx" ]; then
-              test_reslut=${TEST_PASS};
+              test_result=${TEST_PASS};
           else
-              test_reslut=${TEST_FAIL};
+              test_result=${TEST_FAIL};
           fi
      fi
 fi
