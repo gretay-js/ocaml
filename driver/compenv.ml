@@ -432,7 +432,7 @@ let read_one_param ppf position name v =
 
   | "stop-after" ->
     let module P = Clflags.Compiler_pass in
-    let passes = P.pass_names P.can_stop_after !native_code in
+    let passes = P.stop_after_pass_names ~native:!native_code in
     begin match List.find_opt (String.equal v) passes with
     | None ->
         Printf.ksprintf (print_error ppf)

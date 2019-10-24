@@ -238,10 +238,8 @@ module Compiler_pass : sig
   type t = Parsing | Typing | Scheduling
   val of_string : string -> t option
   val to_string : t -> string
-  val passes : t list
-  val pass_names : (t -> bool) -> bool -> string list
   val is_compilation_pass : t -> bool
-  val can_stop_after : t -> bool
+  val stop_after_pass_names : native:bool -> string list
 end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool

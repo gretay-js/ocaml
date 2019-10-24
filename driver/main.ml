@@ -55,7 +55,6 @@ let main () =
            [make_archive;make_package;compile_only;output_c_object])
         > 1
     then begin
-      let module P = Clflags.Compiler_pass in
       match !stop_after with
       | None ->
         fatal "Please specify at most one of -pack, -a, -c, -output-obj";
@@ -63,7 +62,8 @@ let main () =
           Printf.ksprintf fatal
             "Options -i and -stop-after (%s)\
              are  incompatible with -pack, -a, -output-obj"
-            (String.concat "|" (P.pass_names P.can_stop_after false))
+            (String.concat "|"
+               (Clflags.Compiler_pass.stop_after_pass_names ~native:false))
     end;
     if !make_archive then begin
       Compmisc.init_path ();
