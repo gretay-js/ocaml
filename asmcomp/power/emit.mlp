@@ -35,28 +35,6 @@ let reserved_stack_space =
   | ELF64v1 -> 48
   | ELF64v2 -> 32
 
-(* Record calls to the GC -- we've moved them out of the way *)
-
-type gc_call =
-  { gc_lbl: label;                      (* Entry label *)
-    gc_return_lbl: label;               (* Where to branch after GC *)
-    gc_frame: label }                   (* Label of frame descriptor *)
-
-(* Record calls to caml_ml_array_bound_error.
-   In -g mode, we maintain one call to caml_ml_array_bound_error
-   per bound check site.  Without -g, we can share a single call. *)
-
-type bound_error_call =
-  { bd_lbl: label;                      (* Entry label *)
-    bd_frame: label }                   (* Label of frame descriptor *)
-
-(* Pending floating-point literals *) (* for PPC32 *)
-type float_literal =
-  {
-    fl : int64;
-    lbl : label;
-  }
-
 (* Record jump tables (for PPC64).  In order to reduce the size of the TOC,
    we concatenate all jumptables and emit them at the end of the function. *)
 
@@ -64,38 +42,15 @@ type pending = {
   (* Labels of glue code for calling the GC.
      There is one label per size allocated. *)
   mutable call_gc_labels : label IntMap.t; (* size -> label *)
-  mutable float_literals : float_literal list;
   mutable jumptables_lbl : label option;
   mutable jumptables : label list; (* in reverse order *)
 }
 
-(* Environment for emitting a function *)
-type per_function_env = {
-  f : fundecl;
-  mutable stack_offset : int;
-  mutable call_gc_sites : gc_call list; (* unused *)
-  mutable bound_error_sites : bound_error_call list; (* unused *)
-  mutable bound_error_call : label option; (* unused *)
-  p : pending;
-}
-
-
 let mk_pending () =
   {
     call_gc_labels = IntMap.empty;
-    float_literals = [];
     jumptables_lbl = None;
     jumptables = [];
-  }
-
-let mk_env f =
-  {
-    f;
-    stack_offset = 0;
-    call_gc_sites = [];
-    bound_error_sites = [];
-    bound_error_call = None;
-    p = mk_pending ();
   }
 
 let initial_frame_size f =
@@ -664,7 +619,7 @@ let emit_instr env i =
         begin match abi with
         | ELF32 ->
           let lbl = new_label() in
-          env.p.float_literals <- { fl=f; lbl } :: env.p.float_literals;
+          env.float_literals <- { fl=f; lbl } :: env.float_literals;
           `	addis	11, 0, {emit_upper emit_label lbl}\n`;
           `	lfd	{emit_reg i.res.(0)}, {emit_lower emit_label lbl}(11)\n`
         | ELF64v1 | ELF64v2 ->
@@ -896,7 +851,7 @@ let emit_instr env i =
           `	fcfid	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
 	end else begin
           let lbl = new_label() in
-          env.p.float_literals <- {fl=0x4330000080000000L; lbl} :: env.p.float_literals;
+          env.float_literals <- {fl=0x4330000080000000L; lbl} :: env.float_literals;
           `	addis	11, 0, {emit_upper emit_label lbl}\n`;
           `	lfd	0, {emit_lower emit_label lbl}(11)\n`;
           `	lis	0, 0x4330\n`;
@@ -1092,7 +1047,7 @@ let rec emit_all env i =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-  let env = mk_env fundecl in
+  let env = mk_env fundecl (mk_pending ()) in
   begin match abi with
   | ELF32 ->
     emit_string code_space;
@@ -1172,14 +1127,14 @@ let fundecl fundecl =
     `	.size	{emit_symbol fundecl.fun_name}, . - .L.{emit_symbol fundecl.fun_name}\n`
   end;
   (* Emit the numeric literals *)
-  if env.p.float_literals <> [] then begin
+  if env.float_literals <> [] then begin
     emit_string rodata_space;
     `	.align	3\n`;
     List.iter
       (fun { fl; lbl } ->
         `{emit_label lbl}:`;
         emit_float64_split_directive ".long" fl)
-      env.p.float_literals
+      env.float_literals
   end;
   (* Emit the jump tables *)
   match env.p.jumptables_lbl with

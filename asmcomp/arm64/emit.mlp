@@ -64,60 +64,6 @@ let emit_wreg = function
     {loc = Reg r} -> emit_string int_reg_name_w.(r)
   | _ -> fatal_error "Emit.emit_wreg"
 
-
-(* Record calls to the GC -- we've moved them out of the way *)
-
-type gc_call =
-  { gc_lbl: label;                      (* Entry label *)
-    gc_return_lbl: label;               (* Where to branch after GC *)
-    gc_frame: label }                   (* Label of frame descriptor *)
-
-(* Record calls to caml_ml_array_bound_error.
-   In -g mode, we maintain one call to caml_ml_array_bound_error
-   per bound check site.  Without -g, we can share a single call. *)
-
-type bound_error_call =
-  { bd_lbl: label;                      (* Entry label *)
-    bd_frame: label }                   (* Label of frame descriptor *)
-
-
-(* Pending floating-point literals *)
-type float_literal =
-  {
-    fl : int64;
-    lbl : label;
-  }
-
-type pending = {
-  mutable float_literals : float_literal list;
-}
-
-(* Environment for emitting a function *)
-type per_function_env = {
-  f : fundecl;
-  mutable stack_offset : int;
-  mutable call_gc_sites : gc_call list;
-  mutable bound_error_sites : bound_error_call list;
-  mutable bound_error_call : label option; (* unused *)
-  p : pending; (* ARM specific *)
-}
-
-
-let mk_pending () =
-  {
-    float_literals = [];
-  }
-
-let mk_env f =
-  {
-    f;
-    stack_offset = 0;
-    call_gc_sites = [];
-    bound_error_sites = [];
-    bound_error_call = None;
-    p = mk_pending ();
-  }
-
 let initial_frame_size f =
   8 * f.fun_num_stack_slots.(0) +
   8 * f.fun_num_stack_slots.(1) +
@@ -193,7 +139,7 @@ let record_frame env ?label live raise_ dbg =
 
 let emit_call_gc gc =
   `{emit_label gc.gc_lbl}:	bl	{emit_symbol "caml_call_gc"}\n`;
-  `{emit_label gc.gc_frame}:	b	{emit_label gc.gc_return_lbl}\n`
+  `{emit_label gc.gc_frame_lbl}:	b	{emit_label gc.gc_return_lbl}\n`
 
 let bound_error_label env ?label dbg =
   if !Clflags.debug || env.bound_error_sites = [] then begin
@@ -201,7 +147,9 @@ let bound_error_label env ?label dbg =
     let lbl_frame = record_frame_label env ?label Reg.Set.empty false dbg in
     env.bound_error_sites <-
       { bd_lbl = lbl_bound_error;
-        bd_frame = lbl_frame } :: env.bound_error_sites;
+        bd_frame = lbl_frame;
+        bd_p = ();
+      } :: env.bound_error_sites;
     lbl_bound_error
   end else begin
     let bd = List.hd env.bound_error_sites in bd.bd_lbl
@@ -326,22 +274,22 @@ let output_epilogue env f =
 (* Label a floating-point literal *)
 let float_literal env fl =
   try
-    let x = List.find (fun x -> compare x.fl fl = 0) env.p.float_literals in
+    let x = List.find (fun x -> compare x.fl fl = 0) env.float_literals in
     x.lbl
   with Not_found ->
     let lbl = new_label() in
-    env.p.float_literals <- { fl; lbl } :: env.p.float_literals;
+    env.float_literals <- { fl; lbl } :: env.float_literals;
     lbl
 
 (* Emit all pending literals *)
 let emit_literals env =
-  if env.p.float_literals <> [] then begin
+  if env.float_literals <> [] then begin
     `	.align	3\n`;
     List.iter
       (fun { fl; lbl } ->
         `{emit_label lbl}:`; emit_float64_directive ".quad" fl)
-      env.p.float_literals;
-    env.p.float_literals <- []
+      env.float_literals;
+    env.float_literals <- []
   end
 
 (* Emit code to load the address of a symbol *)
@@ -575,7 +523,9 @@ let assembly_code_for_allocation env ?label_after_call_gc i ~n ~far =
     env.call_gc_sites <-
       { gc_lbl = lbl_call_gc;
         gc_return_lbl = lbl_redo;
-        gc_frame = lbl_frame } :: env.call_gc_sites
+        gc_frame_lbl = lbl_frame;
+        gc_p = ();
+      } :: env.call_gc_sites
   end else begin
     begin match n with
     | 16 -> `	bl	{emit_symbol "caml_alloc1"}\n`
@@ -941,7 +891,7 @@ let rec emit_all env i =
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
-  let env = mk_env fundecl in
+  let env = mk_env fundecl () in
   emit_named_text_section fundecl.fun_name;
   `	.align	3\n`;
   `	.globl	{emit_symbol fundecl.fun_name}\n`;

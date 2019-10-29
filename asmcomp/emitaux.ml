@@ -313,3 +313,17 @@ let reset () =
 
 let binary_backend_available = ref false
 let create_asm_file = ref true
+
+include Emitenv_intf
+
+let mk_env f p =
+  {
+    f;
+    stack_offset = 0;
+    call_gc_sites = [];
+    bound_error_sites = [];
+    bound_error_call = None;
+    float_literals = [];
+    int_literals = [];
+    p;
+  }

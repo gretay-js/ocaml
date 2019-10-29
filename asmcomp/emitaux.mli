@@ -74,3 +74,8 @@ val binary_backend_available: bool ref
 
 val create_asm_file: bool ref
     (** Are we actually generating the textual assembly file? *)
+
+
+include module type of Emitenv_intf
+
+val mk_env : Linear.fundecl -> 'a -> ('a, 'gc, 'bd) per_function_env
