@@ -70,10 +70,7 @@ let main () =
     if
       List.length (List.filter (fun x -> !x)
                      [make_package; make_archive; shared;
-                      compile_only; output_c_object])
-      + (Option.fold !stop_after ~none:0
-           ~some:(fun p -> if P.is_compilation_pass p then 0 else 1))
-      > 1
+                      compile_only; output_c_object]) > 1
     then
     begin
       match !stop_after with
