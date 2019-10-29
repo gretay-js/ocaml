@@ -23,6 +23,9 @@ Working version
 
 ### Compiler user-interface and warnings:
 
+- #8938: Extend ocamlopt option "-stop-after" to handle "scheduling" argument.
+  (Greta Yorsh, review by Florian Angeletti and Sébastien Hinderer)
+
 ### Internal/compiler-libs changes:
 
 ### Build system:
