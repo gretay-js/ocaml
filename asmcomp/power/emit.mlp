@@ -58,7 +58,7 @@ let slot_offset loc cls =
       reserved_stack_space + !stack_offset +
       (if cls = 0 then num_stack_slots.(1) * size_float + n * size_int
                   else n * size_float)
-  | Incoming n -> frame_size() + reserved_stack_space + n
+  | Incoming n -> frame_size() + n
   | Outgoing n -> reserved_stack_space + n
 
 let retaddr_offset () =
