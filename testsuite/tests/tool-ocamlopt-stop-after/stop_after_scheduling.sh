@@ -2,9 +2,9 @@
 
 set -e
 
-asm=${test_build_directory}/stop_after_scheduling.${asmext}
-obj=${test_build_directory}/stop_after_scheduling.${objext}
-cmx=${test_build_directory}/stop_after_scheduling.cmx
+asm=$1
+obj=$2
+cmx=$3
 
 # Check that cmx is generated but asm and obj are not
 if [ -e "$asm" ] ; then
