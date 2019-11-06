@@ -287,8 +287,8 @@ let link_shared ~ppf_dump objfiles output_name =
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = output_name ^ ".startup" ^ ext_obj in
-    Asmgen.compile_unit output_name
-      startup !Clflags.keep_startup_file startup_obj
+    Asmgen.compile_unit
+      startup output_name !Clflags.keep_startup_file startup_obj
       (fun () ->
          make_shared_startup_file ~ppf_dump
            (List.map (fun (ui,_,crc) -> (ui,crc)) units_tolink)
