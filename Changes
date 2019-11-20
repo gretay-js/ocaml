@@ -19,7 +19,6 @@ OCaml 4.10 release branch
   `char*`. This change may break C FFI code.
   (Kate Deplaix)
 
-
 - #6662, #8908: allow writing "module _ = E" to ignore module expressions
   (Thomas Refis, review by Gabriel Radanne)
 
@@ -174,6 +173,9 @@ OCaml 4.10 release branch
 
 - #2321: Eliminate dead ICatch handlers
   (Greta Yorsh, review by Pierre Chambart and Vincent Laviron)
+
+- #9097: Do not emit references to dead labels introduced by #2321 (spacetime).
+  (Greta Yorsh, review by Mark Shinwell)
 
 - #8919: lift mutable lets along with immutable ones
   (Leo White, review by Pierre Chambart)
