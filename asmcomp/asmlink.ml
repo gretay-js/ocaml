@@ -240,7 +240,10 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   let globals_map = make_globals_map units_list ~crc_interfaces in
   compile_phrase (Cmmgen.globals_map globals_map);
   compile_phrase(Cmmgen.data_segment_table ("_startup" :: name_list));
-  compile_phrase(Cmmgen.code_segment_table ("_startup" :: name_list));
+  if !Clflags.function_sections then
+    compile_phrase(Cmmgen.code_segment_table("_hot" :: "_startup" :: name_list))
+  else
+    compile_phrase(Cmmgen.code_segment_table("_startup" :: name_list));
   let all_names = "_startup" :: "_system" :: name_list in
   compile_phrase (Cmmgen.frame_table all_names);
   if Config.spacetime then begin
@@ -287,8 +290,8 @@ let link_shared ~ppf_dump objfiles output_name =
       then output_name ^ ".startup" ^ ext_asm
       else Filename.temp_file "camlstartup" ext_asm in
     let startup_obj = output_name ^ ".startup" ^ ext_obj in
-    Asmgen.compile_unit output_name
-      startup !Clflags.keep_startup_file startup_obj
+    Asmgen.compile_unit
+      startup output_name !Clflags.keep_startup_file startup_obj
       (fun () ->
          make_shared_startup_file ~ppf_dump
            (List.map (fun (ui,_,crc) -> (ui,crc)) units_tolink)
