@@ -155,10 +155,20 @@ let linear i n contains_calls =
     | Iifthenelse(test, ifso, ifnot) ->
         let n1 = linear i.Mach.next n in
         begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
-          Iend, _, Lbranch lbl ->
+        | Iend, Iend, _ -> n1
+        | (Iexit n, Iend, Llabel lbl | Iend, Iexit n, Llabel lbl |
+           Iexit n, Iend, Lbranch lbl | Iend, Iexit n, Lbranch lbl)
+          when find_exit_label_try_depth n = (lbl, !try_depth) -> n1
+        | Iend, _, Lbranch lbl ->
             copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
         | _, Iend, Lbranch lbl ->
             copy_instr (Lcondbranch(invert_test test, lbl)) i (linear ifso n1)
+        | Iexit nfail1, Iexit nfail2, _ when nfail1 = nfail2 ->
+          linear ifso n1
+        | Iexit nfail1, Iexit nfail2, _
+          when local_exit nfail1 && local_exit nfail2 &&
+               find_exit_label nfail1 = find_exit_label nfail2 ->
+          linear ifso n1
         | Iexit nfail1, Iexit nfail2, _
               when is_next_catch nfail1 && local_exit nfail2 ->
             let lbl2 = find_exit_label nfail2 in
