@@ -94,6 +94,18 @@ let mk_dllpath f =
   "<dir>  Add <dir> to the run-time search path for shared libraries"
 ;;
 
+let mk_function_sections f =
+  if Config.function_sections then
+    "-function-sections",  Arg.Unit f,
+    " Generate each function in a separate section if target supports it"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -function-sections")
+    in
+    "-function-sections", Arg.Unit err, " (option not available)"
+;;
+
 let mk_stop_after ~native f =
   let pass_names = Clflags.Compiler_pass.available_pass_names
                      ~filter:(fun _ -> true)
@@ -1095,6 +1107,7 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _dinterval : unit -> unit
   val _save_ir_after : string -> unit
+  val _function_sections : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1317,6 +1330,7 @@ struct
     mk_dtypes F._annot;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
+    mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
     mk_save_ir_after ~native:true F._save_ir_after;
     mk_start_from ~native:true F._start_from;
