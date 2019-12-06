@@ -141,6 +141,8 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Format.asprintf "%a%s" raise_kind k (Debuginfo.to_string d)
   | Ccheckbound -> "checkbound" ^ Debuginfo.to_string d
+  | Cprobe name -> Printf.sprintf "probe[%s]" name
+  | Cprobe_is_enabled name -> Printf.sprintf "probe_is_enabled[%s]" name
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
