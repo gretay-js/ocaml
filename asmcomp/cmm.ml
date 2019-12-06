@@ -165,6 +165,8 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of raise_kind
   | Ccheckbound
+  | Cprobe of string
+  | Cprobe_is_enabled of string
 
 type expression =
     Cconst_int of int * Debuginfo.t
