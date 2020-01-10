@@ -102,7 +102,7 @@ let write_linear output_prefix =
   if should_save_before_emit () then
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
-    Linear_format.save filename linear_unit_info
+    Linear_format.save ~filename ~magic:Config.linear_magic_number linear_unit_info
 
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
@@ -329,7 +329,7 @@ let compile_implementation_flambda ?toplevel prefixname
 
 let linear_gen_implementation filename =
   let open Linear_format in
-  let linear_unit_info,_ = restore filename in
+  let linear_unit_info,_ = restore ~filename ~magic:Config.linear_magic_number in
   let emit_item = function
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f

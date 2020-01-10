@@ -15,15 +15,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* marshal and unmashal a compilation unit in linear format *)
-type linear_item_info =
-  | Func of Linear.fundecl
+(* Marshal and unmashal a compilation unit in intermediate representation.
+   Currently supports: linear and mach *)
+type 'a item_info =
+  | Func of 'a
   | Data of Cmm.data_item list
 
-type linear_unit_info =
+type 'a unit_info =
   {
     mutable unit_name : string;
-    mutable items : linear_item_info list;
+    mutable items : 'a item_info list;
   }
 
 type error =
@@ -34,12 +35,12 @@ type error =
 
 exception Error of error
 
-let save filename linear_unit_info =
+let save ~filename ~magic unit_info =
   let ch = open_out_bin filename in
   Misc.try_finally (fun () ->
-    output_string ch Config.linear_magic_number;
-    output_value ch linear_unit_info;
-    (* Saved because linear and emit depend on cmm.label. *)
+    output_string ch magic;
+    output_value ch unit_info;
+    (* Saved because linearize and emit depend on cmm.label. *)
     output_value ch (Cmm.cur_label ());
     (* Compute digest of the contents and append it to the file. *)
     flush ch;
@@ -49,20 +50,19 @@ let save filename linear_unit_info =
     ~always:(fun () -> close_out ch)
     ~exceptionally:(fun () -> raise(Error(Marshal_failed(filename))))
 
-let restore filename =
+let restore ~filename ~magic =
   let ic = open_in_bin filename in
   Misc.try_finally
     (fun () ->
-       let magic = Config.linear_magic_number in
        let buffer = really_input_string ic (String.length magic) in
        if buffer = magic then begin
          try
-           let linear_unit_info = (input_value ic : linear_unit_info) in
+           let unit_info = (input_value ic : 'a unit_info) in
            let last_label = (input_value ic : Cmm.label) in
            Cmm.reset ();
            Cmm.set_label last_label;
            let crc = (input_value ic : Digest.t) in
-           (linear_unit_info, crc)
+           (unit_info, crc)
          with End_of_file | Failure _ -> raise(Error(Corrupted(filename)))
             | Error e -> raise (Error e)
        end
@@ -79,7 +79,7 @@ open Format
 
 let report_error ppf = function
   | Wrong_format filename ->
-      fprintf ppf "Expected Linear format. Incompatible file %a"
+      fprintf ppf "Expected format is incompatible with file %a"
         Location.print_filename filename
   | Wrong_version filename ->
       fprintf ppf
@@ -89,7 +89,7 @@ let report_error ppf = function
       fprintf ppf "Corrupted format@ %a"
         Location.print_filename filename
   | Marshal_failed filename ->
-      fprintf ppf "Failed to marshal Linear to file@ %a"
+      fprintf ppf "Failed to marshal IR to file@ %a"
         Location.print_filename filename
 
 let () =

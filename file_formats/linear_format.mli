@@ -15,21 +15,22 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Format of .cmir-linear files *)
+(* Format of .cmir-* files *)
 
-(* Compiler can optionally save Linear representation of a compilation unit,
-   along with other information required to emit assembly. *)
-type linear_item_info =
-  | Func of Linear.fundecl
+(* Compiler can optionally save intermediate representation
+   of a compilation unit, along with other information
+   required to emit assembly. *)
+type 'a item_info =
+  | Func of 'a
   | Data of Cmm.data_item list
 
-type linear_unit_info =
+type 'a unit_info =
   {
     mutable unit_name : string;
-    mutable items : linear_item_info list;
+    mutable items : 'a item_info list;
   }
 
 (* Marshal and unmashal a compilation unit in Linear format.
    Save and restores global state required for Emit. *)
-val save : string -> linear_unit_info -> unit
-val restore : string -> linear_unit_info * Digest.t
+val save : filename:string -> magic:string -> 'a unit_info -> unit
+val restore : filename:string -> magic:string -> 'a unit_info * Digest.t
