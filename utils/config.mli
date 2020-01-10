@@ -117,6 +117,9 @@ val cmt_magic_number: string
 val linear_magic_number: string
 (** Magic number for Linear internal representation files *)
 
+val mach_magic_number: string
+(** Magic number for Mach internal representation files *)
+
 val max_tag: int
 (** Biggest tag that can be stored in the header of a regular block. *)
 
