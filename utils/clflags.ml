@@ -414,7 +414,7 @@ let unboxed_types = ref false
 
 (* This is used by the -save-ir-after option. *)
 module Compiler_ir = struct
-  type t = Linear
+  type t = Linear | Mach
 
   (* Filename extensions are a convension, but not required. Any filename works,
      as long as the file starts with the correct magic number. *)
@@ -422,6 +422,7 @@ module Compiler_ir = struct
     let ext =
     match t with
       | Linear -> "linear"
+      | Mach -> "mach"
     in
     ".cmir-" ^ ext
 
@@ -429,9 +430,10 @@ module Compiler_ir = struct
     let open Config in
     match t with
     | Linear -> linear_magic_number
+    | Mach -> mach_magic_number
 
   let all = [
-    Linear;
+    Linear; Mach
   ]
 end
 
@@ -442,17 +444,19 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling | Emit
+  type t = Parsing | Typing | Scheduling | Emit | Linearize
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
+    | Linearize -> "linearize"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
+    | "linearize" -> Some Linearize
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | _ -> None
@@ -460,28 +464,33 @@ module Compiler_pass = struct
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Linearize -> 45
     | Scheduling -> 50
     | Emit -> 60
 
   let passes = [
     Parsing;
     Typing;
+    Linearize;
     Scheduling;
     Emit;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
+    | Linearize -> true
     | Scheduling -> true
     | Emit -> true
     | _ -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
+    | Linearize -> true
     | Scheduling -> true
     | _ -> false
 
   let can_start_from = function
     | Parsing | Typing | Emit -> true
+    | Linearize -> false
     | Scheduling -> false
 
   let available_pass_names ~filter ~native =

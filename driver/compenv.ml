@@ -671,6 +671,7 @@ let check_ir name =
     | None -> check_magic ()
   in match ir with
   | None -> false
+  | Some Mach -> false
   | Some Linear ->
     if not (should_start_from Compiler_pass.Emit) then
       if (!start_from = None) then

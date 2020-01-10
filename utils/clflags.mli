@@ -234,14 +234,14 @@ val insn_sched : bool ref
 val insn_sched_default : bool
 
 module Compiler_ir : sig
-  type t = Linear
+  type t = Linear | Mach
   val extension : t -> string
   val magic : t -> string
   val all : t list
 end
 
 module Compiler_pass : sig
-  type t = Parsing | Typing | Scheduling | Emit
+  type t = Parsing | Typing | Scheduling | Emit | Linearize
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool

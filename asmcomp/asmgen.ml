@@ -77,7 +77,15 @@ let raw_clambda_dump_if ppf
 let should_save_before_emit () =
   should_save_ir_after Compiler_pass.Scheduling
 
+let should_save_before_linearize () =
+  should_save_ir_after Compiler_pass.Linearize
+
 let linear_unit_info = { Cmir_format.
+                         unit_name = "";
+                         items = [];
+                       }
+
+let mach_unit_info = { Cmir_format.
                          unit_name = "";
                          items = [];
                        }
@@ -86,23 +94,40 @@ let reset () =
   if should_save_before_emit () then begin
     linear_unit_info.unit_name <- Compilenv.current_unit_name ();
     linear_unit_info.items <- [];
+  end;
+  if should_save_before_linearize () then begin
+    mach_unit_info.unit_name <- Compilenv.current_unit_name ();
+    mach_unit_info.items <- [];
   end
 
 let save_data dl =
   if should_save_before_emit () then
     linear_unit_info.items <- Cmir_format.(Data dl) :: linear_unit_info.items;
+  if should_save_before_linearize () then
+    mach_unit_info.items <- Cmir_format.(Data dl) :: mach_unit_info.items;
   dl
+
+let save_before_linearize f =
+  if should_save_before_linearize () then
+    mach_unit_info.items <- Cmir_format.(Func f) :: mach_unit_info.items;
+  f
 
 let save_linear f =
   if should_save_before_emit () then
     linear_unit_info.items <- Cmir_format.(Func f) :: linear_unit_info.items;
   f
 
-let write_linear output_prefix =
-  if should_save_before_emit () then
+let write_cmir output_prefix =
+  if should_save_before_emit () then begin
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
     Cmir_format.save ~filename ~magic:Config.linear_magic_number linear_unit_info
+  end;
+  if should_save_before_linearize () then begin
+    let filename = output_prefix ^ Clflags.Compiler_ir.(extension Mach) in
+    mach_unit_info.items <- List.rev mach_unit_info.items;
+    Cmir_format.save ~filename ~magic:Config.mach_magic_number mach_unit_info
+  end
 
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
@@ -165,6 +190,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "liveness" liveness
   ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
+  ++ save_before_linearize
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
@@ -207,7 +233,7 @@ let compile_unit output_prefix asm_filename keep_asm
        Misc.try_finally
          (fun () ->
             gen ();
-            write_linear output_prefix)
+            write_cmir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)
          ~exceptionally:(fun () ->
