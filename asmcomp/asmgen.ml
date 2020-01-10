@@ -77,7 +77,7 @@ let raw_clambda_dump_if ppf
 let should_save_before_emit () =
   should_save_ir_after Compiler_pass.Scheduling
 
-let linear_unit_info = { Linear_format.
+let linear_unit_info = { Cmir_format.
                          unit_name = "";
                          items = [];
                        }
@@ -90,19 +90,19 @@ let reset () =
 
 let save_data dl =
   if should_save_before_emit () then
-    linear_unit_info.items <- Linear_format.(Data dl) :: linear_unit_info.items;
+    linear_unit_info.items <- Cmir_format.(Data dl) :: linear_unit_info.items;
   dl
 
 let save_linear f =
   if should_save_before_emit () then
-    linear_unit_info.items <- Linear_format.(Func f) :: linear_unit_info.items;
+    linear_unit_info.items <- Cmir_format.(Func f) :: linear_unit_info.items;
   f
 
 let write_linear output_prefix =
   if should_save_before_emit () then
     let filename = output_prefix ^ Clflags.Compiler_ir.(extension Linear) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
-    Linear_format.save ~filename ~magic:Config.linear_magic_number linear_unit_info
+    Cmir_format.save ~filename ~magic:Config.linear_magic_number linear_unit_info
 
 let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
@@ -328,7 +328,7 @@ let compile_implementation_flambda ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
 
 let linear_gen_implementation filename =
-  let open Linear_format in
+  let open Cmir_format in
   let linear_unit_info,_ = restore ~filename ~magic:Config.linear_magic_number in
   let emit_item = function
     | Data dl -> emit_data dl

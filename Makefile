@@ -179,7 +179,7 @@ ASMCOMP=\
   asmcomp/reloadgen.cmo asmcomp/reload.cmo \
   asmcomp/deadcode.cmo \
   asmcomp/linear.cmo asmcomp/printlinear.cmo asmcomp/linearize.cmo \
-  file_formats/linear_format.cmo \
+  file_formats/cmir_format.cmo \
   asmcomp/debug/available_regs.cmo \
   asmcomp/debug/compute_ranges_intf.cmo \
   asmcomp/debug/compute_ranges.cmo \
