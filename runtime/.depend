@@ -97,10 +97,11 @@ floats_b.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_b.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_b.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_b.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -386,10 +387,11 @@ floats_bd.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_bd.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_bd.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_bd.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -678,10 +680,11 @@ floats_bi.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_bi.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_bi.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_bi.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -967,10 +970,11 @@ floats_bpic.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_bpic.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_bpic.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_bpic.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -1253,10 +1257,11 @@ floats_n.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_n.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_n.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_n.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -1539,10 +1544,11 @@ floats_nd.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_nd.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_nd.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_nd.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -1828,10 +1834,11 @@ floats_ni.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_ni.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_ni.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_ni.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
@@ -2114,10 +2121,11 @@ floats_npic.$(O): floats.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/fail.h caml/memory.h caml/gc.h \
  caml/major_gc.h caml/freelist.h caml/minor_gc.h caml/address_class.h \
  caml/mlvalues.h caml/misc.h caml/reverse.h caml/stacks.h caml/memory.h
-freelist_npic.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/freelist.h \
- caml/misc.h caml/config.h caml/mlvalues.h caml/gc.h caml/gc_ctrl.h \
- caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h caml/minor_gc.h \
- caml/address_class.h caml/major_gc.h caml/misc.h caml/mlvalues.h
+freelist_npic.$(O): freelist.c caml/config.h caml/m.h caml/s.h caml/custom.h \
+ caml/mlvalues.h caml/config.h caml/misc.h caml/freelist.h caml/gc.h \
+ caml/gc_ctrl.h caml/memory.h caml/gc.h caml/major_gc.h caml/freelist.h \
+ caml/minor_gc.h caml/address_class.h caml/major_gc.h caml/misc.h \
+ caml/mlvalues.h
 gc_ctrl_npic.$(O): gc_ctrl.c caml/alloc.h caml/misc.h caml/config.h caml/m.h \
  caml/s.h caml/mlvalues.h caml/backtrace.h caml/exec.h caml/compact.h \
  caml/custom.h caml/fail.h caml/finalise.h caml/roots.h caml/memory.h \
