@@ -160,11 +160,13 @@ let load_symbol_addr s arg =
     I.mov (sym (emit_symbol s)) arg
 
 (* Output a label *)
+let emit_local lbl =
+    match system with
+  | S_macosx | S_win64 -> "L" ^ lbl
+  | _ -> ".L" ^ lbl
 
 let emit_label lbl =
-  match system with
-  | S_macosx | S_win64 -> "L" ^ Int.to_string lbl
-  | _ -> ".L" ^ Int.to_string lbl
+  emit_local (Int.to_string lbl)
 
 let label s = sym (emit_label s)
 
@@ -489,6 +491,7 @@ let emit_global_label s =
 
 let emit_probe_label num =
   let s = Printf.sprintf "probe%d" num in
+  emit_local
   let lbl = Compilenv.make_symbol (Some s) in
   add_def_symbol lbl;
   let lbl = emit_symbol lbl in
@@ -1136,6 +1139,59 @@ let emit_spacetime_shapes () =
   D.qword (Const 0L);
   D.comment "End of Spacetime shapes."
 
+let emit_probes () =
+  match !probes with
+  | [] -> ()
+  | _ ->
+    D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
+    List.iter (fun (label, name, args, semaphore_label) -> (
+        let args =
+          Array.fold_right (fun arg acc ->
+            let reg_name =
+              match arg.loc with
+              | Reg reg -> Proc.register_name reg
+              | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
+              | Stack (Local n) ->
+            in
+            let encoding = Printf.sprintf "%d@%s" Arch.size_addr reg_name in
+            encoding::acc)
+            args [] in
+        let args = String.concat " " args in
+        D.align 4;
+        let a = new_label() in
+        let b = new_label() in
+        let c = new_label() in
+        let d = new_label() in
+        D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
+        D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
+        D.long (const_32 3l);
+        def_label a;
+        D.bytes "stapsdt\000";
+        def_label b;
+        D.align 4;
+        def_label c;
+        D.qword (ConstLabel label);
+        D.qword (ConstLabel "_.stapsdt.base");
+        D.qword (ConstLabel semaphore_label);
+        D.bytes "ocaml\000";
+        D.bytes (name ^ "\000");
+        D.bytes (args ^ "\000");
+        def_label d;
+        D.align 4;
+      )) !probes;
+    D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
+    D.weak "_.stapsdt.base";
+    D.hidden "_.stapsdt.base";
+    D.label "_.stapsdt.base";
+    D.space 1;
+    D.size "_.stapsdt.base" (const 1);
+    D.section [".probes"] (Some "wa") ["\"progbits\""];
+    D.align 2;
+    List.iter(fun (_, label) ->
+      D.global label;
+      _label label;
+      D.word (const 0)) !probe_semaphores;
+
 let end_assembly() =
   if !float_constants <> [] then begin
     begin match system with
@@ -1195,57 +1251,7 @@ let end_assembly() =
     emit_spacetime_shapes ()
   end;
 
-  begin match !probes with
-  | [] -> ()
-  | _ ->
-    D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
-    List.iter (fun (label, name, args, semaphore_label) -> (
-        let args =
-          Array.fold_right (fun arg acc ->
-            let reg_name =
-              match arg.loc with
-              | Reg reg -> Proc.register_name reg
-              | Unknown
-              | Stack _ -> ""
-            in
-            let encoding = (Printf.sprintf "%d@" Arch.size_addr)^reg_name in
-            encoding::acc) args [] in
-        let args = String.concat " " args in
-        D.align 4;
-        let a = new_label() in
-        let b = new_label() in
-        let c = new_label() in
-        let d = new_label() in
-        D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
-        D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
-        D.long (const_32 3l);
-        def_label a;
-        D.bytes "stapsdt\000";
-        def_label b;
-        D.align 4;
-        def_label c;
-        D.qword (ConstLabel label);
-        D.qword (ConstLabel "_.stapsdt.base");
-        D.qword (ConstLabel semaphore_label);
-        D.bytes "ocaml\000";
-        D.bytes (name ^ "\000");
-        D.bytes (args ^ "\000");
-        def_label d;
-        D.align 4;
-      )) !probes;
-    D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
-    D.weak "_.stapsdt.base";
-    D.hidden "_.stapsdt.base";
-    D.label "_.stapsdt.base";
-    D.space 1;
-    D.size "_.stapsdt.base" (const 1);
-  end;
-  D.section [".probes"] (Some "wa") ["\"progbits\""];
-  D.align 2;
-  List.iter(fun (_, label) ->
-    D.global label;
-    _label label;
-    D.word (const 0)) !probe_semaphores;
+  emit_probes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
