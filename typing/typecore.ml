@@ -106,6 +106,7 @@ type error =
   | Probe_format
   | Probe_too_many_args
   | Probe_argument_has_label
+  | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -3480,7 +3481,7 @@ and type_expect_
         exp_type = instance Predef.type_bool;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
-    | _ -> raise (Error (loc, env, Probe_format))
+    | _ -> raise (Error (loc, env, Probe_is_enabled_format))
     end
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -5268,6 +5269,9 @@ let report_error ~loc env = function
   | Probe_argument_has_label ->
     Location.errorf ~loc
       "Probe arguments cannot have labels"
+  | Probe_is_enabled_format ->
+    Location.errorf ~loc
+      "Probe should consist of a string literal name"
   | Literal_overflow ty ->
       Location.errorf ~loc
         "Integer literal exceeds the range of representable integers of type %s"

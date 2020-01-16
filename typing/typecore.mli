@@ -173,6 +173,7 @@ type error =
   | Probe_format
   | Probe_too_many_args
   | Probe_argument_has_label
+  | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
