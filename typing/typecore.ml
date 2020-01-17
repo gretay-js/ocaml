@@ -104,7 +104,6 @@ type error =
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
   | Probe_format
-  | Probe_too_many_args
   | Probe_argument_has_label
   | Probe_is_enabled_format
   | Literal_overflow of string
@@ -3434,6 +3433,11 @@ and type_expect_
       end
   | Pexp_extension ({ txt = "probe"; _ }, payload) ->
     let probe name args =
+      if String.length name > 100 then
+        Location.prerr_warning loc (Warnings.Probe_name_too_long name);
+      let n = List.length args in
+      if n > 12 then
+        Location.prerr_warning loc (Warnings.Probe_too_many_args n);
       rue {
         exp_desc = Texp_probe(name, args);
         exp_loc = loc; exp_extra = [];
@@ -3456,8 +3460,6 @@ and type_expect_
                         , args_with_labels))
                  ; _ }
                 , _)}]) ->
-      if List.length args_with_labels > 12 then
-        raise (Error (loc, env, Probe_too_many_args));
       let args =
         List.map (function
           | (Nolabel, arg) ->
