@@ -171,7 +171,6 @@ type error =
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
   | Probe_format
-  | Probe_too_many_args
   | Probe_argument_has_label
   | Probe_is_enabled_format
   | Literal_overflow of string

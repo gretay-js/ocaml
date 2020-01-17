@@ -91,6 +91,8 @@ type t =
   | Unsafe_without_parsing                  (* 64 *)
   | Redefining_unit of string               (* 65 *)
   | Unused_open_bang of string              (* 66 *)
+  | Probe_too_many_args of int              (* 67 *)
+  | Probe_name_too_long of string           (* 68 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -168,6 +170,8 @@ let number = function
   | Unsafe_without_parsing -> 64
   | Redefining_unit _ -> 65
   | Unused_open_bang _ -> 66
+  | Probe_too_many_args _ -> 67
+  | Probe_name_too_long _ -> 68
 ;;
 
 let last_warning_number = 66
@@ -624,6 +628,15 @@ let message = function
         "This type declaration is defining a new '()' constructor\n\
          which shadows the existing one.\n\
          Hint: Did you mean 'type %s = unit'?" name
+  | Probe_too_many_args n ->
+    Printf.sprintf
+      "Probe with %d arguments.\n\
+       Probes with more than 12 arguments might not supported in kernel mode.\n" n
+  | Probe_name_too_long name ->
+    Printf.sprintf
+      "Probe name is too long: %s.\n\
+       Probes names over 100 character lon might not supported in kernel mode.\n"
+      name
 ;;
 
 let nerrors = ref 0;;
@@ -768,6 +781,7 @@ let descriptions =
    64, "-unsafe used with a preprocessor returning a syntax tree";
    65, "Type declaration defining a new '()' constructor";
    66, "Unused open! statement";
+   67, "More than 12 arguments to probe."
   ]
 ;;
 
