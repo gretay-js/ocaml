@@ -160,13 +160,11 @@ let load_symbol_addr s arg =
     I.mov (sym (emit_symbol s)) arg
 
 (* Output a label *)
-let emit_local lbl =
-    match system with
-  | S_macosx | S_win64 -> "L" ^ lbl
-  | _ -> ".L" ^ lbl
 
 let emit_label lbl =
-  emit_local (Int.to_string lbl)
+  match system with
+  | S_macosx | S_win64 -> "L" ^ Int.to_string lbl
+  | _ -> ".L" ^ Int.to_string lbl
 
 let label s = sym (emit_label s)
 
@@ -489,16 +487,6 @@ let emit_global_label s =
   D.global lbl;
   _label lbl
 
-let emit_probe_label num =
-  let s = Printf.sprintf "probe%d" num in
-  emit_local
-  let lbl = Compilenv.make_symbol (Some s) in
-  add_def_symbol lbl;
-  let lbl = emit_symbol lbl in
-  D.global lbl;
-  _label lbl;
-  lbl
-
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
@@ -526,29 +514,26 @@ let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
 
-let probe_count = ref 0
-
+(* Emit eBPF probes *)
 let probes = ref []
 
 let probe_semaphores = ref []
 
+let reset_probes () =
+  probes := [];
+  probe_semaphores := ref String.Map.empty
+
 let find_or_add_semaphore name =
-  match List.find_opt
-          (fun (name2, _) -> String.equal name name2)
-          !probe_semaphores
+  match String.Map.find name !probe_semaphores
   with
-  | Some (_, label) -> label
+  | Some label -> label
   | None ->
     let s = Printf.sprintf "semaphore_%s" name in
     let lbl = Compilenv.make_symbol (Some s) in
     add_def_symbol lbl;
     let lbl = emit_symbol lbl in
-    probe_semaphores := (name, lbl) :: !probe_semaphores;
+    probe_semaphores := String.Map.add name lbl;
     lbl
-
-let reset_probes () =
-  probes := [];
-  probe_semaphores := []
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -836,13 +821,14 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe name) ->
-    let probe_label = emit_probe_label (!probe_count) in
-    incr probe_count;
-    let semaphore_label = find_or_add_semaphore name in
-    probes := (probe_label, name, i.arg, semaphore_label) :: !probes;
+    let probe_label = new_label () in
+    probes := (probe_label, name, i.arg) :: !probes;
+    add_def_symbol probe_label;
+    def_label probe_label;
     I.nop ()
   | Lop (Iprobe_is_enabled name) ->
     let semaphore_label = find_or_add_semaphore name in
+    add_used_symbol semaphore_label;
     I.movzx (mem64_rip WORD semaphore_label) (res i 0);
     I.sal (int 1) (res i 0);
     I.or_ (int 1) (res i 0)
@@ -1144,41 +1130,46 @@ let emit_probes () =
   | [] -> ()
   | _ ->
     D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
-    List.iter (fun (label, name, args, semaphore_label) -> (
-        let args =
-          Array.fold_right (fun arg acc ->
-            let reg_name =
-              match arg.loc with
-              | Reg reg -> Proc.register_name reg
-              | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
-              | Stack (Local n) ->
-            in
-            let encoding = Printf.sprintf "%d@%s" Arch.size_addr reg_name in
-            encoding::acc)
-            args [] in
-        let args = String.concat " " args in
-        D.align 4;
-        let a = new_label() in
-        let b = new_label() in
-        let c = new_label() in
-        let d = new_label() in
-        D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
-        D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
-        D.long (const_32 3l);
-        def_label a;
-        D.bytes "stapsdt\000";
-        def_label b;
-        D.align 4;
-        def_label c;
-        D.qword (ConstLabel label);
-        D.qword (ConstLabel "_.stapsdt.base");
-        D.qword (ConstLabel semaphore_label);
-        D.bytes "ocaml\000";
-        D.bytes (name ^ "\000");
-        D.bytes (args ^ "\000");
-        def_label d;
-        D.align 4;
-      )) !probes;
+    let names =
+      List.fold_left (fun (label, name, args) -> (
+          let semaphore_label = find_or_add_semaphore name in
+          let args =
+            Array.fold_right (fun arg acc ->
+              let reg_name =
+                match arg.loc with
+                | Reg reg -> Proc.register_name reg
+                | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
+                | Stack (Local n) ->
+              in
+              let encoding = Printf.sprintf "%d@%s" Arch.size_addr reg_name in
+              encoding::acc)
+              args [] in
+          let args = String.concat " " args in
+          D.align 4;
+          let a = new_label() in
+          let b = new_label() in
+          let c = new_label() in
+          let d = new_label() in
+          D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
+          D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
+          D.long (const_32 3l);
+          def_label a;
+          D.bytes "stapsdt\000";
+          def_label b;
+          D.align 4;
+          def_label c;
+          D.qword (ConstLabel label);
+          D.qword (ConstLabel "_.stapsdt.base");
+          D.qword (ConstLabel semaphore_label);
+          D.bytes "ocaml\000";
+          D.bytes (name ^ "\000");
+          D.bytes (args ^ "\000");
+          def_label d;
+          D.align 4;
+        ))
+        String.Set.empty
+        !probes
+    in
     D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
     D.weak "_.stapsdt.base";
     D.hidden "_.stapsdt.base";
@@ -1187,10 +1178,13 @@ let emit_probes () =
     D.size "_.stapsdt.base" (const 1);
     D.section [".probes"] (Some "wa") ["\"progbits\""];
     D.align 2;
-    List.iter(fun (_, label) ->
+    String.Map.iter (fun (name, label) ->
+      if not (String.Set.mem name names) then
+        Warnings.warn;
       D.global label;
       _label label;
-      D.word (const 0)) !probe_semaphores;
+      D.word (const 0))
+      !probe_semaphores;
 
 let end_assembly() =
   if !float_constants <> [] then begin
