@@ -515,6 +515,14 @@ let function_name = ref ""
 let tailrec_entry_point = ref 0
 
 (* Emit eBPF probes *)
+type probe =
+  {
+    probe_label: label
+    probe_handler_wrapper_label: label
+    probe_name: string
+    probe_args: Reg.t array;
+  }
+
 let probes = ref []
 
 let probe_semaphores = ref []
@@ -821,11 +829,19 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe name) ->
-    let probe_label = new_label () in
-    probes := (probe_label, name, i.arg) :: !probes;
-    add_def_symbol probe_label;
+    let probe_handler_wrapper_label = new_label () in
+    I.cmp probe_handler_wrapper_label; (* cmpl is 5 byte nop / call *)
+    let probe_label = record_frame_label i.live false i.dbg  in
     def_label probe_label;
-    I.nop ()
+    I.nop ();
+    let p = { probe_label;
+              probe_handler_wrapper_label;
+              probe_name = name;
+              probe_live = i.live;
+              probe_args = i.args;
+              probe_dbg = i.dbg;
+            } in
+    probes := p :: !probes
   | Lop (Iprobe_is_enabled name) ->
     let semaphore_label = find_or_add_semaphore name in
     add_used_symbol semaphore_label;
@@ -1124,6 +1140,49 @@ let emit_spacetime_shapes () =
     !all_functions;
   D.qword (Const 0L);
   D.comment "End of Spacetime shapes."
+
+
+let emit_probe_handler_wrapper p =
+  def_label p.probe_handler_wrapper_label;
+  (* push all live regs *)
+  let live_len = Array.length (p.probe_insn.live) in
+  for i = 0 to live_len - 1 do
+    match p.probe_insn.live.(i) with
+    | Reg r ->
+      I.push (reg r);
+      cfi_adjust_cfa_offset (8);
+      stack_offset := !stack_offset + 8
+    | _ -> ()
+  done;
+
+  (* pass arguments to handler *)
+  let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.args in
+  for i = 0 to (Array.length p.probe_insn.args) - 1 do
+    if not (loc_args.(i).stamp = p.probe_insn.args.(i)) then
+      match loc_args.(i) p.probe_insn.args.(i) with
+      | ...
+    match p.probe_insn..(i) with
+    | Reg r ->
+      I.push (reg r);
+      cfi_adjust_cfa_offset (8);
+      stack_offset := !stack_offset + 8
+    | _ -> ()
+  let h = (arg i 0) in
+  add_used_symbol p.probe_handler;
+  emit_call p.probe_handler;
+  let lbl_after = record_frame_label Reg.Set.empty false i.dbg in
+  def_label lbl_after;
+
+  (* pop all live regs *)
+  for i = live_len - 1 downto 0 do
+    match p.probe_insn.live.(i) with
+    | Reg r ->
+      I.pop (reg r);
+      cfi_adjust_cfa_offset (-8);
+      stack_offset := !stack_offset - 8
+    | _ -> ()
+  done;
+  I.ret ()
 
 let emit_probes () =
   match !probes with

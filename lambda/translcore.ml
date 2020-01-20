@@ -634,7 +634,7 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
     | lexp ->
       match probe with
       | Some name ->
-        Lprim(Pprobe name, args, loc)
+        Lprim(Pprobe name, lexp::args, loc)
       | None ->
         Lapply {ap_should_be_tailcall=should_be_tailcall;
                 ap_loc=loc;
