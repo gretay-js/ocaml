@@ -146,7 +146,7 @@ let prim_size prim args =
   | Pprobe _ -> 0 (* Do not affect inlining decision.
                      Actual cost is either 1 or 5 bytes,
                      depending on the kind of probes: uprobe/usdt. *)
-  | Pprobe_is_enabled _ -> (* Similar to Pgetglobal *)
+  | Pprobe_is_enabled _ (* Similar to Pgetglobal *)
   | _ -> 2 (* arithmetic and comparisons *)
 
 (* Very raw approximation of switch cost *)

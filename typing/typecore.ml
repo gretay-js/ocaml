@@ -103,8 +103,6 @@ type error =
   | Unrefuted_pattern of pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
-  | Probe_format
-  | Probe_argument_has_label
   | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
@@ -1816,7 +1814,6 @@ let rec is_nonexpansive exp =
            is_nonexpansive_opt c_guard && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
-  | Texp_probe (_, args) -> List.for_all is_nonexpansive args
   | Texp_tuple el ->
       List.for_all is_nonexpansive el
   | Texp_construct( _, _, el) ->
@@ -2080,7 +2077,8 @@ let check_partial_application statement exp =
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
-            | Texp_function _ | Texp_probe _ | Texp_probe_is_enabled _ ->
+            | Texp_probe_is_enabled _
+            | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, cases, _) ->
                 List.iter (fun {c_rhs; _} -> check c_rhs) cases
@@ -3431,46 +3429,6 @@ and type_expect_
       | _ ->
           raise (Error (loc, env, Invalid_extension_constructor_payload))
       end
-  | Pexp_extension ({ txt = "probe"; _ }, payload) ->
-    let probe name args =
-      if String.length name > 100 then
-        Location.prerr_warning loc (Warnings.Probe_name_too_long name);
-      let n = List.length args in
-      if n > 12 then
-        Location.prerr_warning loc (Warnings.Probe_too_many_args n);
-      rue {
-        exp_desc = Texp_probe(name, args);
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance Predef.type_unit;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
-    in
-    begin match payload with
-    | PStr ([{ pstr_desc =
-                Pstr_eval
-                  ({pexp_desc=(Pexp_constant (Pconst_string(name,None))) ; _ } ,
-                   _)}]) ->
-      probe name []
-    | PStr
-        ([{ pstr_desc =
-              Pstr_eval
-                ({ pexp_desc =
-                     (Pexp_apply
-                        ({ pexp_desc=(Pexp_constant (Pconst_string(name,None))); _ }
-                        , args_with_labels))
-                 ; _ }
-                , _)}]) ->
-      let args =
-        List.map (function
-          | (Nolabel, arg) ->
-            type_expect env arg (mk_expected (Ctype.newvar ()))
-          | _ ->
-            raise (Error (loc, env, Probe_argument_has_label)))
-          args_with_labels
-      in
-      probe name args
-    | _ -> raise (Error (loc, env, Probe_format))
-    end
   | Pexp_extension ({ txt = "probe_is_enabled"; _ }, payload) ->
     begin match payload with
     | PStr ([{ pstr_desc =
@@ -5262,15 +5220,6 @@ let report_error ~loc env = function
   | Not_an_extension_constructor ->
       Location.errorf ~loc
         "This constructor is not an extension constructor."
-  | Probe_format ->
-    Location.errorf ~loc
-      "Probe should consist of a string literal name followed by expressions"
-  | Probe_too_many_args ->
-    Location.errorf ~loc
-      "Probes can have at most 12 arguments"
-  | Probe_argument_has_label ->
-    Location.errorf ~loc
-      "Probe arguments cannot have labels"
   | Probe_is_enabled_format ->
     Location.errorf ~loc
       "Probe should consist of a string literal name"

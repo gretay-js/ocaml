@@ -256,7 +256,6 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_open (od, e) ->
       sub.open_declaration sub od;
       sub.expr sub e
-  | Texp_probe (_, args) -> List.iter (sub.expr sub) args
   | Texp_probe_is_enabled _ -> ()
 
 
