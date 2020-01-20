@@ -170,8 +170,6 @@ type error =
   | Unrefuted_pattern of Typedtree.pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
-  | Probe_format
-  | Probe_argument_has_label
   | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
