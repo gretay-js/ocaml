@@ -63,7 +63,7 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
-  | Iprobe of string
+  | Iprobe of { name: string; handler: string; }
   | Iprobe_is_enabled of string
 
 type instruction =
