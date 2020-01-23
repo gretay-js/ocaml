@@ -537,6 +537,7 @@ type probe =
     probe_label: label;
     probe_handler_wrapper_label: label;
     probe_name: string;
+    probe_handler : string;
     probe_insn: Linear.instruction;
   }
 
@@ -841,7 +842,7 @@ let emit_instr fallthrough i =
     let p = { probe_label;
               probe_handler_wrapper_label = wrap_label;
               probe_name = name;
-              probe_hanlder = handler;
+              probe_handler = handler;
               probe_insn = i;
             } in
     probes := p :: !probes
@@ -1159,7 +1160,7 @@ let emit_probe_handler_wrapper p =
   let stack_ofs, live =
     Reg.Set.fold (fun reg (n, live) ->
       match reg.loc with
-      | Reg r ->
+      | Reg _ ->
         (* manufacture stack entry for this reg *)
         let st = Reg.clone reg in
         st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
@@ -1187,16 +1188,15 @@ let emit_probe_handler_wrapper p =
          move saved_src dst
        | Unknown -> assert false))
     p.probe_insn.arg;
-  let h = (arg i 0) in
   add_used_symbol p.probe_handler;
   emit_call p.probe_handler; (* CR gyorsh: handle imm and indirect calls *)
-  let l = (Reg.Map.fold (fun _ s acc -> s::acc) live []) in
+  let l = Reg.Map.fold (fun _ s acc -> Reg.Set.add s acc) live Reg.Set.empty in
   let lbl_after = record_frame_label l false p.probe_insn.dbg in
   def_label lbl_after;
 
   (* restore all live regs *)
   Reg.Map.iter (fun r s -> move s r) live;
-  emit_stack_offset (-n);
+  emit_stack_offset (-stack_ofs);
   I.ret ()
 
 let emit_probes () =
@@ -1207,44 +1207,47 @@ let emit_probes () =
     let stap_arg arg =
       let arg_name =
         match arg.loc with
-        | Stack s -> sprintf "%d(%rsp)" (slot_offset s (register_class arg))
+        | Stack s -> Printf.sprintf "%d(%%rsp)"
+                       (slot_offset s (register_class arg))
         | Reg reg -> Proc.register_name reg
         | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
       in
       Printf.sprintf "%d@%s" (reg_size arg) arg_name
     in
     let names =
-      List.fold_left (fun p -> (
-          let args =
-            Array.fold_right
-              (fun arg acc -> (stap_arg arg)::acc)
-              p.probe_insn.args
-              []
-            |> String.concat " "
-          in
-          let semaphore_label = find_or_add_semaphore p.probe_name in
-          D.align 4;
-          let a = new_label() in
-          let b = new_label() in
-          let c = new_label() in
-          let d = new_label() in
-          D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
-          D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
-          D.long (const_32 3l);
-          def_label a;
-          D.bytes "stapsdt\000";
-          def_label b;
-          D.align 4;
-          def_label c;
-          D.qword (ConstLabel p.probe_label);
-          D.qword (ConstLabel "_.stapsdt.base");
-          D.qword (ConstLabel semaphore_label);
-          D.bytes "ocaml\000";
-          D.bytes (p.probe_name ^ "\000");
-          D.bytes (args ^ "\000");
-          def_label d;
-          D.align 4;
-        ))
+      List.fold_left (fun names p ->
+        emit_probe_handler_wrapper p;
+        let args =
+          Array.fold_right
+            (fun arg acc -> (stap_arg arg)::acc)
+            p.probe_insn.arg
+            []
+          |> String.concat " "
+        in
+        let semaphore_label = find_or_add_semaphore p.probe_name in
+        D.align 4;
+        let a = new_label() in
+        let b = new_label() in
+        let c = new_label() in
+        let d = new_label() in
+        D.long (ConstSub(ConstLabel(emit_label b),ConstLabel(emit_label a)));
+        D.long (ConstSub(ConstLabel(emit_label d),ConstLabel(emit_label c)));
+        D.long (const_32 3l);
+        def_label a;
+        D.bytes "stapsdt\000";
+        def_label b;
+        D.align 4;
+        def_label c;
+        D.qword (ConstLabel (emit_label p.probe_label));
+        D.qword (ConstLabel "_.stapsdt.base");
+        D.qword (ConstLabel semaphore_label);
+        D.bytes "ocaml\000";
+        D.bytes (p.probe_name ^ "\000");
+        D.bytes (args ^ "\000");
+        def_label d;
+        D.align 4;
+        String.Set.add p.probe_name names
+      )
         String.Set.empty
         !probes
     in
@@ -1256,9 +1259,10 @@ let emit_probes () =
     D.size "_.stapsdt.base" (const 1);
     D.section [".probes"] (Some "wa") ["\"progbits\""];
     D.align 2;
-    String.Map.iter (fun (name, label) ->
+    String.Map.iter (fun name label ->
       if not (String.Set.mem name names) then
-        Warnings.warn;
+        (* CR gyorsh: emit a warning instead? *)
+        Misc.fatal_errorf "semphore referes to an undefined probe %s" name ();
       D.global label;
       _label label;
       D.word (const 0))

@@ -167,7 +167,7 @@ let operation op arg ppf res =
       reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
-  | Iprobe name -> fprintf ppf "probe \"%s\"" name
+  | Iprobe {name;handler} -> fprintf ppf "probe \"%s\" %s" name handler
   | Iprobe_is_enabled name -> fprintf ppf "probe_is_enabled \"%s\"" name
 
 let rec instr ppf i =
