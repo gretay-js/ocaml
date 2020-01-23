@@ -97,7 +97,6 @@ let slot_offset loc cl =
       else !stack_offset + (num_stack_slots.(0) + n) * 8
   | Outgoing n -> n
 
-
 let emit_stack_offset n =
   if n < 0
   then I.add (int (-n)) rsp
@@ -527,30 +526,28 @@ let tailrec_entry_point = ref 0
 (* Emit eBPF probes *)
 type probe =
   {
-    probe_label: label
-    probe_handler_wrapper_label: label
-    probe_name: string
-    probe_args: Reg.t array;
+    probe_label: label;
+    probe_handler_wrapper_label: label;
+    probe_name: string;
+    probe_insn: Linear.instruction;
   }
 
 let probes = ref []
 
-let probe_semaphores = ref []
+let probe_semaphores = ref String.Map.empty
 
 let reset_probes () =
   probes := [];
-  probe_semaphores := ref String.Map.empty
+  probe_semaphores := String.Map.empty
 
 let find_or_add_semaphore name =
-  match String.Map.find name !probe_semaphores
-  with
+  match String.Map.find_opt name !probe_semaphores with
   | Some label -> label
   | None ->
-    let s = Printf.sprintf "semaphore_%s" name in
-    let lbl = Compilenv.make_symbol (Some s) in
-    add_def_symbol lbl;
-    let lbl = emit_symbol lbl in
-    probe_semaphores := String.Map.add name lbl;
+    let sym = Compilenv.make_symbol (Some ("semaphore_"^name)) in
+    add_def_symbol sym;
+    let lbl = emit_symbol sym in
+    probe_semaphores := String.Map.add name lbl !probe_semaphores;
     lbl
 
 (* Emit an instruction *)
@@ -834,16 +831,15 @@ let emit_instr fallthrough i =
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe name) ->
     let probe_handler_wrapper_label = new_label () in
-    I.cmp probe_handler_wrapper_label; (* cmpl is 5 byte nop / call *)
+    let calc = sprintf "(%s - . - 5)" (emit_label probe_handler_wrapper_label) in
+    I.cmp (sym calc) eax; (* nop: only sets flags that are not read anywhere *)
     let probe_label = record_frame_label i.live false i.dbg  in
-    def_label probe_label;
+    def_label probe_label; (* works for uprobes and usdt probes as well *)
     I.nop ();
     let p = { probe_label;
-              probe_handler_wrapper_label;
+              probe_handler_wrapper_label = wrap_label;
               probe_name = name;
-              probe_live = i.live;
-              probe_args = i.args;
-              probe_dbg = i.dbg;
+              probe_insn = i;
             } in
     probes := p :: !probes
   | Lop (Iprobe_is_enabled name) ->
@@ -1145,59 +1141,66 @@ let emit_spacetime_shapes () =
   D.qword (Const 0L);
   D.comment "End of Spacetime shapes."
 
+let reg_size reg =
+  match reg.typ with
+  | Float -> Arch.size_float
+  | Addr | Int | Val -> Arch.size_int
 
 let emit_probe_handler_wrapper p =
   def_label p.probe_handler_wrapper_label;
-  (* push all live regs *)
-  let live_len = Array.length (p.probe_insn.live) in
-  for i = 0 to live_len - 1 do
-    match p.probe_insn.live.(i) with
-    | Reg r ->
-      I.push (reg r);
-      cfi_adjust_cfa_offset (8);
-      stack_offset := !stack_offset + 8
-    | _ -> ()
-  done;
-
-  (* pass arguments to handler: simple but expensive, via stack. *)
+  (* prepare to call the handler: allocate stack space *)
   let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.args in
+  (* Save and restore args even if they are not in the live set of probe,
+     and so need not be restored, because it simplifies the code below
+     that moves the args to correct registers to pass to the handler.  *)
+  let stack_ofs, live =
+    Reg.Set.fold (fun reg (n, live) ->
+      match reg.loc with
+      | Reg r ->
+        (* manufacture stack entry for this reg *)
+        let st = Reg.clone reg in
+        st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
+        (n + (reg_size reg), Reg.Map.add live r st)
+      | _ -> (n, live))
+      (Reg.Set.union p.probe_insn.live p.probe_insn.args)
+      (stack_ofs, Reg.Map.empty)
+  in
+  let stack_ofs = (Misc.align stack_ofs 16) in
   if stack_ofs <> 0 then begin
     emit_stack_offset stack_ofs
   end;
+
+  (* save all live regs. *)
+  let move src dst =
+    begin match src.typ, src.loc, dst.loc with
+    | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
+    | Float, _, _ -> I.movsd (reg src) (reg dst)
+    | _ -> I.mov (reg src) (reg dst)
+    end
+  in
+  Reg.Map.iter move live;
+
+  (* pass arguments to handler *)
   for i = 0 to Array.length p.probe_insn.args - 1 do
-    if not (loc_args.(i).stamp = p.probe_insn.args.(i)) then
-      (match loc_args.(i) with
-      | Stack _ -> I.mov (reg p.probe_insn.args.(i)) (reg loc_args.(i))
-      | _ -> ());
-  done;
-  (* CR gyorsh: do we need to change  stack_ofs here temporarily? *)
-  for i = 0 to Array.length p.probe_insn.args - 1 do
-    if not (loc_args.(i).stamp = p.probe_insn.args.(i)) then
-      (match loc_args.(i), p.probe_insn.args.(i) with
-       | Reg _, Reg _ -> I.push (reg p.probe_insn.args.(i))
-       | _ -> ());
-  done;
-  for i = 0 to Array.length p.probe_insn.args - 1 do
-    if not (loc_args.(i).stamp = p.probe_insn.args.(i)) then
-      (match loc_args.(i), p.probe_insn.args.(i) with
-       | Reg _, Reg _ -> I.pop (reg loc_args.(i))
-       | _ -> ());
+    let src = p.probe_insn.args.(i) in
+    let dst = loc_args.(i) in
+    if not (dst.stamp = src.stamp) then
+      (match src.loc with
+      | Stack _ -> move (reg src) (reg dst)
+      | Reg _ ->
+        let saved_src = Reg.Map.find src in
+        move saved_src dst);
   done;
   let h = (arg i 0) in
   add_used_symbol p.probe_handler;
   emit_call p.probe_handler; (* CR gyorsh: handle imm and indirect calls *)
-  let lbl_after = record_frame_label Reg.Set.empty false i.dbg in
+  let l = (Reg.Map.fold (fun _ s acc -> s::acc) live []) in
+  let lbl_after = record_frame_label l false p.probe_insn.dbg in
   def_label lbl_after;
 
-  (* pop all live regs *)
-  for i = live_len - 1 downto 0 do
-    match p.probe_insn.live.(i) with
-    | Reg r ->
-      I.pop (reg r);
-      cfi_adjust_cfa_offset (-8);
-      stack_offset := !stack_offset - 8
-    | _ -> ()
-  done;
+  (* restore all live regs *)
+  Reg.Map.iter (fun r s -> move s r) live;
+  emit_stack_offset (-n);
   I.ret ()
 
 let emit_probes () =
@@ -1205,21 +1208,25 @@ let emit_probes () =
   | [] -> ()
   | _ ->
     D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
+    let stap_arg arg =
+      let arg_name =
+        match arg.loc with
+        | Stack s -> sprintf "%d(%rsp)" (slot_offset s (register_class arg))
+        | Reg reg -> Proc.register_name reg
+        | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
+      in
+      Printf.sprintf "%d@%s" (reg_size arg) arg_name
+    in
     let names =
-      List.fold_left (fun (label, name, args) -> (
-          let semaphore_label = find_or_add_semaphore name in
+      List.fold_left (fun p -> (
           let args =
-            Array.fold_right (fun arg acc ->
-              let reg_name =
-                match arg.loc with
-                | Reg reg -> Proc.register_name reg
-                | Unknown -> Misc.fatal_error "Cannot create probe: illegal argument."
-                | Stack (Local n) ->
-              in
-              let encoding = Printf.sprintf "%d@%s" Arch.size_addr reg_name in
-              encoding::acc)
-              args [] in
-          let args = String.concat " " args in
+            Array.fold_right
+              (fun arg acc -> (stap_arg arg)::acc)
+              p.probe_insn.args
+              []
+            |> String.concat " "
+          in
+          let semaphore_label = find_or_add_semaphore p.probe_name in
           D.align 4;
           let a = new_label() in
           let b = new_label() in
@@ -1233,11 +1240,11 @@ let emit_probes () =
           def_label b;
           D.align 4;
           def_label c;
-          D.qword (ConstLabel label);
+          D.qword (ConstLabel p.probe_label);
           D.qword (ConstLabel "_.stapsdt.base");
           D.qword (ConstLabel semaphore_label);
           D.bytes "ocaml\000";
-          D.bytes (name ^ "\000");
+          D.bytes (p.probe_name ^ "\000");
           D.bytes (args ^ "\000");
           def_label d;
           D.align 4;
@@ -1260,6 +1267,7 @@ let emit_probes () =
       _label label;
       D.word (const 0))
       !probe_semaphores;
+    ()
 
 let end_assembly() =
   if !float_constants <> [] then begin
