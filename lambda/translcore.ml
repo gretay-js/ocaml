@@ -278,6 +278,9 @@ and transl_exp0 e =
       let should_be_tailcall, funct =
         Translattribute.get_tailcall_attribute funct
       in
+      let probe, funct =
+          Translattribute.get_and_remove_probe_attribute funct
+      in
       let inlined, funct =
         Translattribute.get_and_remove_inlined_attribute funct
       in
@@ -287,6 +290,7 @@ and transl_exp0 e =
       let e = { e with exp_desc = Texp_apply(funct, oargs) } in
       event_after e
         (transl_apply ~should_be_tailcall ~inlined ~specialised
+           ~probe
            (transl_exp funct) oargs e.exp_loc)
   | Texp_match(arg, pat_expr_list, partial) ->
       transl_match e arg pat_expr_list partial

@@ -2179,10 +2179,15 @@ let rec transl env e =
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
       | (Pprobe name, args) ->
-        let args = List.map (transl env) args in
-        Cop(Cprobe name, args, dbg)
-      | (Pprobe_is_enabled name, _) ->
-        Cop(Cprobe_is_enabled name, [], dbg)
+          let args = List.map (transl env) args in
+          (match args with
+           | (Cconst_symbol (handler,dbg))::args ->
+             Cop(Cprobe {name; handler}, args, dbg)
+           | _ ->
+             fatal_error "Cmmgen.transl: probe primitive handler not symbol."
+          )
+      | (Pprobe_is_enabled name, []) ->
+          Cop(Cprobe_is_enabled name, [], dbg)
       | (p, [arg]) ->
           transl_prim_1 env p arg dbg
       | (p, [arg1; arg2]) ->
@@ -2193,6 +2198,7 @@ let rec transl env e =
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
       | ((Pbigarraydim _ | Pduparray (_, _)), ([] | _::_::_::_::_))
+      | (Pprobe_is_enabled _, _)
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
