@@ -496,6 +496,14 @@ let emit_global_label s =
   D.global lbl;
   _label lbl
 
+let move (src : Reg.t) (dst : Reg.t) =
+  if src.loc <> dst.loc then
+    begin match src.typ, src.loc, dst.loc with
+    | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
+    | Float, _, _ -> I.movsd (reg src) (reg dst)
+    | _ -> I.mov (reg src) (reg dst)
+    end
+
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
@@ -571,13 +579,7 @@ let emit_instr fallthrough i =
       end;
     end
   | Lop(Imove | Ispill | Ireload) ->
-      let src = i.arg.(0) and dst = i.res.(0) in
-      if src.loc <> dst.loc then
-        begin match src.typ, src.loc, dst.loc with
-        | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-        | Float, _, _ -> I.movsd (reg src) (reg dst)
-        | _ -> I.mov (reg src) (reg dst)
-        end
+      move i.arg.(0) i.res.(0)
   | Lop(Iconst_int n) ->
       if n = 0n then begin
         match i.res.(0).loc with
@@ -829,9 +831,9 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
-  | Lop (Iprobe name) ->
-    let probe_handler_wrapper_label = new_label () in
-    let calc = sprintf "(%s - . - 5)" (emit_label probe_handler_wrapper_label) in
+  | Lop (Iprobe {name; handler}) ->
+    let wrap_label = new_label () in
+    let calc = Printf.sprintf "(%s - . - 5)" (emit_label wrap_label) in
     I.cmp (sym calc) eax; (* nop: only sets flags that are not read anywhere *)
     let probe_label = record_frame_label i.live false i.dbg  in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
@@ -839,6 +841,7 @@ let emit_instr fallthrough i =
     let p = { probe_label;
               probe_handler_wrapper_label = wrap_label;
               probe_name = name;
+              probe_hanlder = handler;
               probe_insn = i;
             } in
     probes := p :: !probes
@@ -1141,7 +1144,7 @@ let emit_spacetime_shapes () =
   D.qword (Const 0L);
   D.comment "End of Spacetime shapes."
 
-let reg_size reg =
+let reg_size (reg : Reg.t) =
   match reg.typ with
   | Float -> Arch.size_float
   | Addr | Int | Val -> Arch.size_int
@@ -1149,7 +1152,7 @@ let reg_size reg =
 let emit_probe_handler_wrapper p =
   def_label p.probe_handler_wrapper_label;
   (* prepare to call the handler: allocate stack space *)
-  let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.args in
+  let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.arg in
   (* Save and restore args even if they are not in the live set of probe,
      and so need not be restored, because it simplifies the code below
      that moves the args to correct registers to pass to the handler.  *)
@@ -1160,9 +1163,9 @@ let emit_probe_handler_wrapper p =
         (* manufacture stack entry for this reg *)
         let st = Reg.clone reg in
         st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
-        (n + (reg_size reg), Reg.Map.add live r st)
+        (n + (reg_size reg), Reg.Map.add reg st live)
       | _ -> (n, live))
-      (Reg.Set.union p.probe_insn.live p.probe_insn.args)
+      (Reg.Set.add_seq (Array.to_seq p.probe_insn.arg) p.probe_insn.live)
       (stack_ofs, Reg.Map.empty)
   in
   let stack_ofs = (Misc.align stack_ofs 16) in
@@ -1171,26 +1174,19 @@ let emit_probe_handler_wrapper p =
   end;
 
   (* save all live regs. *)
-  let move src dst =
-    begin match src.typ, src.loc, dst.loc with
-    | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-    | Float, _, _ -> I.movsd (reg src) (reg dst)
-    | _ -> I.mov (reg src) (reg dst)
-    end
-  in
   Reg.Map.iter move live;
 
   (* pass arguments to handler *)
-  for i = 0 to Array.length p.probe_insn.args - 1 do
-    let src = p.probe_insn.args.(i) in
+  Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
     if not (dst.stamp = src.stamp) then
       (match src.loc with
-      | Stack _ -> move (reg src) (reg dst)
-      | Reg _ ->
-        let saved_src = Reg.Map.find src in
-        move saved_src dst);
-  done;
+       | Stack _ -> move src dst
+       | Reg _ ->
+         let saved_src = Reg.Map.find src live in
+         move saved_src dst
+       | Unknown -> assert false))
+    p.probe_insn.arg;
   let h = (arg i 0) in
   add_used_symbol p.probe_handler;
   emit_call p.probe_handler; (* CR gyorsh: handle imm and indirect calls *)

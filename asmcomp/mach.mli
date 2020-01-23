@@ -79,7 +79,7 @@ type operation =
         (b) If [is_assignment] is [true], any information about other [Reg.t]s
             that have been previously deemed to hold the value of that
             identifier is forgotten. *)
-  | Iprobe of string
+  | Iprobe of { name: string; handler: string; }
   | Iprobe_is_enabled of string
 
 type instruction =

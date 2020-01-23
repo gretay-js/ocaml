@@ -165,7 +165,7 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of raise_kind
   | Ccheckbound
-  | Cprobe of string
+  | Cprobe of { name: string; handler: string; }
   | Cprobe_is_enabled of string
 
 type expression =
