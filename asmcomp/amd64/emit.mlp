@@ -834,15 +834,9 @@ let emit_instr fallthrough i =
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler}) ->
     let wrap_label = new_label () in
-    (* let rel = Mem
-     *             ConstSub
-     *             (ConstSub (ConstLabel (emit_label wrap_label),
-     *                        ConstThis),
-     *              Const 5L)
-     * in *)
     (* nop: only sets flags that are not read anywhere *)
     (* size of this instruction is 5 *)
-    let rel = mem64_rip DWORD ~ofs:(-5) ((emit_label wrap_label)^"GOTPCREL") in
+    (* let rel = mem64_rip WORD ~ofs:(-5) ((emit_label wrap_label)^"@GOTPCREL") in *)
     I.cmp rel eax;
     let probe_label = record_frame_label i.live false i.dbg  in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
@@ -1159,7 +1153,7 @@ let reg_size (reg : Reg.t) =
   | Addr | Int | Val -> Arch.size_int
 
 let emit_probe_handler_wrapper p =
-  D.align 16;
+  (* D.align 16; *)
   def_label p.probe_handler_wrapper_label;
   D.comment
     (Printf.sprintf "probe_handler_wrapper %s %s" p.probe_name p.probe_handler);
@@ -1192,7 +1186,7 @@ let emit_probe_handler_wrapper p =
   (* pass arguments to handler *)
   Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
-    if not (dst.stamp = src.stamp) then
+    if not (dst.loc = src.loc) then
       (match src.loc with
        | Stack _ -> move src dst
        | Reg _ ->
@@ -1209,15 +1203,14 @@ let emit_probe_handler_wrapper p =
   (* restore all live regs *)
   Reg.Map.iter (fun r s -> move s r) live;
   emit_stack_offset (-stack_ofs);
+  I.ret ();
   cfi_endproc ();
-  I.ret ()
+  ()
 
-let emit_probes () =
+let emit_probe_notes () =
   match !probes with
   | [] -> ()
   | _ ->
-    D.text ();
-    List.iter emit_probe_handler_wrapper !probes;
     D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
     let stap_arg arg =
       let arg_name =
@@ -1294,6 +1287,9 @@ let end_assembly() =
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
   end;
 
+  (* emit probe handler wrappers *)
+  D.text ();
+  List.iter emit_probe_handler_wrapper !probes;
 
   emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
   if system = S_macosx then I.nop ();
@@ -1342,7 +1338,7 @@ let end_assembly() =
     emit_spacetime_shapes ()
   end;
 
-  emit_probes ();
+  emit_probe_notes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
