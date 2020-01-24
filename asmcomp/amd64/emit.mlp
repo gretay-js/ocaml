@@ -836,8 +836,8 @@ let emit_instr fallthrough i =
     let wrap_label = new_label () in
     (* nop: only sets flags that are not read anywhere *)
     (* size of this instruction is 5 *)
-    (* let rel = mem64_rip WORD ~ofs:(-5) ((emit_label wrap_label)^"@GOTPCREL") in *)
-    I.cmp rel eax;
+    let calc = Printf.sprintf "(%s - . - 5)" (emit_label wrap_label) in
+    I.cmp (sym calc) eax;
     let probe_label = record_frame_label i.live false i.dbg  in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
     I.nop ();
