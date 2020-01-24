@@ -834,8 +834,16 @@ let emit_instr fallthrough i =
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler}) ->
     let wrap_label = new_label () in
-    let calc = Printf.sprintf "(%s - . - 5)" (emit_label wrap_label) in
-    I.cmp (sym calc) eax; (* nop: only sets flags that are not read anywhere *)
+    (* let rel = Mem
+     *             ConstSub
+     *             (ConstSub (ConstLabel (emit_label wrap_label),
+     *                        ConstThis),
+     *              Const 5L)
+     * in *)
+    (* nop: only sets flags that are not read anywhere *)
+    (* size of this instruction is 5 *)
+    let rel = mem64_rip DWORD ~ofs:(-5) ((emit_label wrap_label)^"GOTPCREL") in
+    I.cmp rel eax;
     let probe_label = record_frame_label i.live false i.dbg  in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
     I.nop ();
@@ -1151,7 +1159,11 @@ let reg_size (reg : Reg.t) =
   | Addr | Int | Val -> Arch.size_int
 
 let emit_probe_handler_wrapper p =
+  D.align 16;
   def_label p.probe_handler_wrapper_label;
+  D.comment
+    (Printf.sprintf "probe_handler_wrapper %s %s" p.probe_name p.probe_handler);
+  cfi_startproc ();
   (* prepare to call the handler: allocate stack space *)
   let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.arg in
   (* Save and restore args even if they are not in the live set of probe,
@@ -1197,12 +1209,15 @@ let emit_probe_handler_wrapper p =
   (* restore all live regs *)
   Reg.Map.iter (fun r s -> move s r) live;
   emit_stack_offset (-stack_ofs);
+  cfi_endproc ();
   I.ret ()
 
 let emit_probes () =
   match !probes with
   | [] -> ()
   | _ ->
+    D.text ();
+    List.iter emit_probe_handler_wrapper !probes;
     D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
     let stap_arg arg =
       let arg_name =
@@ -1216,7 +1231,6 @@ let emit_probes () =
     in
     let names =
       List.fold_left (fun names p ->
-        emit_probe_handler_wrapper p;
         let args =
           Array.fold_right
             (fun arg acc -> (stap_arg arg)::acc)
