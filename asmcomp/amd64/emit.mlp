@@ -1153,10 +1153,18 @@ let reg_size (reg : Reg.t) =
   | Addr | Int | Val -> Arch.size_int
 
 let emit_probe_handler_wrapper p =
-  (* D.align 16; *)
+  D.align 16;
   def_label p.probe_handler_wrapper_label;
   D.comment
     (Printf.sprintf "probe_handler_wrapper %s %s" p.probe_name p.probe_handler);
+  (* push fake frame *)
+  let old_frame_required = !frame_required in
+  frame_required := true;
+  let old_num_stack_slots = Array.copy num_stack_slots in
+  num_stack_slots.(0) <- 0;
+  num_stack_slots.(1) <- 0;
+  let old_stack_offset = !stack_offset in
+  stack_offset := 0;
   cfi_startproc ();
   (* prepare to call the handler: allocate stack space *)
   let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.arg in
@@ -1205,6 +1213,11 @@ let emit_probe_handler_wrapper p =
   emit_stack_offset (-stack_ofs);
   I.ret ();
   cfi_endproc ();
+  (* pop fake frame *)
+  frame_required := old_frame_required;
+  stack_offset := old_stack_offset;
+  num_stack_slots.(0) <- old_num_stack_slots.(0);
+  num_stack_slots.(1) <- old_num_stack_slots.(1);
   ()
 
 let emit_probe_notes () =
