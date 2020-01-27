@@ -1156,6 +1156,16 @@ let reg_size (reg : Reg.t) =
   | Float -> Arch.size_float
   | Addr | Int | Val -> Arch.size_int
 
+let is_stack (r : Reg.t) =
+  match r.loc with
+  | Stack _ -> true
+  | _ -> false
+
+let is_reg (r : Reg.t) =
+  match r.loc with
+  | Reg _ -> true
+  | _ -> false
+
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
@@ -1173,36 +1183,38 @@ let emit_probe_handler_wrapper p =
      extra padding twice due to alignment needed again for saved regs. *)
   let args_ofs = Array.fold_right
                    (fun r acc ->
-                      match r.loc with
-                      | Stack _ -> acc + reg_size r
-                      | _ -> acc
+                      if is_stack r then acc + reg_size r
+                      else acc
                    ) loc_args 0 in
+  Printf.printf "args_ofs = %d\n" args_ofs;
   (* Save arguments passed in registers to the handler,
      even if they are not in the live set at the probe site,
      because it simplifies the code below
      that moves the args to the correct registers to pass to the handler.  *)
+  let dsts = Array.to_seq loc_args |> Set.of_seq in
   let reg_args = ref Reg.Set.empty in
   Array.iteri (fun i (src: Reg.t) ->
-    match src.loc with
-    | Stack _ | Unknown -> ()
-    | Reg _ ->
-      if not ((loc_args.(i).loc = src.loc) ||
-              (Reg.Set.mem src p.probe_insn.live)) then
-        reg_args := Reg.Set.add src !reg_args;)
+    if is_reg src &&
+       not ((loc_args.(i).loc = src.loc) ||
+            (is_stack loc_args.(i)) ||
+            (Reg.Set.mem src p.probe_insn.live) ||
+            (not (Reg.Set.mem src dsts))) then
+      reg_args := Reg.Set.add src !reg_args;)
     p.probe_insn.arg;
   (* Calculate stack slots for all saved registers (live and args). *)
   let stack_ofs, saved_reg =
     Reg.Set.fold (fun reg (n, saved_reg) ->
-      match reg.loc with
-      | Reg _ ->
+      if is_reg reg then begin
         (* manufacture stack entry for this reg *)
         let st = Reg.clone reg in
         st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
         (n + (reg_size reg), Reg.Map.add reg st saved_reg)
-      | _ -> (n, saved_reg))
+      end
+      else (n, saved_reg))
       (Reg.Set.union !reg_args p.probe_insn.live)
       (args_ofs, Reg.Map.empty)
   in
+  Printf.printf "stack_ofs = %d\n" stack_ofs;
   (* Ensure stack before the call is 16 byte aligned.
      Stack here is 8 not 16 aligned because return address has been pushed.  *)
   let stack_ofs = if stack_ofs mod 16 = 0 then stack_ofs + 8 else stack_ofs in
@@ -1211,16 +1223,33 @@ let emit_probe_handler_wrapper p =
   (* save all live regs. *)
   Reg.Map.iter move saved_reg;
 
-  (* pass arguments to handler *)
+  (* Pass arguments to handler *)
+  (* arrange arguments passed on the stack *)
   Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
-    if not (dst.loc = src.loc) then
-      (match src.loc with
-       | Stack _ -> move src dst
-       | Reg _ ->
-         let saved_src = Reg.Map.find src saved_reg in
-         move saved_src dst
-       | Unknown -> assert false))
+    if is_stack dst && not (dst.loc = src.loc) then begin
+      if is_stack src then begin
+        (* use a temporary for this memory to memory move *)
+        (* first available register is safe to use (not live here),
+           because if any arguments are passed on the stack,
+           then some arguments are passed in that register. *)
+        let loc = Reg (Proc.(first_available_register.(register_class src))) in
+        let tmp = Reg.at_location src.typ loc in
+        move src tmp;
+        move tmp dst
+      end else move src dst
+    end)
+    p.probe_insn.arg;
+  (* arrange arguments passed in registers *)
+  Array.iteri (fun i (src: Reg.t) ->
+    let dst = loc_args.(i) in
+    if is_reg dst && not (dst.loc = src.loc) then begin
+      let src =
+        if is_reg src then Reg.Map.find src saved_reg
+        else src
+      in
+      move src dst
+    end)
     p.probe_insn.arg;
   add_used_symbol p.probe_handler;
   emit_call p.probe_handler;
