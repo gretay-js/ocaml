@@ -259,9 +259,6 @@ and transl_exp0 e =
         let should_be_tailcall, funct =
           Translattribute.get_tailcall_attribute funct
         in
-        let probe, funct =
-          Translattribute.get_and_remove_probe_attribute funct
-        in
         let inlined, funct =
           Translattribute.get_and_remove_inlined_attribute funct
         in
@@ -271,15 +268,11 @@ and transl_exp0 e =
         let e = { e with exp_desc = Texp_apply(funct, oargs) } in
         event_after e
           (transl_apply ~should_be_tailcall ~inlined ~specialised
-             ~probe
              lam extra_args e.exp_loc)
       end
   | Texp_apply(funct, oargs) ->
       let should_be_tailcall, funct =
         Translattribute.get_tailcall_attribute funct
-      in
-      let probe, funct =
-          Translattribute.get_and_remove_probe_attribute funct
       in
       let inlined, funct =
         Translattribute.get_and_remove_inlined_attribute funct
@@ -290,7 +283,6 @@ and transl_exp0 e =
       let e = { e with exp_desc = Texp_apply(funct, oargs) } in
       event_after e
         (transl_apply ~should_be_tailcall ~inlined ~specialised
-           ~probe
            (transl_exp funct) oargs e.exp_loc)
   | Texp_match(arg, pat_expr_list, partial) ->
       transl_match e arg pat_expr_list partial
@@ -570,6 +562,19 @@ and transl_exp0 e =
           Llet(pure, Pgenval, oid,
                !transl_module Tcoerce_none None od.open_expr, body)
       end
+  | Texp_probe (name, exp) ->
+    let lam = transl_exp exp in
+    let fv = free_variables lam in
+    (* CR: do we need to refresh them in lam? *)
+    let handler = { kind = Curried;
+                    (* CR: how to find the correct type of idents? *)
+                    params = List.map (fun v -> v * Pgenval ) fv;
+                    return = Pgenval;
+                    body = lam;
+                    attr = default_function_attributes;
+                    loc = exp.exp_loc;
+                  } in
+    Lprobe(name, handler, fv, e.exp_loc)
   | Texp_probe_is_enabled name ->
     Lprim(Pprobe_is_enabled name, [], e.exp_loc)
 
@@ -625,7 +630,6 @@ and transl_tupled_cases patl_expr_list =
 
 and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
       ?(specialised = Default_specialise)
-      ?(probe=None)
       lam sargs loc =
   let lapply funct args =
     match funct with
@@ -636,10 +640,6 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
     | Lapply ap ->
         Lapply {ap with ap_args = ap.ap_args @ args; ap_loc = loc}
     | lexp ->
-      match probe with
-      | Some name ->
-        Lprim(Pprobe name, lexp::args, loc)
-      | None ->
         Lapply {ap_should_be_tailcall=should_be_tailcall;
                 ap_loc=loc;
                 ap_func=lexp;

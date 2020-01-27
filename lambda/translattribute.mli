@@ -65,10 +65,6 @@ val get_and_remove_specialised_attribute
    : Typedtree.expression
   -> Lambda.specialise_attribute * Typedtree.expression
 
-val get_and_remove_probe_attribute
-   : Typedtree.expression
-  -> string option * Typedtree.expression
-
 val get_tailcall_attribute
    : Typedtree.expression
   -> bool * Typedtree.expression

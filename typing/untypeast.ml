@@ -507,6 +507,26 @@ let expression sub exp =
                              ])
     | Texp_open (od, exp) ->
       Pexp_open (sub.open_declaration sub od, sub.expr sub exp)
+    | Texp_probe (name, exp) ->
+        Pexp_extension
+          ({ txt = "probe"; loc}
+          , PStr ([
+              { pstr_desc=
+                  Pstr_eval
+                    ( { pexp_desc=(Pexp_apply (
+                        { pexp_desc=(Pexp_constant (Pconst_string(name,None)))
+                        ; pexp_loc=loc
+                        ; pexp_loc_stack =[]
+                        ; pexp_attributes=[]
+                        }
+                      , [Nolabel, sub.expr sub exp]))
+                      ; pexp_loc=loc
+                      ; pexp_loc_stack =[]
+                      ; pexp_attributes=[]
+                      }
+                    , [])
+              ; pstr_loc = loc
+              }]))
     | Texp_probe_is_enabled name ->
         Pexp_extension
           ({ txt = "probe_is_enabled"; loc}
