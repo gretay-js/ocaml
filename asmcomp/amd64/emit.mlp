@@ -562,7 +562,7 @@ let find_or_add_semaphore name =
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info i.dbg;
-  match i.desc with
+  match i.desc wit
   | Lend -> ()
   | Lprologue ->
     assert (!prologue_required);
@@ -1157,20 +1157,29 @@ let emit_probe_handler_wrapper p =
   def_label p.probe_handler_wrapper_label;
   D.comment
     (Printf.sprintf "probe_handler_wrapper %s %s" p.probe_name p.probe_handler);
-  (* push fake frame *)
-  let old_frame_required = !frame_required in
-  frame_required := true;
-  let old_num_stack_slots = Array.copy num_stack_slots in
-  num_stack_slots.(0) <- 0;
-  num_stack_slots.(1) <- 0;
-  let old_stack_offset = !stack_offset in
-  stack_offset := 0;
-  cfi_startproc ();
+  (* (* push fake frame *)
+   * let old_frame_required = !frame_required in
+   * frame_required := true;
+   * let old_num_stack_slots = Array.copy num_stack_slots in
+   * Array.fill num_stack_slots 0 (Array.length num_stack_slots) 0;
+   * let old_stack_offset = !stack_offset in
+   * stack_offset := 0;
+   * cfi_startproc (); *)
   (* prepare to call the handler: allocate stack space *)
   let (loc_args, stack_ofs) = Proc.loc_arguments p.probe_insn.arg in
-  (* Save and restore args even if they are not in the live set of probe,
+  (* Save and restore args passed in regs to handler,
+     even if they are not in the live set of probe,
      and so need not be restored, because it simplifies the code below
      that moves the args to correct registers to pass to the handler.  *)
+  let save_reg_args = ref Reg.Set.empty in
+  Array.iteri (fun i (src: Reg.t) ->
+       match src with
+       | Stack | Unknown -> ()
+       | Reg _ ->
+         if not ((loc_args.(i).loc = src.loc) ||
+                 (Reg.Set.mem src p.probe_insn.live)) then
+           save_regs := Reg.Set.add src save_reg_args;)
+    p.probe_insn.arg;
   let stack_ofs, live =
     Reg.Set.fold (fun reg (n, live) ->
       match reg.loc with
@@ -1180,8 +1189,8 @@ let emit_probe_handler_wrapper p =
         st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
         (n + (reg_size reg), Reg.Map.add reg st live)
       | _ -> (n, live))
-      (Reg.Set.add_seq (Array.to_seq p.probe_insn.arg) p.probe_insn.live)
-      (stack_ofs, Reg.Map.empty)
+      (Reg.Set.union save_regs p.probe_insn.live)
+      (stack_ofs+8, Reg.Map.empty)
   in
   let stack_ofs = (Misc.align stack_ofs 16) in
   if stack_ofs <> 0 then begin
@@ -1212,12 +1221,11 @@ let emit_probe_handler_wrapper p =
   Reg.Map.iter (fun r s -> move s r) live;
   emit_stack_offset (-stack_ofs);
   I.ret ();
-  cfi_endproc ();
-  (* pop fake frame *)
-  frame_required := old_frame_required;
-  stack_offset := old_stack_offset;
-  num_stack_slots.(0) <- old_num_stack_slots.(0);
-  num_stack_slots.(1) <- old_num_stack_slots.(1);
+  (* (* pop fake frame *)
+   * cfi_endproc ();
+   * frame_required := old_frame_required;
+   * stack_offset := old_stack_offset;
+   * Array.iteri (fun i v -> num_stack_slots.(i) <- v) old_num_stack_slots; *)
   ()
 
 let emit_probe_notes () =
