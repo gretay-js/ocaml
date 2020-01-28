@@ -3445,7 +3445,8 @@ and type_expect_
                   , _)}]) ->
         let exp = type_expect env arg (mk_expected Predef.type_unit) in
         if String.length name > 100 then
-          warn name_loc Warnings.Probe_name_too_long;
+          Location.prerr_warning name_loc
+            (Warnings.Probe_name_too_long name);
         rue {
           exp_desc = Texp_probe(name, exp);
           exp_loc = loc; exp_extra = [];

@@ -564,23 +564,25 @@ and transl_exp0 e =
       end
   | Texp_probe (name, exp) ->
     let lam = transl_exp exp in
-    let fv = free_variables lam in
-    let map = List.fold_left (fun acc v -> Ident.Map.add v (Ident.rename v) map)
-                Ident.Map.empty fv in
+    let map = Ident.Set.fold (fun v acc ->
+      Ident.Map.add v (Ident.rename v) acc)
+      (free_variables lam)
+      Ident.Map.empty in
+    let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
     let body = Lambda.rename map lam in
     let handler =
       { kind = Curried;
-        params = List.map (fun v -> (Ident.Map.find v map, Pgenval)) v;
+        params = List.map (fun v -> (v, Pgenval) ) param_idents;
         return = Pgenval;
         body;
-        attr = default_function_attributes;
+        attr = default_function_attribute;
         loc = exp.exp_loc;
       } in
     Lprobe {
       name;
       handler;
-      args = List.map (fun id -> LVar id) fv;
-      loc = e.exp_loc;
+      args = List.map (fun id -> Lvar id) arg_idents;
+      pr_loc = e.exp_loc;
     }
   | Texp_probe_is_enabled name ->
     Lprim(Pprobe_is_enabled name, [], e.exp_loc)
