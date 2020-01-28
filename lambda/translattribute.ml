@@ -17,10 +17,6 @@ open Typedtree
 open Lambda
 open Location
 
-let is_probe_attribute = function
-  | {txt=("probe"|"ocaml.probe")} -> true
-  | _ -> false
-
 let is_inline_attribute = function
   | {txt=("inline"|"ocaml.inline")} -> true
   | _ -> false
@@ -156,25 +152,6 @@ let parse_local_attribute attr =
         ]
         payload
 
-
-let parse_probe_attribute attr =
-  match attr with
-  | None -> None
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
-    let[@local] warn () =
-        let msg = "It must be a string literal. Probe attribute ignored." in
-        Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-        None
-    in
-    let open Parsetree in
-    match payload with
-    | PStr [{pstr_desc =
-               Pstr_eval ({pexp_desc =
-                             Pexp_constant (Pconst_string (name, None))},
-                          [])}] ->
-      Some name
-    | _ -> warn ()
-
 let get_inline_attribute l =
   let attr, _ = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -309,14 +286,6 @@ let get_tailcall_attribute e =
       end;
       true, { e with exp_attributes }
 
-let get_and_remove_probe_attribute e =
-  let attr, exp_attributes =
-    find_attribute is_probe_attribute e.exp_attributes
-  in
-  let probe = parse_probe_attribute attr in
-  probe, { e with exp_attributes }
-
-
 let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
   match txt with
   | "inline" | "ocaml.inline"
@@ -329,7 +298,6 @@ let check_attribute e {Parsetree.attr_name = { txt; loc }; _} =
     end
   | "inlined" | "ocaml.inlined"
   | "specialised" | "ocaml.specialised"
-  | "probe" | "ocaml.probe"
   | "tailcall" | "ocaml.tailcall" ->
       (* Removed by the Texp_apply cases *)
       Location.prerr_warning loc

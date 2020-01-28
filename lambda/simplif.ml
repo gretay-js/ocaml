@@ -47,6 +47,9 @@ let rec eliminate_ref id = function
       Lassign(id, Lprim(Poffsetint delta, [Lvar id], loc))
   | Lprim(p, el, loc) ->
       Lprim(p, List.map (eliminate_ref id) el, loc)
+  | Lprobe(name, handler, idents, loc) as lam ->
+    if List.exists (Ident.same id) idents then raise Real_reference
+    else lam
   | Lswitch(e, sw, loc) ->
       Lswitch(eliminate_ref id e,
         {sw_numconsts = sw.sw_numconsts;
