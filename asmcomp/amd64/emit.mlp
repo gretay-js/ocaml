@@ -562,6 +562,16 @@ let find_or_add_semaphore name =
     probe_semaphores := String.Map.add name lbl !probe_semaphores;
     lbl
 
+let is_stack (r : Reg.t) =
+  match r.loc with
+  | Stack _ -> true
+  | _ -> false
+
+let is_reg (r : Reg.t) =
+  match r.loc with
+  | Reg _ -> true
+  | _ -> false
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info i.dbg;
@@ -842,7 +852,8 @@ let emit_instr fallthrough i =
     (* nop: only sets flags that are not read anywhere *)
     (* size of this instruction is 5 *)
     I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax;
-    let probe_label = record_frame_label i.live false i.dbg  in
+    let stack_live = Reg.Set.filter is_stack i.live in
+    let probe_label = record_frame_label stack_live false i.dbg  in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
     I.nop ();
     let p = { probe_label;
@@ -1156,16 +1167,6 @@ let reg_size (reg : Reg.t) =
   | Float -> Arch.size_float
   | Addr | Int | Val -> Arch.size_int
 
-let is_stack (r : Reg.t) =
-  match r.loc with
-  | Stack _ -> true
-  | _ -> false
-
-let is_reg (r : Reg.t) =
-  match r.loc with
-  | Reg _ -> true
-  | _ -> false
-
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
@@ -1262,7 +1263,7 @@ let emit_probe_handler_wrapper p =
       saved_reg []
   in
   let label = new_label () in
-  record_frame_descr ~label ~frame_size:stack_ofs ~live_offset
+  record_frame_descr ~label ~frame_size:(stack_ofs+8) ~live_offset
     ~raise_frame:false p.probe_insn.dbg;
   def_label label;
 
