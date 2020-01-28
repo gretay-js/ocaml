@@ -1262,7 +1262,7 @@ let emit_probe_handler_wrapper p =
       saved_reg []
   in
   let label = new_label () in
-  record_frame_descr ~label ~frame_size:(stack_ofs+8) ~live_offset
+  record_frame_descr ~label ~frame_size:stack_ofs ~live_offset
     ~raise_frame:false p.probe_insn.dbg;
   def_label label;
 
