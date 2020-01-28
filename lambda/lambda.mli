@@ -150,6 +150,7 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
+  (* Statically-defined probes *)
   | Pprobe_is_enabled of string
 
 and integer_comparison =
@@ -319,8 +320,8 @@ and lambda_event_kind =
 and lprobe =
   { name: string;
     handler: lfunction;
-    args: Ident.t list;
-    loc:  Location.t;
+    args: lambda list;
+    loc: Location.t;
   }
 
 type program =
