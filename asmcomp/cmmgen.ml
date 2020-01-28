@@ -2178,14 +2178,6 @@ let rec transl env e =
           tag_int (Cop(Cload (Word_int, Mutable),
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
-      | (Pprobe name, args) ->
-          let args = List.map (transl env) args in
-          (match args with
-           | (Cconst_symbol (handler,dbg))::args ->
-             Cop(Cprobe {name; handler}, args, dbg)
-           | _ ->
-             fatal_error "Cmmgen.transl: probe primitive handler not symbol."
-          )
       | (Pprobe_is_enabled name, []) ->
           Cop(Cprobe_is_enabled name, [], dbg)
       | (p, [arg]) ->
