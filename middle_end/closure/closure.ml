@@ -882,6 +882,14 @@ let rec close ({ backend; fenv; cenv } as env) lam =
       make_const (transl cst)
   | Lfunction _ as funct ->
       close_one_function env (Ident.create_local "fun") funct
+  | Lprobe lp ->
+      let ((Uclosure uf) handler,_) as ucl =
+        close (Lfunction lp.handler) in
+      let p = Pprobe { name; handler = handler.label } in
+      let args = close_list_approx env lp.args in
+      let dbg = Debuginfo.from_location lp.loc in
+      let prim = simplif_prim ~backend !Clflags.float_const_prop p args dbg in
+      Usequence(ucl, prim)
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
        when fun_arity > nargs *)

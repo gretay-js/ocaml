@@ -293,6 +293,7 @@ let toplevel_substitution_named = "toplevel_substitution_named"
 let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
 let unit = "unit"
 let zero = "zero"
+let probe_handler = "probe_handler"
 
 let anon_fn_with_loc (loc: Location.t) =
   let (file, line, startchar) = Location.get_pos_info loc.loc_start in

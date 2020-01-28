@@ -206,26 +206,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            initial_value = var;
            body;
            contents_kind = block_kind })
-  | Lfunction { kind; params; body; attr; loc; } ->
-    let name = Names.anon_fn_with_loc loc in
-    let closure_bound_var = Variable.create name in
-    (* CR-soon mshinwell: some of this is now very similar to the let rec case
-       below *)
-    let set_of_closures_var = Variable.create Names.set_of_closures in
-    let set_of_closures =
-      let decl =
-        Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind
-          ~params:(List.map fst params) ~body ~attr ~loc
-      in
-      close_functions t env (Function_decls.create [decl])
-    in
-    let project_closure : Flambda.project_closure =
-      { set_of_closures = set_of_closures_var;
-        closure_id = Closure_id.wrap closure_bound_var;
-      }
-    in
-    Flambda.create_let set_of_closures_var set_of_closures
-      (name_expr (Project_closure (project_closure)) ~name)
+  | Lfunction lf ->
+    let name = Names.anon_fn_with_loc lf.loc in
+    close_lf lf name
   | Lapply { ap_func; ap_args; ap_loc; ap_should_be_tailcall = _;
         ap_inlined; ap_specialised; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
@@ -243,6 +226,38 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               inline = ap_inlined;
               specialise = ap_specialised;
             })))
+  | Lprobe lp ->
+     let name = Names.probe_handler in
+     let handler = close_lf lp.handler name in
+     let args = close_list t env lp.args in
+     let dbg = Debuginfo.from_location lp.loc in
+     Lift_code.lifting_helper args
+       ~evaluation_order:`Right_to_left
+       ~name:Names.probe_arg
+       ~create_body:(fun args ->
+         let func_var = Variable.create Names.probe_handler in
+         Flambda.create_let func_var (Expr handler)
+           name_expr (Prim (Pprobe (name,func_var), args, dbg))
+           ~name:(Names.of_primitive lambda_p)
+
+           (Apply ({
+              func = func_var;
+              args;
+              kind = Indirect;
+              dbg = Debuginfo.from_location lp.loc;
+              inline = ap_inlined;
+              specialise = ap_specialised;
+            })))
+
+
+    let p = Convert_primitives.convert lambda_p in
+    Lift_code.lifting_helper (close_list t env args)
+      ~evaluation_order:`Right_to_left
+      ~name:(Names.of_primitive_arg lambda_p)
+      ~create_body:(fun args ->
+        name_expr (Prim (p, args, dbg))
+          ~name:(Names.of_primitive lambda_p))
+
   | Lletrec (defs, body) ->
     let env =
       List.fold_right (fun (id,  _) env ->
@@ -566,6 +581,26 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
        or by completely removing it (replacing by unit). *)
     Misc.fatal_error "[Lifused] should have been removed by \
         [Simplif.simplify_lets]"
+
+and close_lf { kind; params; body; attr; loc; } name =
+  let closure_bound_var = Variable.create name in
+  (* CR-soon mshinwell: some of this is now very similar to the let rec case
+     below *)
+  let set_of_closures_var = Variable.create Names.set_of_closures in
+  let set_of_closures =
+    let decl =
+      Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind
+        ~params:(List.map fst params) ~body ~attr ~loc
+    in
+    close_functions t env (Function_decls.create [decl])
+  in
+  let project_closure : Flambda.project_closure =
+    { set_of_closures = set_of_closures_var;
+      closure_id = Closure_id.wrap closure_bound_var;
+    }
+  in
+  Flambda.create_let set_of_closures_var set_of_closures
+    (name_expr (Project_closure (project_closure)) ~name)
 
 (** Perform closure conversion on a set of function declarations, returning a
     set of closures.  (The set will often only contain a single function;

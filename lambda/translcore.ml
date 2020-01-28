@@ -575,7 +575,13 @@ and transl_exp0 e =
         params = List.map (fun v -> (v, Pgenval) ) param_idents;
         return = Pgenval;
         body;
-        attr = default_function_attribute;
+        attr = {
+          inline = Never_inline;
+          specialise = Never_specialise;
+          local = Default_local;
+          is_a_functor = false;
+          stub = false;
+        }
         loc = exp.exp_loc;
       } in
     Lprobe {

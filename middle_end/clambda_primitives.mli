@@ -118,7 +118,7 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
-  | Pprobe of string
+  | Pprobe of { name : string; handler : string }
   | Pprobe_is_enabled of string
 
 and integer_comparison = Lambda.integer_comparison =

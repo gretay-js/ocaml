@@ -200,5 +200,5 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
-  | Pprobe name -> fprintf ppf "probe[%s]" name
+  | Pprobe {name;handler} -> fprintf ppf "probe[%s %s]" name handler
   | Pprobe_is_enabled name -> fprintf ppf "probe_is_enabled[%s]" name
