@@ -635,7 +635,7 @@ let message = function
   | Probe_name_too_long name ->
     Printf.sprintf
       "Probe name is too long: %s.\n\
-       Probes names over 100 character lon might not supported in kernel mode.\n"
+       Probes names over 100 character long might not supported in kernel mode.\n"
       name
 ;;
 

@@ -321,7 +321,7 @@ and lprobe =
   { name: string;
     handler: lfunction;
     args: lambda list;
-    loc: Location.t;
+    pr_loc: Location.t;
   }
 
 type program =
