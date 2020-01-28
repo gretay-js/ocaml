@@ -142,8 +142,7 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
-  (* USDT probe *)
-  | Pprobe of string
+  (* Statically-defined probes *)
   | Pprobe_is_enabled of string
 
 and integer_comparison =
@@ -296,6 +295,7 @@ type lambda =
   | Lsend of meth_kind * lambda * lambda * lambda list * Location.t
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
+  | Lprobe of lprobe
 
 and lfunction =
   { kind: function_kind;
@@ -332,6 +332,13 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
   | Lev_module_definition of Ident.t
+
+and lprobe =
+  { name: string;
+    handler: lfunction;
+    args: lambda list;
+    loc: Location.t;
+  }
 
 type program =
   { module_ident : Ident.t;
