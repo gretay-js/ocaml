@@ -317,8 +317,8 @@ and lambda_event_kind =
 and lprobe =
   { name: string;
     handler: lfunction;
-    args: (Ident.t * value_kind) list;
-    loc:  Location.t
+    args: Ident.t list;
+    loc:  Location.t;
   }
 
 type program =

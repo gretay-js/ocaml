@@ -565,16 +565,16 @@ and transl_exp0 e =
   | Texp_probe (name, exp) ->
     let lam = transl_exp exp in
     let fv = free_variables lam in
-    (* CR: do we need to refresh them in lam? *)
+    let map = ...  fv: v -> (Ident.rename v ) in
+    let body =  Lambda.rename map lam in
     let handler = { kind = Curried;
-                    (* CR: how to find the correct type of idents? *)
-                    params = List.map (fun v -> v * Pgenval ) fv;
+                    params = List.map (fun v -> (new_v, Pgenval) ) fv;
                     return = Pgenval;
                     body = lam;
                     attr = default_function_attributes;
                     loc = exp.exp_loc;
                   } in
-    Lprobe(name, handler, fv, e.exp_loc)
+    Lprobe(name, handler, LVar fv, e.exp_loc)
   | Texp_probe_is_enabled name ->
     Lprim(Pprobe_is_enabled name, [], e.exp_loc)
 
