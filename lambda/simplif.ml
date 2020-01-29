@@ -47,8 +47,6 @@ let rec eliminate_ref id = function
       Lassign(id, Lprim(Poffsetint delta, [Lvar id], loc))
   | Lprim(p, el, loc) ->
       Lprim(p, List.map (eliminate_ref id) el, loc)
-  | Lprobe lp ->
-    Lprobe { lp with args = List.map (eliminate_ref id) lp.args }
   | Lswitch(e, sw, loc) ->
       Lswitch(eliminate_ref id e,
         {sw_numconsts = sw.sw_numconsts;
@@ -166,7 +164,6 @@ let simplify_exits lam =
   | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
   | Lifused(_v, l) -> count l
-  | Lprobe lp -> count lp.handler.body; List.iter count lp.args
 
   and count_default sw = match sw.sw_failaction with
   | None -> ()
@@ -211,9 +208,6 @@ let simplify_exits lam =
                      ap_args = List.map simplif ap.ap_args}
   | Lfunction{kind; params; return; body = l; attr; loc} ->
      Lfunction{kind; params; return; body = simplif l; attr; loc}
-  | Lprobe lp ->
-      let handler = {lp.handler with body = simplif lp.handler.body } in
-      Lprobe{lp with args = List.map simplif lp.args; handler }
   | Llet(str, kind, v, l1, l2) -> Llet(str, kind, v, simplif l1, simplif l2)
   | Lletrec(bindings, body) ->
       Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
@@ -400,9 +394,6 @@ let simplify_lets lam =
       count bv l1; List.iter (count bv) ll
   | Lfunction {body} ->
       count Ident.Map.empty body
-  | Lprobe lp ->
-      count Ident.Map.empty lp.handler.body; List.iter (count bv) lp.args
-
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       (* v will be replaced by w in l2, so each occurrence of v in l2
          increases w's refcount *)
@@ -508,9 +499,6 @@ let simplify_lets lam =
       | body ->
           Lfunction{kind; params; return = return1; body; attr; loc}
       end
-  | Lprobe lp ->
-      let handler = { lp.handler with body = simplif lp.handler.body } in
-      Lprobe {lp with args = List.map simplif lp.args; handler}
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
@@ -607,9 +595,6 @@ let rec emit_tail_infos is_tail lambda =
         Stypes.record (Stypes.An_call (ap.ap_loc, call_kind ap.ap_args))
   | Lfunction {body = lam} ->
       emit_tail_infos true lam
-  | Lprobe lp ->
-      emit_tail_infos true lp.handler.body;
-      list_emit_tail_infos false lp.args;
   | Llet (_str, _k, _, lam, body) ->
       emit_tail_infos false lam;
       emit_tail_infos is_tail body

@@ -256,7 +256,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
   | Texp_open (od, e) ->
       sub.open_declaration sub od;
       sub.expr sub e
-  | Texp_probe (_, e) -> sub.expr sub e
+  | Texp_probe {handler;_} -> sub.expr sub handler
   | Texp_probe_is_enabled _ -> ()
 
 

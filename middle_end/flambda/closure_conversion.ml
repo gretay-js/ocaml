@@ -226,37 +226,6 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               inline = ap_inlined;
               specialise = ap_specialised;
             })))
-  | Lprobe lp ->
-     let name = Names.probe_handler in
-     let handler = close_lf lp.handler name in
-     let args = close_list t env lp.args in
-     let dbg = Debuginfo.from_location lp.loc in
-     Lift_code.lifting_helper args
-       ~evaluation_order:`Right_to_left
-       ~name:Names.probe_arg
-       ~create_body:(fun args ->
-         let func_var = Variable.create Names.probe_handler in
-         Flambda.create_let func_var (Expr handler)
-           name_expr (Prim (Pprobe (name,func_var), args, dbg))
-           ~name:(Names.of_primitive lambda_p)
-
-           (Apply ({
-              func = func_var;
-              args;
-              kind = Indirect;
-              dbg = Debuginfo.from_location lp.loc;
-              inline = ap_inlined;
-              specialise = ap_specialised;
-            })))
-
-
-    let p = Convert_primitives.convert lambda_p in
-    Lift_code.lifting_helper (close_list t env args)
-      ~evaluation_order:`Right_to_left
-      ~name:(Names.of_primitive_arg lambda_p)
-      ~create_body:(fun args ->
-        name_expr (Prim (p, args, dbg))
-          ~name:(Names.of_primitive lambda_p))
 
   | Lletrec (defs, body) ->
     let env =
@@ -443,6 +412,22 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       }
     in
     close t env (Lambda.Lapply apply)
+  | Lprim (Pprobe {name}, [funct;arg], loc) ->
+    let apply : Lambda.lambda_apply =
+      { ap_func = funct;
+        ap_args = [arg];
+        ap_loc = loc;
+        ap_should_be_tailcall = false;
+        (* CR-someday lwhite: it would be nice to be able to give
+           inlined attributes to functions applied with the application
+           operators. *)
+        ap_inlined = Default_inline;
+        ap_specialised = Default_specialise;
+      }
+    in
+    close t env (Lambda.Lapply apply)
+  | Lprim (Pprobe {name}, _, loc) ->
+    Misc.fatal_error "Missing handler in probe primitive"
   | Lprim (Praise kind, [arg], loc) ->
     let arg_var = Variable.create Names.raise_arg in
     let dbg = Debuginfo.from_location loc in

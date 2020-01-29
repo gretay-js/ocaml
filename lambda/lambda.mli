@@ -151,7 +151,7 @@ type primitive =
   (* Inhibition of optimisation *)
   | Popaque
   (* Statically-defined probes *)
-  | Probe of { name: string }
+  | Pprobe of { name: string }
   | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =

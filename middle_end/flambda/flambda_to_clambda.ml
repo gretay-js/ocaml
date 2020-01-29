@@ -247,7 +247,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
         defs
     in
     Uletrec (defs, to_clambda t env body)
-  | Apply { func; args; kind = Direct direct_func; dbg = dbg } ->
+  | Apply { func; args; kind = Direct direct_func; dbg = dbg; probe } ->
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
        explicitly added (by [to_clambda_direct_apply]); there is no special
@@ -255,7 +255,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func dbg env
+    to_clambda_direct_apply t func args direct_func probe dbg env
   | Apply { func; args; kind = Indirect; dbg = dbg } ->
     let callee = subst_var env func in
     Ugeneric_apply (check_closure callee (Flambda.Expr (Var func)),
@@ -433,7 +433,7 @@ and to_clambda_switch t env cases num_keys default =
   | [| |] -> [| |], [| |]  (* May happen when [default] is [None]. *)
   | _ -> index, actions
 
-and to_clambda_direct_apply t func args direct_func dbg env : Clambda.ulambda =
+and to_clambda_direct_apply t func args direct_func probe dbg env : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label = Compilenv.function_label direct_func in
   let uargs =
@@ -443,7 +443,13 @@ and to_clambda_direct_apply t func args direct_func dbg env : Clambda.ulambda =
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  Udirect_apply (label, uargs, dbg)
+  match probe with
+  | None -> Udirect_apply (label, uargs, dbg)
+  | Some {name; arity} ->
+    if not closed then
+      Misc.fatal_errorf "Probe %: handler is not closed" name;
+    if
+    Uprim (Pprobe {name; handler_code_sym=label}, uargs, dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.

@@ -341,7 +341,8 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
-  | Pprobe_is_enabled name -> fprintf ppf "probe_is_enabled[%s]" name
+  | Pprobe {name} -> fprintf ppf "probe[%s]" name
+  | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -445,6 +446,7 @@ let name_of_primitive = function
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer -> "Pint_as_pointer"
   | Popaque -> "Popaque"
+  | Pprobe _ -> "Pprobe"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
 
 let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
@@ -497,11 +499,6 @@ let rec lam ppf = function
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
   | Lfunction lf -> lfunction ppf lf
-  | Lprobe lp ->
-      let lams ppf largs =
-        List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(probe@ %s%a%a)@]" lp.name lfunction lp.handler
-        lams lp.args
   | Llet(str, k, id, arg, body) ->
       let kind = function
           Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
