@@ -157,7 +157,7 @@ let lambda_smaller lam threshold =
     | Uconst _ -> incr size
     | Udirect_apply(_, args, None, _) ->
         size := !size + 4; lambda_list_size args
-    | Udirect_apply _ -> 0
+    | Udirect_apply _ -> ()
       (* Probes do not affect inlining decision.
          Actual cost is either 1, 5, or 6 bytes,
          depending on the kind of probes. *)
@@ -755,11 +755,13 @@ let warning_if_forced_inline ~loc ~attribute warning =
 let fail_if_probe ~probe msg =
   match probe with
   | None -> ()
-  | Some {name} -> Misc.fatal_error ("Closure.close probe %s handler: "^msg)
+  | Some {name} ->
+    Misc.fatal_error
+      (Printf.sprintf "Closure.close probe %s handler: %s" name msg)
 
 (* Generate a direct application *)
 
-let direct_apply ~backend fundesc ufunct uargs ~loc ~attribute =
+let direct_apply ~backend fundesc ufunct uargs ~probe ~loc ~attribute =
   let app_args =
     if fundesc.fun_closed then uargs else uargs @ [ufunct] in
   let app =
@@ -900,12 +902,12 @@ let rec close ({ backend; fenv; cenv } as env) lam =
          [Uprim(P.Pmakeblock _, uargs, _)])
         when List.length uargs = - fundesc.fun_arity ->
           let app =
-            direct_apply ~backend ~loc ~attribute fundesc ufunct uargs probe in
+            direct_apply ~backend ~loc ~attribute fundesc ufunct uargs ~probe in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(fundesc, approx_res)), uargs)
         when nargs = fundesc.fun_arity ->
           let app =
-            direct_apply ~backend ~loc ~attribute fundesc ufunct uargs probe in
+            direct_apply ~backend ~loc ~attribute fundesc ufunct uargs ~probe in
           (app, strengthen_approx app approx_res)
 
       | ((ufunct, (Value_closure(fundesc, _) as fapprox)), uargs)
@@ -938,7 +940,9 @@ let rec close ({ backend; fenv; cenv } as env) lam =
                              ap_func=(Lvar funct_var);
                              ap_args=internal_args;
                              ap_inlined=Default_inline;
-                             ap_specialised=Default_specialise};
+                             ap_specialised=Default_specialise;
+                             ap_probe=None;
+                            };
                loc;
                attr = default_function_attribute})
         in
@@ -961,7 +965,7 @@ let rec close ({ backend; fenv; cenv } as env) lam =
           fail_if_probe ~probe "Over-application";
           let body =
             Ugeneric_apply(direct_apply ~backend ~loc ~attribute
-                              fundesc ufunct first_args probe,
+                             fundesc ufunct first_args ~probe,
                            rem_args, dbg)
           in
           let result =
@@ -1061,7 +1065,8 @@ let rec close ({ backend; fenv; cenv } as env) lam =
                               ap_func=funct;
                               ap_args=[arg];
                               ap_inlined=Default_inline;
-                              ap_specialised=Default_specialise})
+                              ap_specialised=Default_specialise;
+                              ap_probe=None;})
   | Lprim(Pgetglobal id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       check_constant_result (getglobal dbg id)
@@ -1084,25 +1089,6 @@ let rec close ({ backend; fenv; cenv } as env) lam =
       (Uprim(P.Praise k, [ulam], dbg),
        Value_unknown)
   | Lprim (Pmakearray _, [], _loc) -> make_const_ref (Uconst_block (0, []))
-  | Lprim(Lprobe {name}, funct::args, loc) -> begin
-      match close env funct with
-      | (ufunct, Value_closure(fundesc, approx_res)) ->
-        if not (fundesc.fun_closed) then
-          Misc.fatal_error
-            "Closure.close probe %s: handler is not closed" name;
-        if not (List.length args = fundesc.fun_arity) then
-          Misc.fatal_error
-            "Closure.close probe %s: \
-             handler expects %d parameters instead of %d"
-            name fundesc.fun_arity (List.length args);
-        let p = Pprobe { name; handler_code_sym = fundesc.fun_label } in
-        let dbg = Debuginfo.from_location loc in
-        simplif_prim ~backend !Clflags.float_const_prop
-                     p (close_list_approx env args) dbg
-      | -> Misc.fatal_error
-             "Closure.close probe %s: cannot convert handler \
-              expression to a function" name
-    end
   | Lprim(p, args, loc) ->
       let p = Convert_primitives.convert p in
       let dbg = Debuginfo.from_location loc in

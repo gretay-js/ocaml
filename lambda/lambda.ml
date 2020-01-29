@@ -231,6 +231,9 @@ let equal_inline_attribute x y =
   | (Always_inline | Never_inline | Unroll _ | Default_inline), _ ->
     false
 
+type probe_desc = { name: string }
+type probe = probe_desc option
+
 type specialise_attribute =
   | Always_specialise (* [@specialise] or [@specialise always] *)
   | Never_specialise (* [@specialise never] *)
@@ -311,7 +314,7 @@ and lambda_apply =
     ap_should_be_tailcall : bool;
     ap_inlined : inline_attribute;
     ap_specialised : specialise_attribute;
-    ap_probe : {name : string} option;
+    ap_probe : probe;
   }
 
 and lambda_switch =
@@ -764,7 +767,7 @@ let shallow_map f = function
   | Lvar _
   | Lconst _ as lam -> lam
   | Lapply { ap_func; ap_args; ap_loc; ap_should_be_tailcall;
-             ap_inlined; ap_specialised } ->
+             ap_inlined; ap_specialised; ap_probe; } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
@@ -772,6 +775,7 @@ let shallow_map f = function
         ap_should_be_tailcall;
         ap_inlined;
         ap_specialised;
+        ap_probe;
       }
   | Lfunction { kind; params; return; body; attr; loc; } ->
       Lfunction { kind; params; return; body = f body; attr; loc; }

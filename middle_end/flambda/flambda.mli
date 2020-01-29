@@ -48,7 +48,7 @@ type apply = {
   specialise : Lambda.specialise_attribute;
   (** Instructions from the source code as to whether the callee should
       be specialised. *)
-  probe : {name : string} option;
+  probe : Lambda.probe;
   (** Instruction from the source as to whether the call is a probe *)
 }
 

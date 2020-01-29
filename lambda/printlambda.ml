@@ -341,7 +341,6 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
-  | Pprobe {name} -> fprintf ppf "probe[%s]" name
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
 
 let name_of_primitive = function
@@ -446,7 +445,6 @@ let name_of_primitive = function
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer -> "Pint_as_pointer"
   | Popaque -> "Popaque"
-  | Pprobe _ -> "Pprobe"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
 
 let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
@@ -486,6 +484,10 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
+let apply_probe ppf = function
+  | None -> ()
+  | Some {name} -> fprintf ppf " %s" name
+
 let rec lam ppf = function
   | Lvar id ->
       Ident.print ppf id
@@ -494,10 +496,11 @@ let rec lam ppf = function
   | Lapply ap ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a%a%a%a)@]" lam ap.ap_func lams ap.ap_args
+      fprintf ppf "@[<2>(apply@ %a%a%a%a%a%a)@]" lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_should_be_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
+        apply_probe ap.ap_probe
   | Lfunction lf -> lfunction ppf lf
   | Llet(str, k, id, arg, body) ->
       let kind = function

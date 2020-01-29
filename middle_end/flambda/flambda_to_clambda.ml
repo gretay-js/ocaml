@@ -256,7 +256,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
     to_clambda_direct_apply t func args direct_func probe dbg env
-  | Apply { func; args; kind = Indirect; None; dbg = dbg } ->
+  | Apply { func; args; kind = Indirect; probe = None; dbg = dbg } ->
     let callee = subst_var env func in
     Ugeneric_apply (check_closure callee (Flambda.Expr (Var func)),
       subst_vars env args, dbg)
@@ -446,13 +446,14 @@ and to_clambda_direct_apply t func args direct_func probe dbg env
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  match probe with
-  | None -> Udirect_apply (label, uargs, dbg)
-  | Some {name; arity} ->
+  begin match (probe : Lambda.probe) with
+  | Some ({name}) ->
     if not closed then
-      Misc.fatal_errorf "Probe %: handler is not closed" name;
-    if
-    Uprim (Pprobe {name; handler_code_sym=label}, uargs, dbg)
+      Misc.fatal_errorf "Probe %s: handler is not closed" name ();
+    ()
+  | _ -> ()
+  end;
+  Udirect_apply (label, uargs, probe, dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
