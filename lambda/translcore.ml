@@ -562,7 +562,7 @@ and transl_exp0 e =
           Llet(pure, Pgenval, oid,
                !transl_module Tcoerce_none None od.open_expr, body)
       end
-  | Texp_probe (name, exp) ->
+  | Texp_probe {name; handler=exp} ->
     let lam = transl_exp exp in
     let map = Ident.Set.fold (fun v acc ->
       Ident.Map.add v (Ident.rename v) acc)
@@ -571,7 +571,7 @@ and transl_exp0 e =
     let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
     let body = Lambda.rename map lam in
     let handler =
-      Ufunction
+      Lfunction
         { kind = Curried;
           params = List.map (fun v -> (v, Pgenval) ) param_idents;
           return = Pgenval;
@@ -585,14 +585,14 @@ and transl_exp0 e =
             stub = false;
           };
         } in
-    let funcid = Ident.create_local "probe_handler_"^ name in
+    let funcid = Ident.create_local ("probe_handler_"^ name) in
     let p = Lprim (Pprobe {name},
-                   List.map (fun id -> Lvar id) funcid::arg_idents,
+                   List.map (fun id -> Lvar id) (funcid::arg_idents),
                    e.exp_loc) in
     (* CR: pull this let to toplevel *)
     Llet(Strict, Pgenval, funcid, handler, p)
-  | Texp_probe_is_enabled name ->
-    Lprim(Pprobe_is_enabled name, [], e.exp_loc)
+  | Texp_probe_is_enabled {name} ->
+    Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
 
 and pure_module m =
   match m.mod_desc with

@@ -104,7 +104,7 @@ type error =
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
   | Probe_format
-  | Probe_name_format of name
+  | Probe_name_format of string
   | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
@@ -175,11 +175,12 @@ type recarg =
 
 let check_probe_name name loc env =
   if String.length name > 100 then
-    Location.prerr_warning name_loc (Warnings.Probe_name_too_long name);
+    Location.prerr_warning loc (Warnings.Probe_name_too_long name);
   String.iter (fun c ->
     match c with
-    | 'a'...'z' | 'A'...'Z' | '0'..'9' | '_' -> ()
-    | _ -> raise (Error (loc, env, (Probe_name_format name)));
+    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> ()
+    | _ -> raise (Error (loc, env, (Probe_name_format name)))
+  ) name
 
 let mk_expected ?explanation ty = { ty; explanation; }
 
@@ -1821,7 +1822,7 @@ let rec is_nonexpansive exp =
            is_nonexpansive_opt c_guard && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
-  | Texp_probe (_, e) -> is_nonexpansive e
+  | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple el ->
       List.for_all is_nonexpansive el
   | Texp_construct( _, _, el) ->
@@ -3452,9 +3453,9 @@ and type_expect_
                    ; _ }
                   , _)}]) ->
         let exp = type_expect env arg (mk_expected Predef.type_unit) in
-        check_probe_name name loc env;
+        check_probe_name name name_loc env;
         rue {
-          exp_desc = Texp_probe(name, exp);
+          exp_desc = Texp_probe {name; handler=exp};
           exp_loc = loc; exp_extra = [];
           exp_type = instance Predef.type_unit;
           exp_attributes = sexp.pexp_attributes;
@@ -3465,12 +3466,13 @@ and type_expect_
       begin match payload with
       | PStr ([{ pstr_desc =
                    Pstr_eval
-                     ({pexp_desc=(Pexp_constant (Pconst_string(name,None))) ;
+                     ({pexp_desc=(Pexp_constant (Pconst_string(name,None)));
+                       pexp_loc = name_loc;
                        _ } ,
                       _)}]) ->
-        check_probe_name name loc env;
+        check_probe_name name name_loc env;
         rue {
-          exp_desc = Texp_probe_is_enabled(name);
+          exp_desc = Texp_probe_is_enabled {name};
           exp_loc = loc; exp_extra = [];
           exp_type = instance Predef.type_bool;
           exp_attributes = sexp.pexp_attributes;
@@ -5254,13 +5256,18 @@ let report_error ~loc env = function
   | Not_an_extension_constructor ->
       Location.errorf ~loc
         "This constructor is not an extension constructor."
+  | Probe_name_format name ->
+      Location.errorf ~loc
+        "Illegal characters in %s. \
+         Probe name must consist of alphanumeric characters or underscores."
+        name
   | Probe_format ->
-    Location.errorf ~loc
-      "Probe should consist of a string literal name followed by a single expression\
-      of type unit."
+      Location.errorf ~loc
+        "Probe should consist of a string literal name followed by\
+         a single expression of type unit."
   | Probe_is_enabled_format ->
-    Location.errorf ~loc
-      "Extension probe_is_enabled should consist of a string literal name"
+      Location.errorf ~loc
+        "Extension probe_is_enabled should consist of a string literal name"
   | Literal_overflow ty ->
       Location.errorf ~loc
         "Integer literal exceeds the range of representable integers of type %s"

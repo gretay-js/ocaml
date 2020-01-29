@@ -820,8 +820,8 @@ let rec expression : Typedtree.expression -> term_judg =
       path pth << Dereference
     | Texp_open (od, e) ->
       open_declaration od >> expression e
-    | Texp_probe (_, e) ->
-      expression e << Dereference
+    | Texp_probe {handler} ->
+      expression handler << Dereference
     | Texp_probe_is_enabled _ -> empty
 
 and binding_op : Typedtree.binding_op -> term_judg =
