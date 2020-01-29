@@ -143,7 +143,8 @@ type primitive =
   (* Inhibition of optimisation *)
   | Popaque
   (* Statically-defined probes *)
-  | Pprobe_is_enabled of string
+  | Probe of { name: string }
+  | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -295,7 +296,6 @@ type lambda =
   | Lsend of meth_kind * lambda * lambda * lambda list * Location.t
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lprobe of lprobe
 
 and lfunction =
   { kind: function_kind;
@@ -332,13 +332,6 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
   | Lev_module_definition of Ident.t
-
-and lprobe =
-  { pr_name: string;
-    pr_handler: lfunction;
-    pr_args: lambda list;
-    pr_loc: Location.t;
-  }
 
 type program =
   { module_ident : Ident.t;
@@ -428,7 +421,6 @@ let make_key e =
         Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,Location.none)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
     | Lletrec _|Lfunction _
-    | Lprobe _
     | Lfor _ | Lwhile _
 (* Beware: (PR#6412) the event argument to Levent
    may include cyclic structure of type Type.typexpr *)
@@ -526,8 +518,6 @@ let shallow_iter ~tail ~non_tail:f = function
       tail e
   | Lifused (_v, e) ->
       tail e
-  | Lprobe lp ->
-      f lp.handler.body; List.iter f lp.args
 
 let iter_head_constructor f l =
   shallow_iter ~tail:f ~non_tail:f l
@@ -605,8 +595,6 @@ let rec free_variables = function
   | Lifused (_v, e) ->
       (* Shouldn't v be considered a free variable ? *)
       free_variables e
-  | Lprobe lp ->
-    free_variables_list Ident.Set.empty lp.args
 
 and free_variables_list set exprs =
   List.fold_left (fun set expr -> Ident.Set.union (free_variables expr) set)
@@ -753,7 +741,6 @@ let subst update_env s lam =
         in
         Levent (subst s lam, { evt with lev_env })
     | Lifused (v, e) -> Lifused (v, subst s e)
-    | Lprobe lp -> Lprobe {lp with args = subst_list s lp.args}
   and subst_list s l = List.map (subst s) l
   and subst_decl s (id, exp) = (id, subst s exp)
   and subst_case s (key, case) = (key, subst s case)
@@ -830,9 +817,6 @@ let shallow_map f = function
       Levent (f l, ev)
   | Lifused (v, e) ->
       Lifused (v, f e)
-  | Lprobe lp ->
-    Lprobe { lp with handler = { lp.handler with body = f lp.handler.body };
-                     args = List.map f lp.args; }
 
 let map f =
   let rec g lam = f (shallow_map g lam) in
