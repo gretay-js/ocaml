@@ -122,7 +122,8 @@ and apply_coercion_result loc strict funct params args cc_res =
                            ap_func=Lvar id;
                            ap_args=List.rev args;
                            ap_inlined=Default_inline;
-                           ap_specialised=Default_specialise})})
+                           ap_specialised=Default_specialise;
+                           ap_probe=None})})
 
 and wrap_id_pos_list loc id_pos_list get_field lam =
   let fv = free_variables lam in
@@ -338,7 +339,8 @@ let eval_rec_bindings bindings cont =
                   ap_func=mod_prim "init_mod";
                   ap_args=[loc; shape];
                   ap_inlined=Default_inline;
-                  ap_specialised=Default_specialise},
+                  ap_specialised=Default_specialise;
+                  ap_probe=None},
            bind_inits rem)
   and bind_strict = function
     [] ->
@@ -358,7 +360,8 @@ let eval_rec_bindings bindings cont =
                        ap_func=mod_prim "update_mod";
                        ap_args=[shape; Lvar id; rhs];
                        ap_inlined=Default_inline;
-                       ap_specialised=Default_specialise},
+                       ap_specialised=Default_specialise;
+                       ap_probe=None},
                 patch_forwards rem)
   in
     bind_inits bindings
@@ -475,7 +478,8 @@ and transl_module cc rootpath mexp =
                 ap_func=transl_module Tcoerce_none None funct;
                 ap_args=[transl_module ccarg None arg];
                 ap_inlined=inlined_attribute;
-                ap_specialised=Default_specialise})
+                ap_specialised=Default_specialise;
+                ap_probe=None})
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
@@ -1301,7 +1305,8 @@ let toploop_getvalue id =
                        Location.none);
          ap_args=[Lconst(Const_base(Const_string (toplevel_name id, None)))];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None}
 
 let toploop_setvalue id lam =
   Lapply{ap_should_be_tailcall=false;
@@ -1312,7 +1317,8 @@ let toploop_setvalue id lam =
          ap_args=[Lconst(Const_base(Const_string (toplevel_name id, None)));
                   lam];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None}
 
 let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 

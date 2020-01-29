@@ -845,7 +845,7 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
-  | Lop (Iprobe {name; handler}) ->
+  | Lop (Iprobe {name; handler_code_sym}) ->
     let w = (Printf.sprintf "probe_wrapper_%d" !probe_counter) in
     let wrap_label = Compilenv.make_symbol (Some w) in
     incr probe_counter;
@@ -859,11 +859,11 @@ let emit_instr fallthrough i =
     let p = { probe_label;
               probe_handler_wrapper_label = wrap_label;
               probe_name = name;
-              probe_handler = handler;
+              probe_handler = handler_code_sym;
               probe_insn = i;
             } in
     probes := p :: !probes
-  | Lop (Iprobe_is_enabled name) ->
+  | Lop (Iprobe_is_enabled {name}) ->
     let semaphore_label = find_or_add_semaphore name in
     add_used_symbol semaphore_label;
     I.movzx (mem64_rip WORD semaphore_label) (res i 0);

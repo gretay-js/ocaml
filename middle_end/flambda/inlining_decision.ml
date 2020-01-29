@@ -476,7 +476,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       ~(function_decl : A.function_declaration)
       ~(value_set_of_closures : A.value_set_of_closures)
       ~args ~args_approxs ~dbg ~simplify ~inline_requested
-      ~specialise_requested =
+      ~specialise_requested ~probe_requested =
   if List.length args <> List.length args_approxs then begin
     Misc.fatal_error "Inlining_decision.for_call_site: inconsistent lengths \
         of [args] and [args_approxs]"
@@ -504,6 +504,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       dbg;
       inline = inline_requested;
       specialise = specialise_requested;
+      probe = probe_requested;
     }
   in
   let original_r =

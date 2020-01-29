@@ -439,7 +439,9 @@ and transl_exp0 e =
                Lprim(Pfield 0, [transl_class_path loc e.exp_env cl], loc);
              ap_args=[lambda_unit];
              ap_inlined=Default_inline;
-             ap_specialised=Default_specialise}
+             ap_specialised=Default_specialise;
+             ap_probe=None;
+            }
   | Texp_instvar(path_self, path, _) ->
       let self = transl_value_path e.exp_loc e.exp_env path_self in
       let var = transl_value_path e.exp_loc e.exp_env path in
@@ -457,7 +459,9 @@ and transl_exp0 e =
                   ap_func=Translobj.oo_prim "copy";
                   ap_args=[self];
                   ap_inlined=Default_inline;
-                  ap_specialised=Default_specialise},
+                  ap_specialised=Default_specialise;
+                  ap_probe=None
+                 },
            List.fold_right
              (fun (path, _, expr) rem ->
                let var = transl_value_path e.exp_loc e.exp_env path in
@@ -667,7 +671,9 @@ and transl_apply ?(should_be_tailcall=false) ?(inlined = Default_inline)
                 ap_func=lexp;
                 ap_args=args;
                 ap_inlined=inlined;
-                ap_specialised=specialised;}
+                ap_specialised=specialised;
+                ap_probe=None
+               }
   in
   let rec build_apply lam args = function
       (None, optional) :: l ->
@@ -1024,7 +1030,9 @@ and transl_letop loc env let_ ands param case partial =
                     ap_func = op;
                     ap_args=[Lvar left_id; Lvar right_id];
                     ap_inlined=Default_inline;
-                    ap_specialised=Default_specialise})
+                    ap_specialised=Default_specialise;
+                    ap_probe=None;
+                   })
         in
         bind Strict left_id prev_lam (loop lam rest)
   in
@@ -1050,7 +1058,9 @@ and transl_letop loc env let_ ands param case partial =
          ap_func = op;
          ap_args=[exp; func];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None;
+        }
 
 (* Wrapper for class compilation *)
 

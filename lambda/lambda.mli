@@ -211,6 +211,9 @@ type inline_attribute =
 
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
 
+type probe_desc = { name: string }
+type probe = probe_desc option
+
 type specialise_attribute =
   | Always_specialise (* [@specialise] or [@specialise always] *)
   | Never_specialise (* [@specialise never] *)
@@ -296,7 +299,7 @@ and lambda_apply =
     ap_should_be_tailcall : bool;       (* true if [@tailcall] was specified *)
     ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)
     ap_specialised : specialise_attribute;
-    ap_probe : {name : string} option;
+    ap_probe : probe;
   }
 
 and lambda_switch =
