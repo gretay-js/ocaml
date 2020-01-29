@@ -334,9 +334,9 @@ and lambda_event_kind =
   | Lev_module_definition of Ident.t
 
 and lprobe =
-  { name: string;
-    handler: lfunction;
-    args: lambda list;
+  { pr_name: string;
+    pr_handler: lfunction;
+    pr_args: lambda list;
     pr_loc: Location.t;
   }
 

@@ -1996,6 +1996,11 @@ let rec transl env e =
       end
   | Uconst sc ->
       transl_constant Debuginfo.none sc
+  | Uprobe p ->
+      let (handler, _dbg) = transl env (Uclosure ([p.pr_handler],[])) in
+      Cop(Cprobe { name = p.pr_name; handler; },
+          List.map (transl env) p.pr_args,
+          p.pr_dbg)
   | Uclosure(fundecls, []) ->
       let sym = Compilenv.new_const_symbol() in
       Cmmgen_state.add_constant sym (Const_closure (Local, fundecls, []));
@@ -2505,7 +2510,7 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pbigstring_load _ | Pbigstring_set _ | Pprobe _ | Pprobe_is_enabled _)
+    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
         Printclambda_primitives.primitive p
@@ -2794,7 +2799,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
-  | Pprobe _ | Pprobe_is_enabled _
+  | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -2945,7 +2950,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
-  | Pprobe _ | Pprobe_is_enabled _
+  | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
