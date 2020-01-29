@@ -734,11 +734,15 @@ let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
+  Translcore.clear_probe_handlers ();
   let module_id = Ident.create_persistent module_name in
   let body, size =
     Translobj.transl_label_init
-      (fun () -> transl_struct Location.none [] cc
-                   (global_path module_id) str)
+      (fun () ->
+         let body, size =
+           transl_struct Location.none [] cc (global_path module_id) str in
+         Translcore.declare_probe_handlers body, size
+      )
   in
   { module_ident = module_id;
     main_module_block_size = size;
@@ -1253,15 +1257,20 @@ let build_ident_map restr idlist more_ids =
 let transl_store_gen module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
+  Translcore.clear_probe_handlers ();
   Translprim.clear_used_primitives ();
   let module_id = Ident.create_persistent module_name in
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
-  let f = function
-    | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
+  let f str =
+    let expr =
+      match str with
+      | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
         assert (size = 0);
         Lambda.subst (fun _ _ env -> env) !transl_store_subst (transl_exp expr)
-    | str -> transl_store_structure module_id map prims aliases str
+      | str -> transl_store_structure module_id map prims aliases str
+    in
+    Translcore.declare_probe_handlers expr
   in
   transl_store_label_init module_id size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
@@ -1419,10 +1428,14 @@ let transl_toplevel_item item =
 
 let transl_toplevel_item_and_close itm =
   close_toplevel_term
-    (transl_label_init (fun () -> transl_toplevel_item itm, ()))
+    (transl_label_init
+       (fun () ->
+          let expr = transl_toplevel_item itm
+          in Translcore.declare_probe_handlers expr, ()))
 
 let transl_toplevel_definition str =
   reset_labels ();
+  Translcore.clear_probe_handlers ();
   Translprim.clear_used_primitives ();
   make_sequence transl_toplevel_item_and_close str.str_items
 
