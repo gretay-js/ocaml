@@ -143,7 +143,6 @@ type primitive =
   (* Inhibition of optimisation *)
   | Popaque
   (* Statically-defined probes *)
-  | Pprobe of { name: string }
   | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
@@ -311,7 +310,9 @@ and lambda_apply =
     ap_loc : Location.t;
     ap_should_be_tailcall : bool;
     ap_inlined : inline_attribute;
-    ap_specialised : specialise_attribute; }
+    ap_specialised : specialise_attribute;
+    ap_probe : {name : string} option;
+  }
 
 and lambda_switch =
   { sw_numconsts: int;

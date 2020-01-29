@@ -210,7 +210,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let name = Names.anon_fn_with_loc lf.loc in
     close_lf lf name
   | Lapply { ap_func; ap_args; ap_loc; ap_should_be_tailcall = _;
-        ap_inlined; ap_specialised; } ->
+             ap_inlined; ap_specialised; ap_probe; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
       ~name:Names.apply_arg
@@ -225,6 +225,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               dbg = Debuginfo.from_location ap_loc;
               inline = ap_inlined;
               specialise = ap_specialised;
+              probe = ap_probe;
             })))
 
   | Lletrec (defs, body) ->
@@ -399,20 +400,6 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       (name_expr (Const (Const_pointer 0)) ~name:Names.unit)
   | Lprim (Pdirapply, [funct; arg], loc)
   | Lprim (Prevapply, [arg; funct], loc) ->
-    let apply : Lambda.lambda_apply =
-      { ap_func = funct;
-        ap_args = [arg];
-        ap_loc = loc;
-        ap_should_be_tailcall = false;
-        (* CR-someday lwhite: it would be nice to be able to give
-           inlined attributes to functions applied with the application
-           operators. *)
-        ap_inlined = Default_inline;
-        ap_specialised = Default_specialise;
-      }
-    in
-    close t env (Lambda.Lapply apply)
-  | Lprim (Pprobe {name}, [funct;arg], loc) ->
     let apply : Lambda.lambda_apply =
       { ap_func = funct;
         ap_args = [arg];

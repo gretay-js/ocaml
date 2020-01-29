@@ -585,12 +585,18 @@ and transl_exp0 e =
             stub = false;
           };
         } in
-    let funcid = Ident.create_local ("probe_handler_"^ name) in
-    let p = Lprim (Pprobe {name},
-                   List.map (fun id -> Lvar id) (funcid::arg_idents),
-                   e.exp_loc) in
+    let funcid = Ident.create_local ("probe_handler_" ^ name) in
+    let app = Lapply {
+      ap_func = Lvar funcid;
+      ap_args = List.map (fun id -> Lvar id) arg_idents;
+      ap_loc = e.exp_loc;
+      ap_should_be_tailcall = false;
+      ap_inlined = Never_inline;
+      ap_specialised = Never_specialise;
+      ap_probe = Some {name};
+    } in
     (* CR: pull this let to toplevel *)
-    Llet(Strict, Pgenval, funcid, handler, p)
+    Llet(Strict, Pgenval, funcid, handler, app)
   | Texp_probe_is_enabled {name} ->
     Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
 

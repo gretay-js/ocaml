@@ -33,6 +33,7 @@ type apply = {
   dbg : Debuginfo.t;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
+  probe : {name : string} option;
 }
 
 type assign = {
