@@ -41,6 +41,16 @@ let transl_object =
   ref (fun _id _s _cl -> assert false :
        Ident.t -> string list -> class_expr -> lambda)
 
+(* Probe hanlders are generated from %probe as closed functions
+   during transl_exp and immediately lifted to top level. *)
+let probe_handlers = ref []
+let clear_probe_handlers () = probe_handlers := []
+let declare_probe_handlers lam =
+  List.fold_left (fun acc (funcid, func) ->
+    Llet(Strict, Pgenval, funcid, func, acc))
+    lam
+    !probe_handlers
+
 (* Compile an exception/extension definition *)
 
 let prim_fresh_oo_id =
@@ -599,8 +609,8 @@ and transl_exp0 e =
       ap_specialised = Never_specialise;
       ap_probe = Some {name};
     } in
-    (* CR: pull this let to toplevel *)
-    Llet(Strict, Pgenval, funcid, handler, app)
+    probe_handlers := (funcid, handler)::!probe_handlers;
+    app
   | Texp_probe_is_enabled {name} ->
     Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
 
