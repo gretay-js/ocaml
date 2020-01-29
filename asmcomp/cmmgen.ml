@@ -2040,7 +2040,9 @@ let rec transl env e =
       if offset = 0
       then ptr
       else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
-  | Udirect_apply(lbl, args, dbg) ->
+  | Udirect_apply(handler_code_sym, args, Some {name}, dbg) ->
+      Cop(Cprobe {name; handler_code_sym}, List.map (transl env) args, dbg)
+  | Udirect_apply(lbl, args, None, dbg) ->
       Cop(Capply typ_val,
         Cconst_symbol (lbl, dbg) :: List.map (transl env) args,
         dbg)
@@ -2178,8 +2180,6 @@ let rec transl env e =
           tag_int (Cop(Cload (Word_int, Mutable),
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
-      | (Pprobe {name,handler_code_sym}, args) ->
-          Cop(Cprobe {name,handler_code_sym}, List.map (transl env) args, dbg)
       | (Pprobe_is_enabled {name}, []) ->
           Cop(Cprobe_is_enabled name, [], dbg)
       | (p, [arg]) ->

@@ -21,6 +21,8 @@ open Lambda
 
 type function_label = string
 
+type probe = { name: string } option
+
 type ustructured_constant =
   | Uconst_float of float
   | Uconst_int32 of int32
@@ -47,7 +49,7 @@ and uphantom_defining_expr =
 and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
-  | Udirect_apply of function_label * ulambda list * Debuginfo.t
+  | Udirect_apply of function_label * ulambda list * probe * Debuginfo.t
   | Ugeneric_apply of ulambda * ulambda list * Debuginfo.t
   | Uclosure of ufunction list * ulambda list
   | Uoffset of ulambda * int
