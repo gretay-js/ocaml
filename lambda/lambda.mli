@@ -151,7 +151,8 @@ type primitive =
   (* Inhibition of optimisation *)
   | Popaque
   (* Statically-defined probes *)
-  | Pprobe_is_enabled of string
+  | Probe of { name: string }
+  | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -278,7 +279,6 @@ type lambda =
   | Lsend of meth_kind * lambda * lambda * lambda list * Location.t
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lprobe of lprobe
 
 and lfunction =
   { kind: function_kind;
@@ -314,13 +314,6 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
   | Lev_module_definition of Ident.t
-
-and lprobe =
-  { pr_name: string;
-    pr_handler: lfunction;
-    pr_args: lambda list;
-    pr_loc: Location.t;
-  }
 
 type program =
   { module_ident : Ident.t;

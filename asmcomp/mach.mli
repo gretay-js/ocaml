@@ -80,7 +80,7 @@ type operation =
             that have been previously deemed to hold the value of that
             identifier is forgotten. *)
   | Iprobe of { name: string; handler: string; }
-  | Iprobe_is_enabled of string
+  | Iprobe_is_enabled of { name: string }
 
 type instruction =
   { desc: instruction_desc;

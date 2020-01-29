@@ -1996,11 +1996,6 @@ let rec transl env e =
       end
   | Uconst sc ->
       transl_constant Debuginfo.none sc
-  | Uprobe p ->
-      let (handler, _dbg) = transl env (Uclosure ([p.pr_handler],[])) in
-      Cop(Cprobe { name = p.pr_name; handler; },
-          List.map (transl env) p.pr_args,
-          p.pr_dbg)
   | Uclosure(fundecls, []) ->
       let sym = Compilenv.new_const_symbol() in
       Cmmgen_state.add_constant sym (Const_closure (Local, fundecls, []));
@@ -2183,7 +2178,9 @@ let rec transl env e =
           tag_int (Cop(Cload (Word_int, Mutable),
             [field_address (transl env b) dim_ofs dbg],
                        dbg)) dbg
-      | (Pprobe_is_enabled name, []) ->
+      | (Pprobe {name,handler_code_sym}, args) ->
+          Cop(Cprobe {name,handler_code_sym}, List.map (transl env) args, dbg)
+      | (Pprobe_is_enabled {name}, []) ->
           Cop(Cprobe_is_enabled name, [], dbg)
       | (p, [arg]) ->
           transl_prim_1 env p arg dbg

@@ -571,25 +571,26 @@ and transl_exp0 e =
     let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
     let body = Lambda.rename map lam in
     let handler =
-      { kind = Curried;
-        params = List.map (fun v -> (v, Pgenval) ) param_idents;
-        return = Pgenval;
-        body;
-        attr = {
-          inline = Never_inline;
-          specialise = Never_specialise;
-          local = Default_local;
-          is_a_functor = false;
-          stub = false;
-        }
-        loc = exp.exp_loc;
-      } in
-    Lprobe {
-      name;
-      handler;
-      args = List.map (fun id -> Lvar id) arg_idents;
-      pr_loc = e.exp_loc;
-    }
+      Ufunction
+        { kind = Curried;
+          params = List.map (fun v -> (v, Pgenval) ) param_idents;
+          return = Pgenval;
+          body;
+          loc = exp.exp_loc;
+          attr = {
+            inline = Never_inline;
+            specialise = Never_specialise;
+            local = Default_local;
+            is_a_functor = false;
+            stub = false;
+          };
+        } in
+    let funcid = Ident.create_local "probe_handler_"^ name in
+    let p = Lprim (Pprobe {name},
+                   List.map (fun id -> Lvar id) funcid::arg_idents,
+                   e.exp_loc) in
+    (* CR: pull this let to toplevel *)
+    Llet(Strict, Pgenval, funcid, handler, p)
   | Texp_probe_is_enabled name ->
     Lprim(Pprobe_is_enabled name, [], e.exp_loc)
 
