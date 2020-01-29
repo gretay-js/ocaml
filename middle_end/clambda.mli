@@ -61,6 +61,7 @@ and ulambda =
   | Udirect_apply of function_label * ulambda list * Debuginfo.t
   | Ugeneric_apply of ulambda * ulambda list * Debuginfo.t
   | Uclosure of ufunction list * ulambda list
+  | Uprobe of uprobe
   | Uoffset of ulambda * int
   | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
       * ulambda * ulambda
@@ -94,6 +95,13 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+}
+
+and uprobe = {
+  pr_name: string;
+  pr_handler: ufunction;
+  pr_args: ulambda list;
+  pr_dbg : Debuginfo.t;
 }
 
 and ulambda_switch =
