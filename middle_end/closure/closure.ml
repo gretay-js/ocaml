@@ -158,9 +158,8 @@ let lambda_smaller lam threshold =
     | Udirect_apply(_, args, None, _) ->
         size := !size + 4; lambda_list_size args
     | Udirect_apply _ -> ()
-      (* Probes do not affect inlining decision.
-         Actual cost is either 1, 5, or 6 bytes,
-         depending on the kind of probes. *)
+    (* Do not affect inlining decision.
+       Actual cost is either 1, 5 or 6 bytes, depending on their kind. *)
     | Ugeneric_apply(fn, args, _) ->
         size := !size + 6; lambda_size fn; lambda_list_size args
     | Uclosure _ ->
