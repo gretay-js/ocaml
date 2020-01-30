@@ -584,23 +584,23 @@ and transl_exp0 e =
       Ident.Map.empty in
     let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
     let body = Lambda.rename map lam in
-    let handler =
-      Lfunction
-        { kind = Curried;
-          params = List.map (fun v -> (v, Pgenval) ) param_idents;
-          return = Pgenval;
-          body;
-          loc = exp.exp_loc;
-          attr = {
+    let attr = {
             inline = Never_inline;
             specialise = Never_specialise;
             local = Never_local;
             is_a_functor = false;
             stub = false;
-          };
+          } in
+    let handler =
+        { kind = Curried;
+          params = List.map (fun v -> (v, Pgenval) ) param_idents;
+          return = Pgenval;
+          body;
+          loc = exp.exp_loc;
+          attr;
         } in
     let funcid = Ident.create_local ("probe_handler_" ^ name) in
-    let app = Lapply {
+    let app = {
       ap_func = Lvar funcid;
       ap_args = List.map (fun id -> Lvar id) arg_idents;
       ap_loc = e.exp_loc;
@@ -609,8 +609,17 @@ and transl_exp0 e =
       ap_specialised = Never_specialise;
       ap_probe = Some {name};
     } in
-    probe_handlers := (funcid, handler)::!probe_handlers;
-    app
+    begin match Config.flambda with
+    | true ->
+      Llet(Strict, Pgenval, funcid,
+           Lfunction { handler with params = [];
+                                    body = lam;
+                                    attr;
+                     }, Lapply {app with ap_args = []})
+    | false ->
+      probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
+      Lapply app
+    end
   | Texp_probe_is_enabled {name} ->
     Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
 
