@@ -770,7 +770,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~dbg
-                ~inline_requested ~specialise_requested
+                ~inline_requested ~specialise_requested ~probe_requested
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -796,7 +796,9 @@ and simplify_full_application env r ~function_decls ~lhs_of_application
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~dbg
-      ~inline_requested ~specialise_requested =
+      ~inline_requested ~specialise_requested
+      ~probe_requested
+  =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
   (* For simplicity, we disallow [@inline] attributes on partial
@@ -839,7 +841,7 @@ and simplify_partial_application env r ~lhs_of_application
         dbg;
         inline = Default_inline;
         specialise = Default_specialise;
-        probe = None;
+        probe = probe_requested;
       }
     in
     let closure_variable =
