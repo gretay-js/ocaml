@@ -601,7 +601,7 @@ and transl_exp0 e =
         } in
     let funcid = Ident.create_local ("probe_handler_" ^ name) in
     let app = Lapply {
-      ap_func = Lprim (Popaque, [Lvar funcid], exp.exp_loc);
+      ap_func = Lvar funcid;
       ap_args = List.map (fun id -> Lvar id) arg_idents;
       ap_loc = e.exp_loc;
       ap_should_be_tailcall = false;
