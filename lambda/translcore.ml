@@ -612,10 +612,12 @@ and transl_exp0 e =
     begin match Config.flambda with
     | true ->
       Llet(Strict, Pgenval, funcid,
-           Lfunction { handler with params = [];
-                                    body = lam;
-                                    attr;
-                     }, Lapply {app with ap_args = []})
+           Lfunction { handler with
+                       attr = {attr with specialise = Always_specialise};
+                     },
+           Lapply {app
+                   with ap_specialised = Always_specialise;
+                  })
     | false ->
       probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
       Lapply app
