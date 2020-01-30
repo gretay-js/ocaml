@@ -486,7 +486,7 @@ let apply_specialised_attribute ppf = function
 
 let apply_probe ppf = function
   | None -> ()
-  | Some {name} -> fprintf ppf " probe %s" name
+  | Some {name} -> fprintf ppf " (probe %s)" name
 
 let rec lam ppf = function
   | Lvar id ->

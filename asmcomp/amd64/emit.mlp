@@ -1167,6 +1167,43 @@ let reg_size (reg : Reg.t) =
   | Float -> Arch.size_float
   | Addr | Int | Val -> Arch.size_int
 
+
+(* Compare registers based on their locations only (not stamps). *)
+module RegLocOrder =
+  struct
+    type t = Reg.t
+    let compare s1 s2 =
+      (* Local < Incoming < Outgoing *)
+      match s1, s2 with
+      | Local n1, Local n2
+      | Incoming n1, Incoming n2
+      | Outgoing n1, Outgoing n2
+        -> n1 - n2
+      | Local _, _ -> (-1)
+      | _, Local _ -> 1
+      | Outgoing _, _ -> 1
+      | _, Outgoing _ -> (-1)
+
+    let compare l1 l2 =
+      (* Reg < Stack  < Unknown *)
+      match l1,l2 with
+      | Reg n1, Reg n2 -> n1 - n2
+      | Stack s1, Stack s2 -> compare s1 s2
+      | Unknown, _ -> 1
+      | _, Unknown -> (-1)
+      | Reg _, _ -> (-1)
+      | _,  Reg _ -> 1
+
+    let compare r1 r2 = compare r1.loc r2.loc
+  end
+
+module RegLocSet = Stdlib.Set.Make(RegLocOrder)
+module RegLocMap = Stdlib.Map.Make(RegLocOrder)
+let to_reglocset s =
+  Reg.Set.elements s |> RegLocSet.of_list
+let of_reglocset s =
+  RegLocSet.elements s |> Reg.Set.of_list
+
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
@@ -1188,32 +1225,45 @@ let emit_probe_handler_wrapper p =
                       else acc
                    ) loc_args 0 in
   Printf.printf "args_ofs = %d\n" args_ofs;
+  let ppf = Format.std_formatter in
   (* Save arguments passed in registers to the handler,
      even if they are not in the live set at the probe site,
      because it simplifies the code below
      that moves the args to the correct registers to pass to the handler.  *)
-  let dsts = Array.to_seq loc_args |> Set.of_seq in
-  let reg_args = ref Reg.Set.empty in
+  let live = to_reglocset p.probe_insn.live in
+  let dsts = Array.to_seq loc_args |> RegLocSet.of_seq in
+  let reg_args = ref RegLocSet.empty in
+  let same_loc src dst =
+    (RegLocOrder.compare src dst) = 0
+  in
   Array.iteri (fun i (src: Reg.t) ->
+    let dst = loc_args.(i) in
+    Format.fprintf ppf " src=%a -> dst=%a\n" Printmach.reg src Printmach.reg dst;
     if is_reg src &&
-       not ((loc_args.(i).loc = src.loc) ||
-            (is_stack loc_args.(i)) ||
-            (Reg.Set.mem src p.probe_insn.live) ||
-            (not (Reg.Set.mem src dsts))) then
-      reg_args := Reg.Set.add src !reg_args;)
+       RegLocSet.mem src dsts &&
+       not (is_stack dst) &&
+       not (same_loc src dst) &&
+       not (RegLocSet.mem src live)
+    then (
+      Format.fprintf ppf "add to reg_args\n";
+      reg_args := RegLocSet.add src !reg_args
+    )
+    else
+      Format.fprintf ppf "not to reg_args\n";
+  )
     p.probe_insn.arg;
   (* Calculate stack slots for all saved registers (live and args). *)
   let stack_ofs, saved_reg =
-    Reg.Set.fold (fun reg (n, saved_reg) ->
+    RegLocSet.fold (fun reg (n, saved_reg) ->
       if is_reg reg then begin
         (* manufacture stack entry for this reg *)
         let st = Reg.clone reg in
         st.loc <- Stack (Outgoing n); (* pretend, for float slot_offset *)
-        (n + (reg_size reg), Reg.Map.add reg st saved_reg)
+        (n + (reg_size reg), RegLocMap.add reg st saved_reg)
       end
       else (n, saved_reg))
-      (Reg.Set.union !reg_args p.probe_insn.live)
-      (args_ofs, Reg.Map.empty)
+      (RegLocSet.union !reg_args live)
+      (args_ofs, RegLocMap.empty)
   in
   Printf.printf "stack_ofs = %d\n" stack_ofs;
   (* Ensure stack before the call is 16 byte aligned.
@@ -1221,14 +1271,22 @@ let emit_probe_handler_wrapper p =
   let stack_ofs = if stack_ofs mod 16 = 0 then stack_ofs + 8 else stack_ofs in
   emit_stack_offset stack_ofs;
 
-  (* save all live regs. *)
-  Reg.Map.iter move saved_reg;
+  Format.fprintf ppf "live=%a\n" Printmach.regsetaddr p.probe_insn.live;
+  Format.fprintf ppf "dsts=%a\n" Printmach.regsetaddr (of_reglocset dsts);
+  Format.fprintf ppf "reg_args=%a\n" Printmach.regsetaddr (of_reglocset !reg_args);
+  Format.fprintf ppf "saved_regs=";
+  RegLocMap.iter (fun r st ->
+    Format.fprintf ppf " %a -> %a" Printmach.reg r Printmach.reg st)
+    saved_reg;
+  Format.fprintf ppf "\n";
+    (* save all live regs. *)
+  RegLocMap.iter move saved_reg;
 
   (* Pass arguments to handler *)
   (* arrange arguments passed on the stack *)
   Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
-    if is_stack dst && not (dst.loc = src.loc) then begin
+    if is_stack dst && not (same_loc dst src) then begin
       if is_stack src then begin
         (* use a temporary for this memory to memory move *)
         (* first available register is safe to use (not live here),
@@ -1244,10 +1302,15 @@ let emit_probe_handler_wrapper p =
   (* arrange arguments passed in registers *)
   Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
-    if is_reg dst && not (dst.loc = src.loc) then begin
+    if is_reg dst && not (same_loc dst src) then begin
       let src =
-        if is_reg src then Reg.Map.find src saved_reg
-        else src
+        if is_reg src then begin
+          match RegLocMap.find_opt src saved_reg with
+          | None ->
+            assert (not (RegLocSet.mem src dsts));
+            src
+          | Some s -> s
+        end else src
       in
       move src dst
     end)
@@ -1256,7 +1319,7 @@ let emit_probe_handler_wrapper p =
   emit_call p.probe_handler;
   (* record a fake frame description for the wrapper *)
   let live_offset =
-    Reg.Map.fold (fun _ st acc ->
+    RegLocMap.fold (fun _ st acc ->
       match st.loc with
       | Stack (Outgoing n) -> n :: acc
       | _ -> assert false)
@@ -1268,7 +1331,7 @@ let emit_probe_handler_wrapper p =
   def_label label;
 
   (* restore all live regs *)
-  Reg.Map.iter (fun r s -> if not (Reg.Set.mem r !reg_args) then move s r) saved_reg;
+  RegLocMap.iter (fun r s -> if not (RegLocSet.mem r !reg_args) then move s r) saved_reg;
   emit_stack_offset (-stack_ofs);
   I.ret ();
   cfi_endproc ();

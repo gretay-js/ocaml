@@ -594,7 +594,7 @@ and transl_exp0 e =
           attr = {
             inline = Never_inline;
             specialise = Never_specialise;
-            local = Default_local;
+            local = Never_local;
             is_a_functor = false;
             stub = false;
           };

@@ -2041,7 +2041,8 @@ let rec transl env e =
       then ptr
       else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
   | Udirect_apply(handler_code_sym, args, Some {name}, dbg) ->
-      Cop(Cprobe {name; handler_code_sym}, List.map (transl env) args, dbg)
+      return_unit dbg
+        (Cop(Cprobe {name; handler_code_sym}, List.map (transl env) args, dbg))
   | Udirect_apply(lbl, args, None, dbg) ->
       Cop(Capply typ_val,
         Cconst_symbol (lbl, dbg) :: List.map (transl env) args,
