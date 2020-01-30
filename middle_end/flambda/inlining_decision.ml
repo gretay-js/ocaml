@@ -304,7 +304,9 @@ let specialise env r ~lhs_of_application
       ~(value_set_of_closures : A.value_set_of_closures)
       ~args ~args_approxs ~dbg ~simplify ~original ~recursive ~self_call
       ~inlining_threshold ~fun_cost
-      ~inline_requested ~specialise_requested =
+      ~inline_requested ~specialise_requested
+      ~probe_requested
+  =
   let invariant_params = value_set_of_closures.invariant_params in
   let free_vars = value_set_of_closures.free_vars in
   let has_no_useful_approxes =
@@ -379,6 +381,7 @@ let specialise env r ~lhs_of_application
           ~args ~args_approxs
           ~invariant_params:invariant_params
           ~specialised_args:value_set_of_closures.specialised_args
+          ~probe_requested
           ~free_vars:value_set_of_closures.free_vars
           ~direct_call_surrogates:value_set_of_closures.direct_call_surrogates
           ~dbg ~simplify ~inline_requested
@@ -677,7 +680,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               ~lhs_of_application ~recursive ~closure_id_being_applied
               ~value_set_of_closures ~args ~args_approxs ~dbg ~simplify
               ~original ~inline_requested ~specialise_requested ~fun_cost
-              ~self_call ~inlining_threshold
+              ~self_call ~inlining_threshold ~probe_requested
           in
           match specialise_result with
           | Changed (res, spec_reason) ->

@@ -587,6 +587,7 @@ let inline_by_copying_function_declaration
     ~(function_decls : A.function_declarations)
     ~(lhs_of_application : Variable.t)
     ~(inline_requested : Lambda.inline_attribute)
+    ~(probe_requested: Lambda.probe)
     ~(closure_id_being_applied : Closure_id.t)
     ~(function_decl : A.function_declaration)
     ~(args : Variable.t list)
@@ -655,7 +656,7 @@ let inline_by_copying_function_declaration
       let apply : Flambda.apply =
         { func = closure_var; args; kind = Direct closure_id; dbg;
           inline = inline_requested; specialise = Default_specialise;
-          probe = None;
+          probe = probe_requested;
         }
       in
       let body =
