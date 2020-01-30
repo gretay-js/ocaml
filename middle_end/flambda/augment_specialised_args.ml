@@ -473,6 +473,8 @@ module Make (T : S) = struct
           probe = None;
         }
       in
+      if !Clflags.inlining_report then
+        Format.(fprintf std_formatter "\n!!Augment: %a\n" Flambda.print apply);
       Variable.Map.fold (fun new_inner_var definition (wrapper_body, benefit) ->
           let definition : Definition.t =
             match (definition : Definition.t) with

@@ -46,6 +46,7 @@ let inline env r ~lhs_of_application
     ~(args : Variable.t list) ~size_from_approximation ~dbg ~simplify
     ~(inline_requested : Lambda.inline_attribute)
     ~(specialise_requested : Lambda.specialise_attribute)
+    ~(probe_requested : Lambda.probe)
     ~fun_vars ~set_of_closures_origin
     ~self_call ~fun_cost ~inlining_threshold =
   let toplevel = E.at_toplevel env in
@@ -192,6 +193,7 @@ let inline env r ~lhs_of_application
       Inlining_transforms.inline_by_copying_function_body ~env
         ~r:(R.reset_benefit r) ~lhs_of_application
         ~closure_id_being_applied ~specialise_requested ~inline_requested
+        ~probe_requested
         ~function_decl ~function_body ~fun_vars ~args ~dbg ~simplify
     in
     let num_direct_applications_seen =
@@ -523,6 +525,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
         Inlining_transforms.inline_by_copying_function_body ~env
           ~r ~fun_vars ~lhs_of_application
           ~closure_id_being_applied ~specialise_requested ~inline_requested
+          ~probe_requested
           ~function_decl ~function_body ~args ~dbg ~simplify
       in
       simplify env r body
@@ -561,6 +564,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               Inlining_transforms.inline_by_copying_function_body ~env
                 ~r ~function_body ~lhs_of_application
                 ~closure_id_being_applied ~specialise_requested
+                ~probe_requested
                 ~inline_requested ~function_decl ~fun_vars ~args ~dbg ~simplify
             in
             let env = E.note_entering_inlined env in
@@ -710,7 +714,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               inline env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~value_set_of_closures
                 ~only_use_of_function ~original ~recursive
-                ~inline_requested ~specialise_requested
+                ~inline_requested ~specialise_requested ~probe_requested
                 ~fun_vars ~set_of_closures_origin ~args
                 ~size_from_approximation ~dbg ~simplify ~fun_cost ~self_call
                 ~inlining_threshold ~function_body
