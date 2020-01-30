@@ -446,13 +446,6 @@ and to_clambda_direct_apply t func args direct_func probe dbg env
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  begin match (probe : Lambda.probe) with
-  | Some ({name}) ->
-    if not closed then
-      Misc.fatal_errorf "Probe %s: handler is not closed" name ();
-    ()
-  | _ -> ()
-  end;
   Udirect_apply (label, uargs, probe, dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
