@@ -586,7 +586,7 @@ and transl_exp0 e =
     let body = Lambda.rename map lam in
     let attr = {
             inline = Never_inline;
-            specialise = Never_specialise;
+            specialise = Always_specialise;
             local = Never_local;
             is_a_functor = false;
             stub = false;
@@ -606,19 +606,20 @@ and transl_exp0 e =
       ap_loc = e.exp_loc;
       ap_should_be_tailcall = false;
       ap_inlined = Never_inline;
-      ap_specialised = Never_specialise;
+      ap_specialised = Always_specialise;
       ap_probe = Some {name};
     } in
     begin match Config.flambda with
     | true ->
       Llet(Strict, Pgenval, funcid,
-           Lfunction { handler with
-                       attr = {attr with specialise = Always_specialise};
-                     },
-           Lapply {app
-                   with ap_specialised = Always_specialise;
-                  })
+           Lfunction handler,
+           Lapply app)
     | false ->
+      (* Needs to be lifted to top level manually here,
+         because functions that contain other function declarations
+         are not inlined. For example, adding a probe into the body
+         of function foo will prevent foo from being inlined into
+         another function. *)
       probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
       Lapply app
     end
