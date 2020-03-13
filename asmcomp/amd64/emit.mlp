@@ -1341,7 +1341,10 @@ let emit_probe_notes () =
   match !probes with
   | [] -> ()
   | _ ->
-    D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ];
+    begin match system with
+    | S_macosx -> D.section ["__DATA,";"__note_stapsdt"] None ["regular"]
+    | _ -> D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
+    end;
     let stap_arg arg =
       let arg_name =
         match arg.loc with
@@ -1388,13 +1391,22 @@ let emit_probe_notes () =
         String.Set.empty
         !probes
     in
-    D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
-    D.weak "_.stapsdt.base";
-    D.hidden "_.stapsdt.base";
-    D.label "_.stapsdt.base";
-    D.space 1;
-    D.size "_.stapsdt.base" (const 1);
-    D.section [".probes"] (Some "wa") ["\"progbits\""];
+
+    if system = S_linux then begin
+        D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
+        D.weak "_.stapsdt.base";
+        D.hidden "_.stapsdt.base";
+        D.label "_.stapsdt.base";
+        D.space 1;
+        D.size "_.stapsdt.base" (const 1);
+        ()
+    end;
+
+    begin match system with
+    | S_macosx -> D.section ["__TEXT,";"__note_probes"] (Some "wa") ["regular"]
+    | _ -> D.section [".probes"] (Some "wa") ["\"progbits\""];
+    end;
+
     D.align 2;
     String.Map.iter (fun name label ->
       if not (String.Set.mem name names) then
@@ -1468,7 +1480,7 @@ let end_assembly() =
     emit_spacetime_shapes ()
   end;
 
-  emit_probe_notes ();
+  if not windows then emit_probe_notes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
