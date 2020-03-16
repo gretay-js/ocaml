@@ -1342,7 +1342,7 @@ let emit_probe_notes () =
   | [] -> ()
   | _ ->
     begin match system with
-    | S_macosx -> D.section ["__DATA,";"__note_stapsdt"] None ["regular"]
+    | S_macosx -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]
     | _ -> D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
     end;
     let stap_arg arg =
@@ -1379,7 +1379,11 @@ let emit_probe_notes () =
         D.align 4;
         def_label c;
         D.qword (ConstLabel (emit_label p.probe_label));
-        D.qword (ConstLabel "_.stapsdt.base");
+        (* CR-soon gyorsh: emit dtrace format on mac  *)
+        if (system = S_macosx) then
+          D.qword (const 0)
+        else
+          D.qword (ConstLabel "_.stapsdt.base");
         D.qword (ConstLabel semaphore_label);
         D.bytes "ocaml\000";
         D.bytes (p.probe_name ^ "\000");
@@ -1403,7 +1407,7 @@ let emit_probe_notes () =
     end;
 
     begin match system with
-    | S_macosx -> D.section ["__TEXT,";"__probes"] (Some "wa") ["regular"]
+    | S_macosx -> D.section ["__TEXT";"__probes"] None ["regular"]
     | _ -> D.section [".probes"] (Some "wa") ["\"progbits\""];
     end;
 
