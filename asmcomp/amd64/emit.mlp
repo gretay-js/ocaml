@@ -1392,7 +1392,7 @@ let emit_probe_notes () =
         !probes
     in
 
-    if system = S_linux then begin
+    if not (system = S_macosx) then begin
         D.section [".stapsdt.base"] (Some "aG") ["\"progbits\""; ".stapsdt.base"; "comdat"];
         D.weak "_.stapsdt.base";
         D.hidden "_.stapsdt.base";
@@ -1403,7 +1403,7 @@ let emit_probe_notes () =
     end;
 
     begin match system with
-    | S_macosx -> D.section ["__TEXT,";"__note_probes"] (Some "wa") ["regular"]
+    | S_macosx -> D.section ["__TEXT,";"__probes"] (Some "wa") ["regular"]
     | _ -> D.section [".probes"] (Some "wa") ["\"progbits\""];
     end;
 
