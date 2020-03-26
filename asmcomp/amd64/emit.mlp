@@ -1201,8 +1201,6 @@ module RegLocSet = Stdlib.Set.Make(RegLocOrder)
 module RegLocMap = Stdlib.Map.Make(RegLocOrder)
 let to_reglocset s =
   Reg.Set.elements s |> RegLocSet.of_list
-let of_reglocset s =
-  RegLocSet.elements s |> Reg.Set.of_list
 
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
@@ -1224,8 +1222,6 @@ let emit_probe_handler_wrapper p =
                       if is_stack r then acc + reg_size r
                       else acc
                    ) loc_args 0 in
-  Printf.printf "args_ofs = %d\n" args_ofs;
-  let ppf = Format.std_formatter in
   (* Save arguments passed in registers to the handler,
      even if they are not in the live set at the probe site,
      because it simplifies the code below
@@ -1238,19 +1234,13 @@ let emit_probe_handler_wrapper p =
   in
   Array.iteri (fun i (src: Reg.t) ->
     let dst = loc_args.(i) in
-    Format.fprintf ppf " src=%a -> dst=%a\n" Printmach.reg src Printmach.reg dst;
     if is_reg src &&
        RegLocSet.mem src dsts &&
        not (is_stack dst) &&
        not (same_loc src dst) &&
        not (RegLocSet.mem src live)
-    then (
-      Format.fprintf ppf "add to reg_args\n";
-      reg_args := RegLocSet.add src !reg_args
-    )
-    else
-      Format.fprintf ppf "not to reg_args\n";
-  )
+    then
+      reg_args := RegLocSet.add src !reg_args)
     p.probe_insn.arg;
   (* Calculate stack slots for all saved registers (live and args). *)
   let stack_ofs, saved_reg =
@@ -1265,21 +1255,11 @@ let emit_probe_handler_wrapper p =
       (RegLocSet.union !reg_args live)
       (args_ofs, RegLocMap.empty)
   in
-  Printf.printf "stack_ofs = %d\n" stack_ofs;
   (* Ensure stack before the call is 16 byte aligned.
      Stack here is 8 not 16 aligned because return address has been pushed.  *)
   let stack_ofs = if stack_ofs mod 16 = 0 then stack_ofs + 8 else stack_ofs in
   emit_stack_offset stack_ofs;
-
-  Format.fprintf ppf "live=%a\n" Printmach.regsetaddr p.probe_insn.live;
-  Format.fprintf ppf "dsts=%a\n" Printmach.regsetaddr (of_reglocset dsts);
-  Format.fprintf ppf "reg_args=%a\n" Printmach.regsetaddr (of_reglocset !reg_args);
-  Format.fprintf ppf "saved_regs=";
-  RegLocMap.iter (fun r st ->
-    Format.fprintf ppf " %a -> %a" Printmach.reg r Printmach.reg st)
-    saved_reg;
-  Format.fprintf ppf "\n";
-    (* save all live regs. *)
+  (* save all live regs. *)
   RegLocMap.iter move saved_reg;
 
   (* Pass arguments to handler *)
