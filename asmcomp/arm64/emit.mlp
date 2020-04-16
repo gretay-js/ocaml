@@ -976,10 +976,14 @@ let emit_item = function
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`
 
-let data l =
-  `	.data\n`;
+let data d =
+  begin match d.section with
+  | None -> `	.data\n`;
+  | Some s ->
+    `	.section .data.caml.{emit_string s.name}, {emit_string_literal s.flags},%progbits\n`
+  end;
   `	.align 3\n`;
-  List.iter emit_item l
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 

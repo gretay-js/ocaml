@@ -221,9 +221,19 @@ type data_item =
   | Cskip of int
   | Calign of int
 
+type section =
+  { name: string;
+    flags: string;
+  }
+
+type datadecl =
+  { section: section option;
+    items: data_item list;
+  }
+
 type phrase =
     Cfunction of fundecl
-  | Cdata of data_item list
+  | Cdata of datadecl
 
 let ccatch (i, ids, e1, e2, dbg) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg], e1)
