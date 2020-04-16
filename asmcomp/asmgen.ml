@@ -328,9 +328,9 @@ let compile_implementation_flambda ?toplevel prefixname
     ~required_globals ~ppf_dump (flambda_gen_implementation ~backend) program
 
 let linear_gen_implementation filename =
-  let open Linear_format in
-  let linear_unit_info,_ = restore filename in
-  let emit_item = function
+  let linear_unit_info,_ = Linear_format.restore filename in
+  let emit_item (i : Linear_format.linear_item_info) =
+    match i with
     | Data dl -> emit_data dl
     | Func f -> emit_fundecl f
   in

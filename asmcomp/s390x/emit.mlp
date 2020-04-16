@@ -730,10 +730,15 @@ let emit_item = function
       if n < 8 then `	.align	8\n`
                else `	.align	{emit_int n}\n`
 
-let data l =
+let data d =
+  begin match d.section with
+  | None -> ()
+  | Some s ->
+    Misc.fatal_errorf "Cannot emit named data section %s %s" s.name s.flags
+  end;
   emit_string data_space;
   `	.align	8\n`;
-  List.iter emit_item l
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 

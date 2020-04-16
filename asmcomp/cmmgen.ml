@@ -958,6 +958,8 @@ let transl_float_comparison cmp = cmp
 
 (* Translate structured constants to Cmm data items *)
 
+let cdata items = Cdata { section = None; items; }
+
 let transl_constant dbg = function
   | Uconst_int n ->
       int_const dbg n
@@ -3340,7 +3342,7 @@ let transl_clambda_constants (constants : Clambda.preallocated_constant list)
   let c = ref cont in
   let emit_clambda_constant symbol global cst =
      let cst = emit_structured_constant (symbol, global) cst [] in
-     c := (Cdata cst) :: !c
+     c := (cdata cst) :: !c
   in
   List.iter
     (fun { symbol; exported; definition = cst; provenance = _; } ->
@@ -3359,11 +3361,11 @@ let emit_cmm_data_items_for_constants cont =
           let cmm =
             emit_constant_closure (symbol, global) fundecls clos_vars []
           in
-          c := (Cdata cmm) :: !c
+          c := (cdata cmm) :: !c
       | Const_table (global, elems) ->
-          c := (Cdata (emit_constant_table (symbol, global) elems)) :: !c)
+          c := (cdata (emit_constant_table (symbol, global) elems)) :: !c)
     (Cmmgen_state.constants ());
-  Cdata (Cmmgen_state.data_items ()) :: !c
+  cdata (Cmmgen_state.data_items ()) :: !c
 
 let transl_all_functions ~ppf_dump cont =
   let rec aux already_translated cont translated_functions =
@@ -3390,7 +3392,7 @@ let transl_all_functions ~ppf_dump cont =
 
 let emit_gc_roots_table ~symbols cont =
   let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
-  Cdata(Cglobal_symbol table_symbol ::
+  cdata(Cglobal_symbol table_symbol ::
         Cdefine_symbol table_symbol ::
         List.map (fun s -> Csymbol_address s) symbols @
         [Cint 0n])
@@ -3423,7 +3425,7 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
     else
       Cdefine_symbol symbol :: space
   in
-  Cdata data :: cont
+  cdata data :: cont
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =
@@ -3869,17 +3871,17 @@ let global_table namelist =
   let mksym name =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
   in
-  Cdata(Cglobal_symbol "caml_globals" ::
+  cdata(Cglobal_symbol "caml_globals" ::
         Cdefine_symbol "caml_globals" ::
         List.map mksym namelist @
         [cint_zero])
 
 let reference_symbols namelist =
   let mksym name = Csymbol_address name in
-  Cdata(List.map mksym namelist)
+  cdata(List.map mksym namelist)
 
 let global_data name v =
-  Cdata(emit_structured_constant (name, Global)
+  cdata(emit_structured_constant (name, Global)
           (Uconst_string (Marshal.to_string v [])) [])
 
 let globals_map v = global_data "caml_globals_map" v
@@ -3890,7 +3892,7 @@ let frame_table namelist =
   let mksym name =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
   in
-  Cdata(Cglobal_symbol "caml_frametable" ::
+  cdata(Cglobal_symbol "caml_frametable" ::
         Cdefine_symbol "caml_frametable" ::
         List.map mksym namelist
         @ [cint_zero])
@@ -3902,7 +3904,7 @@ let spacetime_shapes namelist =
     Csymbol_address (
       Compilenv.make_symbol ~unitname:name (Some "spacetime_shapes"))
   in
-  Cdata(Cglobal_symbol "caml_spacetime_shapes" ::
+  cdata(Cglobal_symbol "caml_spacetime_shapes" ::
         Cdefine_symbol "caml_spacetime_shapes" ::
         List.map mksym namelist
         @ [cint_zero])
@@ -3915,7 +3917,7 @@ let segment_table namelist symbol begname endname =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname)) ::
     lst
   in
-  Cdata(Cglobal_symbol symbol ::
+  cdata(Cglobal_symbol symbol ::
         Cdefine_symbol symbol ::
         List.fold_right addsyms namelist [cint_zero])
 
@@ -3942,7 +3944,7 @@ let predef_exception i name =
       :: data_items
   in
   let data_items = emit_block exn_sym Global (block_header tag size) fields in
-  Cdata data_items
+  cdata data_items
 
 (* Header for a plugin *)
 

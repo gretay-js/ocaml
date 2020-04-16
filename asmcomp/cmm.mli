@@ -211,9 +211,19 @@ type data_item =
   | Cskip of int
   | Calign of int
 
+type section =
+  { name: string;
+    flags: string;
+  }
+
+type datadecl =
+  { section: section option;
+    items: data_item list;
+  }
+
 type phrase =
     Cfunction of fundecl
-  | Cdata of data_item list
+  | Cdata of datadecl
 
 val ccatch :
      int * (Backend_var.With_provenance.t * machtype) list

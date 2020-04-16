@@ -998,10 +998,17 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data l =
-  D.data ();
+let data d =
+  begin match d.section with
+  | None -> D.data ();
+  | Some s ->
+    begin match system with
+    | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
+    | _ -> D.section [ ".data.caml."^s.name ] (Some s.flags) ["@progbits"]
+    end;
+  end;
   D.align 8;
-  List.iter emit_item l
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 
@@ -1151,7 +1158,7 @@ let end_assembly() =
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
-    D.section [".note.GNU-stack"] (Some "") [ "%progbits" ];
+    D.section [".note.GNU-stack"] (Some "") [ "@progbits" ];
 
   if system = S_win64 then begin
     D.comment "External functions";
