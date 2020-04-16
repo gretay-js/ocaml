@@ -286,10 +286,21 @@ let data_item ppf = function
   | Cskip n -> fprintf ppf "skip %i" n
   | Calign n -> fprintf ppf "align %i" n
 
-let data ppf dl =
-  let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) dl in
-  fprintf ppf "@[<hv 1>(data%t)@]" items
+let data ppf d =
+  let s =
+    match d.section with
+    | None -> ""
+    | Some s -> sprintf " (section %s %s %s)" s.name
+                  (match s.flags with
+                   | Default -> "default"
+                   | Custom s -> s)
+                  (match s.args with
+                   | Default_args -> "default"
+                   | Custom_args sl -> String.concat "," sl)
+  in
+  let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) d.items in
+  fprintf ppf "@[<hv 1>(data%s%t)@]" s items
 
 let phrase ppf = function
   | Cfunction f -> fundecl ppf f
-  | Cdata dl -> data ppf dl
+  | Cdata d -> data ppf d

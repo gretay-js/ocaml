@@ -272,3 +272,47 @@ AC_DEFUN([OCAML_CHECK_LIBUNWIND], [
   LDFLAGS="$SAVED_LDFLAGS"
   CFLAGS="$SAVED_CFLAGS"
 ])
+
+AC_DEFUN([OCAML_CC_SECTION_LINK_ORDER], [
+  AC_MSG_CHECKING([whether the assembler and linker support SHF_LINK_ORDER])
+  OCAML_CC_SAVE_VARIABLES
+
+  CFLAGS="-Wl,--gc-sections -Wl,--no-export-dynamic -o conftest.$ac_objext"
+  # Modify C-compiler variables to use the assembler
+  ac_ext="S"
+  ac_compile='$CC $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+
+  AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([
+    .global main
+main:
+        call camlT__foo
+
+        .section .text.camlT__foo
+        .global camlT__foo
+camlT__foo:
+        nop
+
+        .section .text.camlT__bar
+        .global camlT__bar
+camlT__bar:
+        nop
+
+        .section .frametable.foo,"ao",@progbits,.text.camlT__foo
+        .global camlT__frametable_foo
+camlT__frametable_foo:
+        .word 0
+
+        .section .frametable.bar,"ao",@progbits,.text.camlT__bar
+        .global camlT__frametable_bar
+camlT__frametable_bar:
+        .word 0
+    ])],
+    [AC_DEFINE([FRAMETABLE_SECTIONS])
+    frametable_sections=true
+    AC_MSG_RESULT([yes])],
+    [frametable_sections=false
+    AC_MSG_RESULT([no])])
+
+  OCAML_CC_RESTORE_VARIABLES
+])

@@ -32,7 +32,7 @@ module Int = struct
   let rec zero_to_n n =
     if n < 0 then Set.empty else Set.add n (zero_to_n (n-1))
 
-  let to_string n = Int.to_string n
+  let to_string = Int.to_string
 end
 
 module Int8 = struct

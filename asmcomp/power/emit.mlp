@@ -1152,10 +1152,15 @@ let emit_item = function
   | Calign n ->
       `	.align	{emit_int (Misc.log2 n)}\n`
 
-let data l =
+let data d =
+  begin match d.section with
+  | None -> ()
+  | Some s ->
+    Misc.fatal_errorf "Cannot emit named data section %s %s" s.name s.flags
+  end;
   emit_string data_space;
   `	.align  {emit_int (if ppc64 then 3 else 2)}\n`;
-  List.iter emit_item l
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 
@@ -1210,6 +1215,8 @@ let end_assembly() =
       efa_data_label =
          (fun l -> `	{emit_string datag}	{emit_label l}\n`);
       efa_8 = (fun n -> `	.byte	{emit_int n}\n`);
+      efa_named_section = (fun _ -> ());
+      efa_named_section_dbg = (fun _ -> ());
       efa_16 = (fun n -> `	.short	{emit_int n}\n`);
       efa_32 = (fun n -> `	.long	{emit_int32 n}\n`);
       efa_word = (fun n -> `	{emit_string datag}	{emit_int n}\n`);

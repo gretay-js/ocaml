@@ -211,9 +211,23 @@ type data_item =
   | Cskip of int
   | Calign of int
 
+type section_flags = Default | Custom of string
+type section_args = Default_args | Custom_args of string list
+
+type section =
+  { name: string;
+    flags: section_flags;
+    args: section_args;
+  }
+
+type datadecl =
+  { section: section option;
+    items: data_item list;
+  }
+
 type phrase =
     Cfunction of fundecl
-  | Cdata of data_item list
+  | Cdata of datadecl
 
 val ccatch :
      int * (Backend_var.With_provenance.t * machtype) list

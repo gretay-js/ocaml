@@ -175,6 +175,8 @@ let rec expr_size env = function
 
 (* Translate structured constants to Cmm data items *)
 
+let cdata items = Cdata { section = None; items; }
+
 let transl_constant dbg = function
   | Uconst_int n ->
       int_const dbg n
@@ -1413,7 +1415,7 @@ let transl_clambda_constants (constants : Clambda.preallocated_constant list)
   let c = ref cont in
   let emit_clambda_constant symbol global cst =
      let cst = emit_structured_constant (symbol, global) cst [] in
-     c := (Cdata cst) :: !c
+     c := (cdata cst) :: !c
   in
   List.iter
     (fun { symbol; exported; definition = cst; provenance = _; } ->
@@ -1433,11 +1435,11 @@ let emit_cmm_data_items_for_constants cont =
             emit_constant_closure (symbol, global) fundecls
               (List.fold_right emit_constant clos_vars []) []
           in
-          c := (Cdata cmm) :: !c
+          c := (cdata cmm) :: !c
       | Const_table (global, elems) ->
-          c := (Cdata (emit_constant_table (symbol, global) elems)) :: !c)
+          c := (cdata (emit_constant_table (symbol, global) elems)) :: !c)
     (Cmmgen_state.get_and_clear_constants ());
-  Cdata (Cmmgen_state.get_and_clear_data_items ()) :: !c
+  cdata (Cmmgen_state.get_and_clear_data_items ()) :: !c
 
 let transl_all_functions cont =
   let rec aux already_translated cont translated_functions =
@@ -1459,6 +1461,58 @@ let transl_all_functions cont =
            Debuginfo.compare dbg1 dbg2) translated_functions)
   in
   translated_functions @ cont
+
+(* Build the NULL terminated array of gc roots *)
+
+let emit_gc_roots_table ~symbols cont =
+  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+  cdata(Cglobal_symbol table_symbol ::
+        Cdefine_symbol table_symbol ::
+        List.map (fun s -> Csymbol_address s) symbols @
+        [Cint 0n])
+  :: cont
+
+(* Build preallocated blocks (used for Flambda [Initialize_symbol]
+   constructs, and Clambda global module) *)
+
+let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
+  let space =
+    (* These words will be registered as roots and as such must contain
+       valid values, in case we are in no-naked-pointers mode.  Likewise
+       the block header must be black, below (see [caml_darken]), since
+       the overall record may be referenced. *)
+    List.map (fun field ->
+        match field with
+        | None ->
+            Cint (Nativeint.of_int 1 (* Val_unit *))
+        | Some (Uconst_field_int n) ->
+            cint_const n
+        | Some (Uconst_field_ref label) ->
+            Csymbol_address label)
+      fields
+  in
+  let data =
+    Cint(black_block_header tag (List.length fields)) ::
+    if exported then
+      Cglobal_symbol symbol ::
+      Cdefine_symbol symbol :: space
+    else
+      Cdefine_symbol symbol :: space
+  in
+  let section =
+    if !Clflags.data_sections then
+      Some { name = symbol; flags = Default; args = Default_args }
+    else None
+  in
+  Cdata { section; items=data } :: cont
+
+let emit_preallocated_blocks preallocated_blocks cont =
+  let symbols =
+    List.map (fun ({ Clambda.symbol }:Clambda.preallocated_block) -> symbol)
+      preallocated_blocks
+  in
+  let c1 = emit_gc_roots_table ~symbols cont in
+  List.fold_left preallocate_block c1 preallocated_blocks
 
 (* Translate a compilation unit *)
 

@@ -179,9 +179,15 @@ flags := -g -nostdlib $(include_directories) \
   -strict-sequence -safe-string -strict-formats \
   -w +a-4-9-41-42-44-45-48 -warn-error A
 
-ocamlc := $(BEST_OCAMLC) $(flags)
+optflags = -function-sections -data-sections -frametable-sections
 
-ocamlopt :=  $(BEST_OCAMLOPT) $(flags)
+OPTLINKFLAGS = -cclib -Wl,--default-script=$(ROOTDIR)/linker-script
+OPTLINKFLAGS += -cclib -Wl,--gc-sections
+OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
+OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
+
+ocamlc := $(BEST_OCAMLC) $(flags)
+ocamlopt :=  $(BEST_OCAMLOPT) $(flags) $(optflags)
 
 ocamldep := $(BEST_OCAMLDEP)
 depflags := -slash
@@ -209,7 +215,7 @@ ocamltest$(EXE): $(bytecode_modules)
 	$(ocamlc) -c $<
 
 ocamltest.opt$(EXE): $(native_modules)
-	$(ocamlopt_cmd) ocamlcommon.cmxa ocamlbytecomp.cmxa -o $@ $^
+	$(ocamlopt_cmd) ocamlcommon.cmxa ocamlbytecomp.cmxa $(OPTLINKFLAGS) -o $@ $^
 
 %.cmx: %.ml
 	$(ocamlopt) -c $<
@@ -259,6 +265,8 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	  -e 's|@@CCOMPTYPE@@|$(CCOMPTYPE)|' \
 	  -e 's|@@WINDOWS_UNICODE@@|$(WINDOWS_UNICODE)|' \
 	  -e 's|@@FUNCTION_SECTIONS@@|$(FUNCTION_SECTIONS)|' \
+	  -e 's|@@DATA_SECTIONS@@|$(DATA_SECTIONS)|' \
+	  -e 's|@@FRAMETABLE_SECTIONS@@|$(FRAMETABLE_SECTIONS)|' \
 	  -e 's|@@PROBES@@|$(PROBES)|' \
 	  $< > $@
 

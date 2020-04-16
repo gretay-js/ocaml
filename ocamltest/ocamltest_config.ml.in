@@ -80,5 +80,7 @@ let nativecc_libs = "@@NATIVECCLIBS@@"
 let windows_unicode = @@WINDOWS_UNICODE@@ != 0
 
 let function_sections = @@FUNCTION_SECTIONS@@
+let data_sections = @@DATA_SECTIONS@@
+let frametable_sections = @@FRAMETABLE_SECTIONS@@
 
 let probes = @@PROBES@@

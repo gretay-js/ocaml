@@ -67,6 +67,9 @@ let emit_debug_info dbg =
 
 let fp = Config.with_frame_pointers
 
+(* Name of current function *)
+let function_name = ref ""
+
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
@@ -268,8 +271,10 @@ let addressing addr typ i n =
   | Iindexed2scaled(scale, d) ->
       mem64 typ ~scale ~base:(arg64 i n) d (arg64 i (n+1))
 
+
 (* Record live pointers at call points -- see Emitaux *)
 
+let lbl2names = Hashtbl.create 16
 let record_frame_label ?label live dbg =
   let lbl =
     match label with
@@ -290,6 +295,10 @@ let record_frame_label ?label live dbg =
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
     ~live_offset:!live_offset dbg;
+  if !Clflags.frametable_sections then begin
+    assert (not (Hashtbl.mem lbl2names lbl));
+    Hashtbl.add lbl2names lbl !function_name
+  end;
   lbl
 
 let record_frame ?label live dbg =
@@ -540,6 +549,7 @@ let move_allowing_stack_to_stack src dst =
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
+let text_section_name s = ".text.caml."^(emit_symbol s)
 let emit_named_text_section func_name =
   if !Clflags.function_sections then
     begin match system with
@@ -551,14 +561,12 @@ let emit_named_text_section func_name =
        systems does not support function sections. *)
       ->  assert false
     | _ -> D.section
-             [ ".text.caml."^(emit_symbol func_name) ]
+             [ text_section_name func_name]
              (Some "ax")
              ["@progbits"]
     end
   else D.text ()
 
-(* Name of current function *)
-let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
 
@@ -1135,6 +1143,88 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
+(* CR gyorsh: update cmmgen to pass symbol name for section name *)
+let data_section_counter = ref 0 (* unique names for data sections *)
+
+let data_section_name name = ".data.caml."^(emit_symbol name)
+let emit_named_data_section_aux ~name ~flags ~args =
+  match system with
+  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
+  | _ ->
+    let args = match args with
+      | Default_args -> ["@progbits"]
+      | Custom_args args -> args
+    in
+    let flags = match flags with
+      | Default -> (Some "wa")
+      | Custom flags -> (Some flags)
+    in
+    D.section [ data_section_name name ] flags args
+
+let emit_named_data_section name =
+  if !Clflags.data_sections then begin
+    let name = Compilenv.make_symbol (Some name) in
+    emit_named_data_section_aux ~name ~flags:Default ~args:Default_args
+  end else begin
+    D.data ()
+  end
+
+let emit_data_section section =
+  match section with
+  | None ->
+    if !Clflags.data_sections then begin
+      let name = Int.to_string !data_section_counter in
+      incr data_section_counter;
+      emit_named_data_section name
+    end else begin
+      D.data ()
+    end
+  | Some {name; flags; args} -> emit_named_data_section_aux ~name ~flags ~args
+
+(* Emission of frametable and gc_root sections *)
+
+let emit_ordered_section ~prefix ~name ~link =
+  assert Config.frametable_sections;
+  assert !Clflags.function_sections;
+  assert !Clflags.data_sections;
+  match system with
+  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
+  | _ ->
+    let sec = Printf.sprintf ".caml.%s.%s" (prefix) (emit_symbol name) in
+    D.section [sec] (Some "ao") ["@progbits"; link]
+
+let emit_gc_roots_section name =
+  emit_ordered_section ~prefix:"gc_roots" ~name ~link:(data_section_name name)
+
+let emit_frametable_section name =
+  emit_ordered_section ~prefix:"frametable" ~name ~link:(text_section_name name)
+
+let emit_frametable_section_begin () =
+  if !Clflags.frametable_sections then begin
+    let name = Compilenv.make_symbol (Some "code_begin") in
+    emit_frametable_section name
+  end else
+    D.data()
+
+let emit_frametable_section_end () =
+  if !Clflags.frametable_sections then begin
+    let name = Compilenv.make_symbol (Some "code_end") in
+    emit_frametable_section name;
+    D.qword (const 0)
+  end
+
+let emit_frametable_section_item i =
+  if !Clflags.frametable_sections then begin
+    let name = Hashtbl.find lbl2names i in
+    emit_frametable_section name
+  end
+
+let emit_frametable_section_dbg i =
+  if !Clflags.frametable_sections then begin
+    let name = "dbg"^(Int.to_string i) in
+    emit_named_data_section name;
+  end
+
 let emit_item = function
   | Cglobal_symbol s -> D.global (emit_symbol s)
   | Cdefine_symbol s -> add_def_symbol s; _label (emit_symbol s)
@@ -1149,10 +1239,42 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data l =
-  D.data ();
+let data_aux d =
+  emit_data_section d.section;
   D.align 8;
-  List.iter emit_item l
+  List.iter emit_item d.items
+
+let data d =
+  if !Clflags.frametable_sections then begin
+    (* Detect gc_roots table and emit it using ordered sections,
+       similarly to frametables. Requires -nodynlink for safety,
+       because this doesn't change caml_globals_map, only caml_globals. *)
+    (* CR gyorsh: handle this gracefully in Cmmgen.emit_gc_roots_table. *)
+    let sym = Compilenv.make_symbol (Some "gc_roots") in
+    match d.items with
+    | ((Cglobal_symbol s1) as g)::((Cdefine_symbol s2) as d)::items
+      when String.equal s1 s2 && String.equal s1 sym ->
+      emit_gc_roots_section (Compilenv.make_symbol (Some "data_begin"));
+      D.align 8;
+      emit_item g;
+      emit_item d;
+      let rec emit_gc_roots = function
+        | [] -> assert false
+        | [(Cint 0n) as last] ->
+          emit_gc_roots_section (Compilenv.make_symbol (Some "data_end"));
+          emit_item last
+        | [_] -> assert false
+        | ((Csymbol_address s) as i)::tl ->
+          emit_gc_roots_section s;
+          emit_item i;
+          emit_gc_roots tl
+        | _ -> assert false
+      in
+      emit_gc_roots items
+    | _ -> data_aux d
+  end else begin
+    data_aux d
+  end
 
 (* Beginning / end of an assembly file *)
 
@@ -1164,6 +1286,8 @@ let begin_assembly() =
   float_constants := [];
   all_functions := [];
   used_labels := Int.Set.empty;
+  data_section_counter := 0;
+  Hashtbl.reset lbl2names;
   if system = S_win64 then begin
     D.extrn "caml_call_gc" NEAR;
     D.extrn "caml_c_call" NEAR;
@@ -1194,7 +1318,7 @@ let begin_assembly() =
     D.qword (Const 0xFFFFFFFFFFFFFFFFL);
   end;
 
-  D.data ();
+  emit_named_data_section "data_begin";
   emit_global_label "data_begin";
 
   emit_named_text_section (Compilenv.make_symbol (Some "code_begin"));
@@ -1518,17 +1642,19 @@ let end_assembly() =
 
   emit_imp_table();
 
-  D.data ();
+  emit_named_data_section "data_end";
   D.qword (const 0);  (* PR#6329 *)
   emit_global_label "data_end";
   D.qword (const 0);
 
+  emit_frametable_section_begin ();
   D.align 8;                            (* PR#7591 *)
   emit_global_label "frametable";
 
   let setcnt = ref 0 in
   emit_frames
     { efa_code_label = (fun l -> D.qword (ConstLabel (emit_label l)));
+      efa_named_section = emit_frametable_section_item;
       efa_data_label = (fun l -> D.qword (ConstLabel (emit_label l)));
       efa_8 = (fun n -> D.byte (const n));
       efa_16 = (fun n -> D.word (const n));
@@ -1550,10 +1676,14 @@ let end_assembly() =
            end else
              D.long c
         );
-      efa_def_label = (fun l -> _label (emit_label l));
+      efa_named_section_dbg = emit_frametable_section_dbg;
+      efa_def_label = (fun l ->
+        D.align Arch.size_addr;
+        _label (emit_label l));
       efa_string = (fun s -> D.bytes (s ^ "\000"))
     };
 
+  emit_frametable_section_end ();
   if system = S_linux then begin
     let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
@@ -1567,7 +1697,7 @@ let end_assembly() =
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
-    D.section [".note.GNU-stack"] (Some "") [ "%progbits" ];
+    D.section [".note.GNU-stack"] (Some "") [ "@progbits" ];
 
   if system = S_win64 then begin
     D.comment "External functions";

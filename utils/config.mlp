@@ -80,8 +80,11 @@ let supports_shared_libraries = %%SUPPORTS_SHARED_LIBRARIES%%
 
 let flat_float_array = %%FLAT_FLOAT_ARRAY%%
 
+(* CR gyorsh: add separate -enable-data-sections option to configure? *)
 let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
+let data_sections = %%DATA_SECTIONS%%
+let frametable_sections = %%FRAMETABLE_SECTIONS%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
 let exec_magic_number = "Caml1999X027"
@@ -199,6 +202,8 @@ let configuration_variables =
   p_bool "default_safe_string" default_safe_string;
   p_bool "flat_float_array" flat_float_array;
   p_bool "function_sections" function_sections;
+  p_bool "data_sections" data_sections;
+  p_bool "frametable_sections" frametable_sections;
   p_bool "afl_instrument" afl_instrument;
   p_bool "windows_unicode" windows_unicode;
   p_bool "supports_shared_libraries" supports_shared_libraries;

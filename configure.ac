@@ -160,6 +160,8 @@ AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
 AC_SUBST([function_sections])
 AC_SUBST([probes])
+AC_SUBST([data_sections])
+AC_SUBST([frametable_sections])
 AC_SUBST([afl])
 AC_SUBST([force_safe_string])
 AC_SUBST([default_safe_string])
@@ -380,6 +382,12 @@ AC_ARG_ENABLE([function-sections],
     [do not emit each function in a separate section])],
   [],
   [enable_function_sections=auto])
+
+AC_ARG_ENABLE([data-sections],
+  [AS_HELP_STRING([--disable-data-sections],
+    [do not emit each data item in a separate section])],
+  [],
+  [enable_data_sections=auto])
 
 AC_ARG_WITH([afl],
   [AS_HELP_STRING([--with-afl],
@@ -1714,6 +1722,7 @@ AS_IF([test x"$enable_function_sections" = "xno"],
             [gcc-*|clang-*],
               [function_sections=true;
               internal_cflags="$internal_cflags -ffunction-sections";
+              internal_cppflags="$internal_cppflags -ffunction-sections";
               AC_DEFINE([FUNCTION_SECTIONS])],
             [*],
               [function_sections=false;
@@ -1724,6 +1733,44 @@ AS_IF([test x"$enable_function_sections" = "xno"],
     [AS_IF([test x"$enable_function_sections" = "xyes"],
       [AC_MSG_ERROR([Function sections are not supported.])],
       [AC_MSG_NOTICE([Disabling function sections.])])],
+    [])])
+
+AS_IF([test x"$enable_data_sections" = "xno"],
+  [data_sections=false;
+   frametable_sections=false
+  ],
+  [AS_CASE([$arch],
+    [amd64|i386|arm|arm64],
+     [AS_CASE([$target],
+        [*-cygwin*|*-mingw*|*-windows|*-apple-darwin*],
+          [data_sections=false;
+           AC_MSG_NOTICE([No support for data sections on $target.])],
+        [*],
+          [AS_CASE([$ocaml_cv_cc_vendor],
+            [gcc-[0123]-*|gcc-4-[01234567]],
+              [data_sections=false;
+              AC_MSG_NOTICE([Data sections are not
+              supported in GCC prior to version 4.8.])],
+            [clang-[012]-*|clang-3-[01234]],
+              [data_sections=false;
+              AC_MSG_NOTICE([Data sections are not supported
+              in Clang prior to version 3.5.])],
+            [gcc-*|clang-*],
+              [data_sections=true;
+              internal_cflags="$internal_cflags -fdata-sections";
+              internal_cppflags="$internal_cppflags -fdata-sections";
+              AC_DEFINE([DATA_SECTIONS])
+              OCAML_CC_SECTION_LINK_ORDER],
+            [*],
+              [data_sections=false;
+              AC_MSG_NOTICE([Data sections are not supported by
+              $ocaml_cv_cc_vendor.])])])],
+    [data_sections=false]);
+  AS_IF([test x"$data_sections" = "xfalse"],
+    [frametable_sections=false;
+     AS_IF([test x"$enable_data_sections" = "xyes"],
+       [AC_MSG_ERROR([Data sections are not supported.])],
+       [AC_MSG_NOTICE([Disabling data sections.])])],
     [])])
 
 AS_CASE([$arch],

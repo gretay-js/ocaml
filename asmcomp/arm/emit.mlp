@@ -1008,9 +1008,13 @@ let emit_item = function
   | Cskip n -> if n > 0 then `	.space	{emit_int n}\n`
   | Calign n -> `	.align	{emit_int(Misc.log2 n)}\n`
 
-let data l =
-  `	.data\n`;
-  List.iter emit_item l
+let data d =
+  begin match d.section with
+  | None -> `	.data\n`;
+  | Some s ->
+    `	.section .data.caml.{emit_string s.name}, {emit_string_literal s.flags}, %progbits\n`
+  end;
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 
@@ -1067,6 +1071,8 @@ let end_assembly () =
                        `	.type	{emit_label lbl}, %object\n`;
                        `	.word	{emit_label lbl}\n`);
       efa_8 = (fun n -> `	.byte	{emit_int n}\n`);
+      efa_named_section = (fun _ -> ());
+      efa_named_section_dbg = (fun _ -> ());
       efa_16 = (fun n -> `	.short	{emit_int n}\n`);
       efa_32 = (fun n -> `	.long	{emit_int32 n}\n`);
       efa_word = (fun n -> `	.word	{emit_int n}\n`);

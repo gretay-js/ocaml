@@ -113,6 +113,29 @@ let mk_stop_after ~native f =
   in
   "-stop-after", Arg.Symbol (pass_names, f),
   " Stop after the given compilation pass."
+
+let mk_data_sections f =
+  if Config.data_sections then
+    "-data-sections",  Arg.Unit f,
+    " Generate each data item in a separate section if target supports it"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -data-sections")
+    in
+    "-data-sections", Arg.Unit err, " (option not available)"
+;;
+
+let mk_frametable_sections f =
+  if Config.frametable_sections then
+    "-frametable-sections",  Arg.Unit f,
+    " Generate frametable in a separate section if target supports it"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -frametable-sections")
+    in
+    "-frametable-sections", Arg.Unit err, " (option not available)"
 ;;
 
 let mk_save_ir_after ~native f =
@@ -1135,6 +1158,8 @@ module type Optcomp_options = sig
   val _afl_instrument : unit -> unit
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
+  val _data_sections : unit -> unit
+  val _frametable_sections : unit -> unit
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
@@ -1362,6 +1387,8 @@ struct
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
+    mk_data_sections F._data_sections;
+    mk_frametable_sections F._frametable_sections;
     mk_stop_after ~native:true F._stop_after;
     mk_save_ir_after ~native:true F._save_ir_after;
     mk_start_from ~native:true F._start_from;
@@ -1960,6 +1987,14 @@ module Default = struct
       assert Config.function_sections;
       first_ccopts := ("-ffunction-sections" :: (!first_ccopts));
       function_sections := true
+    let _data_sections () =
+      assert (Config.data_sections);
+      first_ccopts := "-fdata-sections" :: !first_ccopts;
+      data_sections := true
+    let _frametable_sections () =
+      assert (Config.data_sections);
+      assert (Config.frametable_sections);
+      frametable_sections := true
     let _nodynlink = clear dlcode
     let _output_complete_obj () =
       set output_c_object (); set output_complete_object ()

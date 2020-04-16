@@ -39,6 +39,12 @@ endif
 ifeq "$(FUNCTION_SECTIONS)" "true"
 OPTCOMPFLAGS += -function-sections
 endif
+ifeq "$(DATA_SECTIONS)" "true"
+OPTCOMPFLAGS += -data-sections
+endif
+ifeq "$(FRAMETABLE_SECTIONS)" "true"
+OPTCOMPFLAGS += -frametable-sections
+endif
 MKLIB=$(CAMLRUN) $(ROOTDIR)/tools/ocamlmklib
 
 # Variables that must be defined by individual libraries:

@@ -2565,23 +2565,25 @@ let entry_point namelist =
 
 (* Generate the table of globals *)
 
+let cdata items = Cdata { section = None; items; }
+
 let cint_zero = Cint 0n
 
 let global_table namelist =
   let mksym name =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "gc_roots"))
   in
-  Cdata(Cglobal_symbol "caml_globals" ::
+  cdata(Cglobal_symbol "caml_globals" ::
         Cdefine_symbol "caml_globals" ::
         List.map mksym namelist @
         [cint_zero])
 
 let reference_symbols namelist =
   let mksym name = Csymbol_address name in
-  Cdata(List.map mksym namelist)
+  cdata(List.map mksym namelist)
 
 let global_data name v =
-  Cdata(emit_string_constant (name, Global)
+  cdata(emit_string_constant (name, Global)
           (Marshal.to_string v []) [])
 
 let globals_map v = global_data "caml_globals_map" v
@@ -2592,7 +2594,7 @@ let frame_table namelist =
   let mksym name =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some "frametable"))
   in
-  Cdata(Cglobal_symbol "caml_frametable" ::
+  cdata(Cglobal_symbol "caml_frametable" ::
         Cdefine_symbol "caml_frametable" ::
         List.map mksym namelist
         @ [cint_zero])
@@ -2604,7 +2606,7 @@ let spacetime_shapes namelist =
     Csymbol_address (
       Compilenv.make_symbol ~unitname:name (Some "spacetime_shapes"))
   in
-  Cdata(Cglobal_symbol "caml_spacetime_shapes" ::
+  cdata(Cglobal_symbol "caml_spacetime_shapes" ::
         Cdefine_symbol "caml_spacetime_shapes" ::
         List.map mksym namelist
         @ [cint_zero])
@@ -2617,7 +2619,7 @@ let segment_table namelist symbol begname endname =
     Csymbol_address (Compilenv.make_symbol ~unitname:name (Some endname)) ::
     lst
   in
-  Cdata(Cglobal_symbol symbol ::
+  cdata(Cglobal_symbol symbol ::
         Cdefine_symbol symbol ::
         List.fold_right addsyms namelist [cint_zero])
 
@@ -2645,7 +2647,7 @@ let predef_exception i name =
   let data_items =
     emit_block (exn_sym, Global) (block_header tag size) fields
   in
-  Cdata data_items
+  cdata data_items
 
 (* Header for a plugin *)
 
@@ -2733,7 +2735,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 
 let emit_gc_roots_table ~symbols cont =
   let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
-  Cdata(Cglobal_symbol table_symbol ::
+  cdata(Cglobal_symbol table_symbol ::
         Cdefine_symbol table_symbol ::
         List.map (fun s -> Csymbol_address s) symbols @
         [Cint 0n])
@@ -2763,7 +2765,13 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
   let data =
     emit_block symb (block_header tag (List.length fields)) space
   in
-  Cdata data :: cont
+  let section =
+    if !Clflags.data_sections then
+      Some { name = symbol; flags = Default; args = Default_args }
+    else None
+  in
+  Cdata { section; items=data } :: cont
+
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =

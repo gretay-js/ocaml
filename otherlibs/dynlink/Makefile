@@ -42,6 +42,12 @@ endif
 ifeq "$(FUNCTION_SECTIONS)" "true"
 OPTCOMPFLAGS += -function-sections
 endif
+ifeq "$(DATA_SECTIONS)" "true"
+OPTCOMPFLAGS += -data-sections
+endif
+ifeq "$(FRAMETABLE_SECTIONS)" "true"
+OPTCOMPFLAGS += -frametable-sections
+endif
 
 COMPFLAGS += -I byte
 OPTCOMPFLAGS += -I native

@@ -129,6 +129,8 @@ type emit_frame_actions =
   { efa_code_label: int -> unit;
     efa_data_label: int -> unit;
     efa_8: int -> unit;
+    efa_named_section: int -> unit;
+    efa_named_section_dbg: int -> unit;
     efa_16: int -> unit;
     efa_32: int32 -> unit;
     efa_word: int -> unit;
@@ -190,6 +192,7 @@ let emit_frames a =
              not (Debuginfo.is_none d.Debuginfo.alloc_dbg)) dbgs
         then 3 else 2
     in
+    a.efa_named_section fd.fd_lbl;
     a.efa_code_label fd.fd_lbl;
     a.efa_16 (fd.fd_frame_size + flags);
     a.efa_16 (List.length fd.fd_live_offset);
@@ -224,6 +227,7 @@ let emit_frames a =
     a.efa_align Arch.size_addr
   in
   let emit_filename name lbl =
+    a.efa_named_section_dbg lbl;
     a.efa_def_label lbl;
     a.efa_string name
   in
@@ -252,6 +256,7 @@ let emit_frames a =
     (* Due to inlined functions, a single debuginfo may have multiple locations.
        These are represented sequentially in memory (innermost frame first),
        with the low bit of the packed debuginfo being 0 on the last entry. *)
+    a.efa_named_section_dbg lbl;
     a.efa_align 4;
     a.efa_def_label lbl;
     let rec emit rs d rest =

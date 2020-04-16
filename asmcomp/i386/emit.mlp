@@ -973,9 +973,17 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data l =
-  D.data ();
-  List.iter emit_item l
+let data d =
+  begin match d.section with
+  | None -> D.data ();
+  | Some s ->
+    begin match system with
+    | S_macosx | S_win32 | S_mingw | S_cygwin -> D.text ()
+    | _ -> D.section [ ".data.caml."^s.name ] (Some s.flags) ["@progbits"]
+    end;
+  end;
+  D.align 8;
+  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 
@@ -1023,6 +1031,8 @@ let end_assembly() =
     { efa_code_label = (fun l -> D.long (ConstLabel (emit_label l)));
       efa_data_label = (fun l -> D.long (ConstLabel (emit_label l)));
       efa_8 = (fun n -> D.byte (const n));
+      efa_named_section = (fun _ -> ());
+      efa_named_section_dbg = (fun _ -> ());
       efa_16 = (fun n -> D.word (const n));
       efa_32 = (fun n -> D.long (const_32 n));
       efa_word = (fun n -> D.long (const n));
