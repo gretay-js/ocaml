@@ -3440,7 +3440,7 @@ and type_expect_
       | _ ->
           raise (Error (loc, env, Invalid_extension_constructor_payload))
       end
-  | Pexp_extension ({ txt = "probe"; _ }, payload) ->
+  | Pexp_extension ({ txt = ("probe" | "ocaml.probe"); _ }, payload) ->
       begin match payload with
       | PStr
           ([{ pstr_desc =
@@ -3464,7 +3464,8 @@ and type_expect_
           exp_env = env }
       | _ -> raise (Error (loc, env, Probe_format))
     end
-  | Pexp_extension ({ txt = "probe_is_enabled"; _ }, payload) ->
+  | Pexp_extension ({ txt = ("probe_is_enabled"
+                            |"ocaml.probe_is_enabled"); _ }, payload) ->
       begin match payload with
       | PStr ([{ pstr_desc =
                    Pstr_eval
