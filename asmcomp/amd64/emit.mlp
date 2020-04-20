@@ -846,16 +846,16 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler_code_sym}) ->
+    let stack_live = Reg.Set.filter is_stack i.live in
+    let probe_label = record_frame_label stack_live false i.dbg  in
+    def_label probe_label; (* works for uprobes and usdt probes as well *)
+    I.nop ();
     let w = (Printf.sprintf "probe_wrapper_%d" !probe_counter) in
     let wrap_label = Compilenv.make_symbol (Some w) in
     incr probe_counter;
     (* nop: only sets flags that are not read anywhere *)
     (* size of this instruction is 5 *)
     I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax;
-    let stack_live = Reg.Set.filter is_stack i.live in
-    let probe_label = record_frame_label stack_live false i.dbg  in
-    def_label probe_label; (* works for uprobes and usdt probes as well *)
-    I.nop ();
     let p = { probe_label;
               probe_handler_wrapper_label = wrap_label;
               probe_name = name;
