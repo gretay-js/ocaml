@@ -846,16 +846,26 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler_code_sym}) ->
-    let stack_live = Reg.Set.filter is_stack i.live in
-    let probe_label = record_frame_label stack_live false i.dbg  in
+    let probe_label = emit_label (new_label ()) in
     def_label probe_label; (* works for uprobes and usdt probes as well *)
     I.nop ();
     let w = (Printf.sprintf "probe_wrapper_%d" !probe_counter) in
     let wrap_label = Compilenv.make_symbol (Some w) in
     incr probe_counter;
-    (* nop: only sets flags that are not read anywhere *)
-    (* size of this instruction is 5 *)
+    (* Next, emit cmp that is effectively a nop:
+       it only sets flags that are not read anywhere.
+       To enable the probe, cmp is replaced with call.
+       The target of the call is a displacement relative to
+       the next instruction. Hence, the immediate argument
+       of cmp is set up to be the offset of the wrapper
+       from the current instruction's address "."
+       minus the length of the current instruction.
+       The wrapper is a local symbol emitted at the end of the compilation unit.
+       The relocation R_X86_64_PC32 gives S + A - P.
+    *)
     I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax;
+    let stack_live = Reg.Set.filter is_stack i.live in
+    record_frame stack_live false i.dbg  in
     let p = { probe_label;
               probe_handler_wrapper_label = wrap_label;
               probe_name = name;
@@ -1205,6 +1215,8 @@ let to_reglocset s =
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
+  add_def_symbol p.probe_handler_wrapper_label;
+  D.global lbl;
   D.label ~typ:QWORD p.probe_handler_wrapper_label;
   (* Account for the return address that is now pushed on the stack,
      but reuse the caller's frame for the wrapper, because
