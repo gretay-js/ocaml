@@ -535,20 +535,19 @@ let tailrec_entry_point = ref 0
 type probe =
   {
     probe_label: label;
-    probe_handler_wrapper_label: string;
     probe_name: string;
     probe_handler : string;
     probe_insn: Linear.instruction;
   }
 
+let probe_handler_wrapper_name probe_label =
+  Printf.sprintf "probe_wrapper_%d" probe_label
+
 let probes = ref []
 
 let probe_semaphores = ref String.Map.empty
 
-let probe_counter = ref 0
-
 let reset_probes () =
-  probe_counter := 0;
   probes := [];
   probe_semaphores := String.Map.empty
 
@@ -846,28 +845,69 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler_code_sym}) ->
-    let probe_label = emit_label (new_label ()) in
-    def_label probe_label; (* works for uprobes and usdt probes as well *)
-    I.nop ();
-    let w = (Printf.sprintf "probe_wrapper_%d" !probe_counter) in
+    let probe_label = new_label () in
+    def_label probe_label;
+    I.nop (); (* for uprobes and usdt probes as well *)
+    let w = probe_handler_wrapper_name probe_label in
     let wrap_label = Compilenv.make_symbol (Some w) in
-    incr probe_counter;
+    add_used_symbol wrap_label;
     (* Next, emit cmp that is effectively a nop:
        it only sets flags that are not read anywhere.
-       To enable the probe, cmp is replaced with call.
+       To enable the probe, cmp is replaced with call
+       by changing the first byte of the encoding from 3d to e8.
        The target of the call is a displacement relative to
-       the next instruction. Hence, the immediate argument
-       of cmp is set up to be the offset of the wrapper
-       from the current instruction's address "."
-       minus the length of the current instruction.
-       The wrapper is a local symbol emitted at the end of the compilation unit.
-       The relocation R_X86_64_PC32 gives S + A - P.
-    *)
-    I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax;
+       the next instruction. Hence, the immediate operand
+       of cmp is set up to have that value. *)
+    if !Clflags.pic_code then begin
+      (* Emit cmp and explicit relocation on it, as for a call instruction.
+
+         When the immediate operand of cmp is a symbol with "@PLT",
+         the assembler generates the relocation we need,
+         but not the encoding we need for cmp.
+         A different, longer, encoding is generated because the symbol is
+         interpreted as a memory operand, not an immediate.
+         Therefore, we emit the relocation manually, using .reloc directive,
+         on the immediate operand of "cmp $0, %eax".
+         However, the assembler does not generate the encoding we need for this cmp.
+         It generates a shorter encoding, because the immediate value 0 is small
+         enough for it, but 0 is the expected value for a "standard" plt relocation.
+
+         If cmp instruction is assembled differently from what we expect,
+         then applying the relocation might the change the meaning of the program. *)
+      (* CR gyorsh: there are two ways to solve it, which should we use? *)
+      let re_offset = ConstSub(ConstThis,(Const 4L))
+      let re_name = "R_X86_64_PLT32"
+      let sym = ConstLabel wrap_label in
+      let expr = ConstSub (sym, (Const 4l)) in
+      let use_cmp = true in
+      if use_cmp then begin
+        (* The large immediate ensures that a shorter encoding of cmp
+           is not sufficient and forces the assembler to emit the encoding
+           we need. The relocation's addend is adjusted accordingly. *)
+        let imm = 1 lsl 16 in
+        I.cmp (int imm) eax;
+        D.reloc ~offset ~name ~expr:(ConstSub(expr,(Const (Int64.of_int imm))));
+      end else begin
+        (* Emit the required encoding of "cmp $0, %eax" directly,
+           using .byte directive. *)
+        D.byte (Const x3dL);
+        D.byte (Const 0L);
+        D.byte (Const 0L);
+        D.byte (Const 0L);
+        D.byte (Const 0L);
+        D.reloc ~offset ~name ~expr;
+      end
+    end else begin
+      (* Emit absolute value, no relocation.
+         The immediate operand of cmp is the offset of the wrapper
+         from the current instruction's address "."
+         minus the length of the current instruction, which is 5,
+         and the wrapper is emitted at the end of the compilation unit. *)
+      I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
+    end;
     let stack_live = Reg.Set.filter is_stack i.live in
-    record_frame stack_live false i.dbg  in
+    record_frame stack_live false i.dbg;
     let p = { probe_label;
-              probe_handler_wrapper_label = wrap_label;
               probe_name = name;
               probe_handler = handler_code_sym;
               probe_insn = i;
@@ -1215,9 +1255,7 @@ let to_reglocset s =
 let emit_probe_handler_wrapper p =
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
-  add_def_symbol p.probe_handler_wrapper_label;
-  D.global lbl;
-  D.label ~typ:QWORD p.probe_handler_wrapper_label;
+  emit_global_label (probe_handler_wrapper_name p.probe_label);
   (* Account for the return address that is now pushed on the stack,
      but reuse the caller's frame for the wrapper, because
      the wrapper may refer to handler args on caller's stack frame. *)
