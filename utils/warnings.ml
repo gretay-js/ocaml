@@ -641,9 +641,9 @@ let message = function
          Probes names over 100 character long might not be supported \
          in kernel mode.\n" name
   | Probe_handler_ignored ->
-      "Probe handler is ignored. No support for ocaml probe handlers
-        when the compiler is configured with frame pointers.
-        Generating probes for external tools, such as SystemTap and Dtrace."
+      "Probe handler is ignored. No support for ocaml probe handlers \
+        when the compiler is configured with frame pointers. \
+        Generating probes for external tools, such as SystemTap and Dtrace.\n"
 ;;
 
 let nerrors = ref 0;;
