@@ -3457,7 +3457,7 @@ and type_expect_
                    ; _ }
                   , _)}]) ->
         check_probe_name name name_loc env;
-        if Confg.with_frame_pointers then
+        if !Config.with_frame_pointers then
           Location.prerr_warning arg_loc Warnings.Probe_handler_ignored;
         let exp = type_expect env arg (mk_expected Predef.type_unit) in
         rue {
