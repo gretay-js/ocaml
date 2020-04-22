@@ -174,8 +174,6 @@ type recarg =
   | Rejected
 
 let check_probe_name name loc env =
-  if Confg.with_frame_pointers then
-    Location.prerr_warning loc (Warnings.Probe_handler_with_frame_pointers);
   if String.length name > 100 then
     Location.prerr_warning loc (Warnings.Probe_name_too_long name);
   String.iter (fun c ->
@@ -3453,11 +3451,11 @@ and type_expect_
                                (Pexp_constant (Pconst_string(name,None)));
                              pexp_loc = name_loc;
                              _ }
-                          , [Nolabel, {pexp_loc = arg_loc; _ } as arg]))
+                          , [Nolabel, ({pexp_loc = arg_loc; _ } as arg)]))
                    ; _ }
                   , _)}]) ->
         check_probe_name name name_loc env;
-        if !Config.with_frame_pointers then
+        if Config.with_frame_pointers then
           Location.prerr_warning arg_loc Warnings.Probe_handler_ignored;
         let exp = type_expect env arg (mk_expected Predef.type_unit) in
         rue {
