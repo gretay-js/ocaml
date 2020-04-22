@@ -99,6 +99,7 @@ module D = struct
   let model name = directive (Model name)
   let private_extern s = directive (Private_extern s)
   let qword cst = directive (Quad cst)
+  let reloc ~offset ~name ~expr = directive (Reloc { offset; name; expr })
   let setvar (x, y) = directive (Set (x, y))
   let size name cst = directive (Size (name, cst))
   let space n = directive (Space n)

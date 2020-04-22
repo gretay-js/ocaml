@@ -248,6 +248,7 @@ let print_line b = function
   | Type _
   | Hidden _
   | Weak _
+  | Reloc _
     -> assert false
 
 let generate_asm oc lines =

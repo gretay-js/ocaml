@@ -293,6 +293,7 @@ let print_line b = function
   | Set (arg1, arg2) -> bprintf b "\t.set %s, %a" arg1 cst arg2
   | Size (s, c) -> bprintf b "\t.size %s,%a" s cst c
   | Type (s, typ) -> bprintf b "\t.type %s,%s" s typ
+  | Reloc (offset, name, v) -> bprintf b "\t.reloc %a,%s,%a" (cst offset) name (cst v)
 
   (* masm only *)
   | External _
