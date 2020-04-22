@@ -1056,6 +1056,16 @@ let rec emit_all fallthrough i =
 
 let all_functions = ref []
 
+let emit_function_type_and_size fun_name =
+  begin match system with
+  | S_gnu | S_linux ->
+    D.type_ (emit_symbol fun_name) "@function";
+    D.size (emit_symbol fun_name)
+      (ConstSub (
+         ConstThis,
+         ConstLabel (emit_symbol fun_name)))
+  | _ -> ()
+
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
@@ -1096,14 +1106,7 @@ let fundecl fundecl =
     end;
   end;
   cfi_endproc ();
-  begin match system with
-  | S_gnu | S_linux ->
-      D.type_ (emit_symbol fundecl.fun_name) "@function";
-      D.size (emit_symbol fundecl.fun_name)
-        (ConstSub (
-            ConstThis,
-            ConstLabel (emit_symbol fundecl.fun_name)))
-  | _ -> ()
+  emit_function_type_and_size fundecl.fun_name;
   end
 
 (* Emission of data *)
@@ -1257,16 +1260,17 @@ let to_reglocset s =
   Reg.Set.elements s |> RegLocSet.of_list
 
 let emit_probe_handler_wrapper p =
+  let fun_name = probe_handler_wrapper_name p.probe_label in
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
-  emit_global_label (probe_handler_wrapper_name p.probe_label);
+  emit_global_label fun_name;
+  (* CR gyorsh: does cfi_startproc reset the cfi offset?
+     does it matter if stack_offset and cfi offset get out of sync ? *)
+  cfi_startproc ();
   (* Account for the return address that is now pushed on the stack,
      but reuse the caller's frame for the wrapper, because
      the wrapper may refer to handler args on caller's stack frame. *)
   stack_offset := !stack_offset + 8;
-  (* CR gyorsh: does cfi_startproc reset the cfi offset?
-     does it matter if stack_offset and cfi offset get out of sync ? *)
-  cfi_startproc ();
   (* Prepare to call the handler: calculate and allocate stack space. *)
   let (loc_args, _) = Proc.loc_arguments p.probe_insn.arg in
   (* Ignore the stack offset returned by loc_arguments, to avoid
@@ -1369,6 +1373,7 @@ let emit_probe_handler_wrapper p =
   emit_stack_offset (-stack_ofs);
   I.ret ();
   cfi_endproc ();
+  emit_function_type_and_size fun_name;
   ()
 
 let emit_probe_notes () =
