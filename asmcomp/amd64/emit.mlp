@@ -598,29 +598,17 @@ let emit_call_probe_handler i ~probe_label =
 
        If cmp instruction is assembled differently from what we expect,
        then applying the relocation might the change the meaning of the program. *)
-    (* CR gyorsh: there are two ways to solve it, which should we use? *)
     let offset = ConstSub(ConstThis,(Const 4L)) in
     let name = R_X86_64_PLT32 in
     let sym = ConstLabel wrap_label in
     let expr = ConstSub (sym, (Const 4L)) in
-    let use_cmp = true in
-    if use_cmp then begin
-      (* The large immediate ensures that a shorter encoding of cmp
-         is not sufficient and forces the assembler to emit the encoding
-         we need. The relocation's addend is adjusted accordingly. *)
-      let imm = 1 lsl 16 in
-      I.cmp (int imm) eax;
-      D.reloc ~offset ~name ~expr:(ConstSub(expr,(Const (Int64.of_int imm))));
-    end else begin
-      (* Emit the required encoding of "cmp $0, %eax" directly,
-         using .byte directive. *)
-      D.byte (Const 0x3dL);
-      D.byte (Const 0L);
-      D.byte (Const 0L);
-      D.byte (Const 0L);
-      D.byte (Const 0L);
-      D.reloc ~offset ~name ~expr;
-    end
+    (* Emit the required encoding of "cmp $0, %eax" directly, using .byte *)
+    D.byte (Const 0x3dL);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    D.reloc ~offset ~name ~expr;
   end else begin
     (* Emit absolute value, no relocation.
        The immediate operand of cmp is the offset of the wrapper
