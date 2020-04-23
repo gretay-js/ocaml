@@ -541,7 +541,9 @@ type probe =
   }
 
 let probe_handler_wrapper_name probe_label =
-  Printf.sprintf "probe_wrapper_%d" probe_label
+  let w = Printf.sprintf "probe_wrapper_%d" probe_label in
+  Compilenv.make_symbol (Some w)
+  |> emit_symbol
 
 let probes = ref []
 
@@ -561,11 +563,18 @@ let find_or_add_semaphore name =
     probe_semaphores := String.Map.add name lbl !probe_semaphores;
     lbl
 
+let is_stack (r : Reg.t) =
+  match r.loc with
+  | Stack _ -> true
+  | _ -> false
+
+let is_reg (r : Reg.t) =
+  match r.loc with
+  | Reg _ -> true
+  | _ -> false
 
 let emit_call_probe_handler i ~probe_label =
-  let w = probe_handler_wrapper_name probe_label in
-  let wrap_label = Compilenv.make_symbol (Some w) in
-  add_used_symbol wrap_label;
+  let wrap_label = probe_handler_wrapper_name probe_label in
   (* Next, emit cmp that is effectively a nop:
      it only sets flags that are not read anywhere.
      To enable the probe, cmp is replaced with call
@@ -590,10 +599,10 @@ let emit_call_probe_handler i ~probe_label =
        If cmp instruction is assembled differently from what we expect,
        then applying the relocation might the change the meaning of the program. *)
     (* CR gyorsh: there are two ways to solve it, which should we use? *)
-    let offset = ConstSub(ConstThis,(Const 4L))
-    let name = "R_X86_64_PLT32"
+    let offset = ConstSub(ConstThis,(Const 4L)) in
+    let name = R_X86_64_PLT32 in
     let sym = ConstLabel wrap_label in
-    let expr = ConstSub (sym, (Const 4l)) in
+    let expr = ConstSub (sym, (Const 4L)) in
     let use_cmp = true in
     if use_cmp then begin
       (* The large immediate ensures that a shorter encoding of cmp
@@ -605,7 +614,7 @@ let emit_call_probe_handler i ~probe_label =
     end else begin
       (* Emit the required encoding of "cmp $0, %eax" directly,
          using .byte directive. *)
-      D.byte (Const x3dL);
+      D.byte (Const 0x3dL);
       D.byte (Const 0L);
       D.byte (Const 0L);
       D.byte (Const 0L);
@@ -622,16 +631,6 @@ let emit_call_probe_handler i ~probe_label =
   end;
   let stack_live = Reg.Set.filter is_stack i.live in
   record_frame stack_live false i.dbg
-
-let is_stack (r : Reg.t) =
-  match r.loc with
-  | Stack _ -> true
-  | _ -> false
-
-let is_reg (r : Reg.t) =
-  match r.loc with
-  | Reg _ -> true
-  | _ -> false
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -1057,7 +1056,7 @@ let rec emit_all fallthrough i =
 let all_functions = ref []
 
 let emit_function_type_and_size fun_name =
-  begin match system with
+  match system with
   | S_gnu | S_linux ->
     D.type_ (emit_symbol fun_name) "@function";
     D.size (emit_symbol fun_name)
@@ -1107,7 +1106,7 @@ let fundecl fundecl =
   end;
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name;
-  end
+  ()
 
 (* Emission of data *)
 
@@ -1260,10 +1259,10 @@ let to_reglocset s =
   Reg.Set.elements s |> RegLocSet.of_list
 
 let emit_probe_handler_wrapper p =
-  let fun_name = probe_handler_wrapper_name p.probe_label in
+  let wrap_label = probe_handler_wrapper_name p.probe_label in
   D.comment (Printf.sprintf "probe %s %s" p.probe_name p.probe_handler);
   D.align 16;
-  emit_global_label fun_name;
+  _label wrap_label;
   (* CR gyorsh: does cfi_startproc reset the cfi offset?
      does it matter if stack_offset and cfi offset get out of sync ? *)
   cfi_startproc ();
@@ -1373,7 +1372,7 @@ let emit_probe_handler_wrapper p =
   emit_stack_offset (-stack_ofs);
   I.ret ();
   cfi_endproc ();
-  emit_function_type_and_size fun_name;
+  emit_function_type_and_size wrap_label;
   ()
 
 let emit_probe_notes () =
