@@ -894,22 +894,33 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe {name; handler_code_sym}) ->
-    let probe_label = new_label () in
-    let p = { probe_label;
-              probe_name = name;
-              probe_handler = handler_code_sym;
-              probe_insn = i;
-            } in
-    probes := p :: !probes;
-    def_label probe_label;
-    I.nop (); (* for uprobes and usdt probes as well *)
-    if not fp then emit_call_probe_handler i ~probe_label
+    if windows then begin
+      Location.prerr_warning (Debuginfo.to_location i.dbg)
+        Warnings.Probe_ignored
+    end else begin
+      let probe_label = new_label () in
+      let p = { probe_label;
+                probe_name = name;
+                probe_handler = handler_code_sym;
+                probe_insn = i;
+              } in
+      probes := p :: !probes;
+      def_label probe_label;
+      I.nop (); (* for uprobes and usdt probes as well *)
+      if not fp then emit_call_probe_handler i ~probe_label
+    end
   | Lop (Iprobe_is_enabled {name}) ->
-    let semaphore_label = find_or_add_semaphore name in
-    add_used_symbol semaphore_label;
-    I.movzx (mem64_rip WORD semaphore_label) (res i 0);
-    I.sal (int 1) (res i 0);
-    I.or_ (int 1) (res i 0)
+    if windows then begin
+      Location.prerr_warning (Debuginfo.to_location i.dbg)
+        Warnings.Probe_ignored;
+      I.mov (int 1) (res i 0); (*always returns false *)
+    end else begin
+      let semaphore_label = find_or_add_semaphore name in
+      add_used_symbol semaphore_label;
+      I.movzx (mem64_rip WORD semaphore_label) (res i 0);
+      I.sal (int 1) (res i 0);
+      I.or_ (int 1) (res i 0)
+    end
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -1460,7 +1471,7 @@ let end_assembly() =
   end;
 
   (* emit probe handler wrappers *)
-  if not fp then begin
+  if not fp && not windows then begin
     D.text ();
     List.iter emit_probe_handler_wrapper !probes
   end;

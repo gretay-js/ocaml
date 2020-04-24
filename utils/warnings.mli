@@ -96,6 +96,7 @@ type t =
   | Probe_too_many_args of int              (* 67 *)
   | Probe_name_too_long of string           (* 68 *)
   | Probe_handler_ignored                   (* 69 *)
+  | Probe_ignored                           (* 70 *)
 ;;
 
 type alert = {kind:string; message:string; def:loc; use:loc}

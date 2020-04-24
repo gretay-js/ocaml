@@ -94,6 +94,7 @@ type t =
   | Probe_too_many_args of int              (* 67 *)
   | Probe_name_too_long of string           (* 68 *)
   | Probe_handler_ignored                   (* 69 *)
+  | Probe_ignored                           (* 70 *)
 ;;
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
@@ -174,9 +175,10 @@ let number = function
   | Probe_too_many_args _ -> 67
   | Probe_name_too_long _ -> 68
   | Probe_handler_ignored -> 69
+  | Probe_ignored -> 70
 ;;
 
-let last_warning_number = 69
+let last_warning_number = 70
 ;;
 
 (* Must be the max number returned by the [number] function. *)
@@ -644,6 +646,8 @@ let message = function
       "Probe handler is ignored. No support for ocaml probe handlers \
         when the compiler is configured with frame pointers. \
         Generating probes for external tools, such as SystemTap and Dtrace.\n"
+  | Probe_ignored ->
+      "Probe is ignored. Not supported on this target."
 ;;
 
 let nerrors = ref 0;;
