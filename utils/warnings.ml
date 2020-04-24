@@ -776,6 +776,7 @@ let descriptions =
    65, "Type declaration defining a new '()' constructor.";
    66, "Unused open! statement.";
    67, "Unused functor parameter.";
+   68, "More than 12 arguments to probe."
   ]
 ;;
 
