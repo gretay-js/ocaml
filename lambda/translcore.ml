@@ -577,21 +577,22 @@ and transl_exp0 e =
                !transl_module Tcoerce_none None od.open_expr, body)
       end
   | Texp_probe {name; handler=exp} ->
-    let lam = transl_exp exp in
-    let map = Ident.Set.fold (fun v acc ->
-      Ident.Map.add v (Ident.rename v) acc)
-      (free_variables lam)
-      Ident.Map.empty in
-    let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
-    let body = Lambda.rename map lam in
-    let attr = {
-            inline = Never_inline;
-            specialise = Always_specialise;
-            local = Never_local;
-            is_a_functor = false;
-            stub = false;
-          } in
-    let handler =
+    if !Clflags.probes then begin
+      let lam = transl_exp exp in
+      let map = Ident.Set.fold (fun v acc ->
+        Ident.Map.add v (Ident.rename v) acc)
+        (free_variables lam)
+        Ident.Map.empty in
+      let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
+      let body = Lambda.rename map lam in
+      let attr = {
+        inline = Never_inline;
+        specialise = Always_specialise;
+        local = Never_local;
+        is_a_functor = false;
+        stub = false;
+      } in
+      let handler =
         { kind = Curried;
           params = List.map (fun v -> (v, Pgenval) ) param_idents;
           return = Pgenval;
@@ -599,32 +600,38 @@ and transl_exp0 e =
           loc = exp.exp_loc;
           attr;
         } in
-    let funcid = Ident.create_local ("probe_handler_" ^ name) in
-    let app = {
-      ap_func = Lvar funcid;
-      ap_args = List.map (fun id -> Lvar id) arg_idents;
-      ap_loc = e.exp_loc;
-      ap_should_be_tailcall = false;
-      ap_inlined = Never_inline;
-      ap_specialised = Always_specialise;
-      ap_probe = Some {name};
-    } in
-    begin match Config.flambda with
-    | true ->
-      Llet(Strict, Pgenval, funcid,
-           Lfunction handler,
-           Lapply app)
-    | false ->
-      (* Needs to be lifted to top level manually here,
-         because functions that contain other function declarations
-         are not inlined. For example, adding a probe into the body
-         of function foo will prevent foo from being inlined into
-         another function. *)
-      probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
-      Lapply app
+      let funcid = Ident.create_local ("probe_handler_" ^ name) in
+      let app = {
+        ap_func = Lvar funcid;
+        ap_args = List.map (fun id -> Lvar id) arg_idents;
+        ap_loc = e.exp_loc;
+        ap_should_be_tailcall = false;
+        ap_inlined = Never_inline;
+        ap_specialised = Always_specialise;
+        ap_probe = Some {name};
+      } in
+      begin match Config.flambda with
+      | true ->
+        Llet(Strict, Pgenval, funcid,
+             Lfunction handler,
+             Lapply app)
+      | false ->
+        (* Needs to be lifted to top level manually here,
+           because functions that contain other function declarations
+           are not inlined. For example, adding a probe into the body
+           of function foo will prevent foo from being inlined into
+           another function. *)
+        probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
+        Lapply app
+      end
+    end else begin
+      lambda_unit
     end
   | Texp_probe_is_enabled {name} ->
-    Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
+    if !Clflags.probes then
+      Lprim(Pprobe_is_enabled {name}, [], e.exp_loc)
+    else
+      lambda_unit
 
 and pure_module m =
   match m.mod_desc with

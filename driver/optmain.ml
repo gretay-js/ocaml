@@ -60,6 +60,8 @@ module Options = Main_args.Make_optcomp_options (struct
     assert (Config.function_sections);
     first_ccopts := "-ffunction-sections" :: !first_ccopts;
     function_sections := true
+  let _no_probes = clear probes
+  let _probes = set probes
   let _g = set debug
   let _i = set print_types
   let _stop_after pass =
