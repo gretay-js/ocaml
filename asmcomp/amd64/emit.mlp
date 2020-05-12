@@ -66,6 +66,9 @@ let emit_debug_info dbg =
 
 let fp = Config.with_frame_pointers
 
+(* Name of current function *)
+let function_name = ref ""
+
 (* Tradeoff between code size and code speed *)
 
 let fastcode_flag = ref true
@@ -246,7 +249,7 @@ let addressing addr typ i n =
       mem64 typ ~scale ~base:(arg64 i n) d (arg64 i (n+1))
 
 (* Record live pointers at call points -- see Emitaux *)
-
+let lbl2names = Hashtbl.create 16
 let record_frame_label ?label live raise_ dbg =
   let lbl =
     match label with
@@ -267,6 +270,10 @@ let record_frame_label ?label live raise_ dbg =
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
     ~live_offset:!live_offset ~raise_frame:raise_ dbg;
+  if !Clflags.data_sections then begin
+    assert (not (Hashtbl.mem lbl2names lbl));
+    Hashtbl.add lbl2names lbl !function_name
+  end;
   lbl
 
 let record_frame ?label live raise_ dbg =
@@ -509,8 +516,6 @@ let emit_named_text_section func_name =
 
 (* Output the assembly code for an instruction *)
 
-(* Name of current function *)
-let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
 
@@ -998,15 +1003,67 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data d =
-  begin match d.section with
-  | None -> D.data ();
-  | Some s ->
-    begin match system with
+(* CR gyorsh: update cmmgen to pass symbol name for section name *)
+let data_section_counter = ref 0 (* unique names for data sections *)
+
+let emit_named_data_section section =
+  let f s =
+    match system with
     | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
     | _ -> D.section [ ".data.caml."^s.name ] (Some s.flags) ["@progbits"]
-    end;
-  end;
+  in
+  match section with
+  | None ->
+    if !Clflags.data_sections then begin
+      let name = String.of_int !data_section_counter in
+      incr data_section_counter;
+      let name = Compilenv.make_symbol (Some name) in
+      f { name; flags="wa" }
+    end else begin
+      D.data ()
+    end
+  | Some s -> f s
+
+
+let frametable_section_prefix =
+  sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
+
+let emit_frametable_section ?flags ?link name =
+  match system with
+  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
+  | _ ->
+    let args =
+      match link with
+      | None -> []
+      | Some link -> ["@progbits";link]
+    in
+    D.section [frametable_section_prefix^name] flags args
+
+let emit_frametable_section_begin () =
+  if !Clflags.data_sections then
+    emit_frametable_section "begin"
+  else
+    D.data()
+
+let emit_frametable_section_end () =
+  if !Clflags.data_sections then begin
+    emit_frametable_section "end";
+    D.qword (const 0)
+  end
+
+let emit_frametable_section_item i =
+  if !Clflags.data_sections then begin
+    let fun_name = Hashtbl.find lbl2names i in
+    emit_frametable_section ~flags:"ao" ~link:fun_name (String.of_int i)
+  end
+
+let emit_frametable_section_dbg i =
+  if !Clflags.data_sections then begin
+    emit_frametable_section (String.of_int i)
+  end
+
+let data d =
+  emit_named_data_section d.section;
   D.align 8;
   List.iter emit_item d.items
 
@@ -1019,6 +1076,8 @@ let begin_assembly() =
   float_constants := [];
   all_functions := [];
   used_labels := Int.Set.empty;
+  data_section_counter := 0;
+  Hashtbl.reset lbl2names;
   if system = S_win64 then begin
     D.extrn "caml_young_ptr" QWORD;
     D.extrn "caml_young_limit" QWORD;
@@ -1122,12 +1181,15 @@ let end_assembly() =
   emit_global_label "data_end";
   D.qword (const 0);
 
+  emit_frametable_section_begin ();
   D.align 8;                            (* PR#7591 *)
   emit_global_label "frametable";
 
   let setcnt = ref 0 in
   emit_frames
-    { efa_code_label = (fun l -> D.qword (ConstLabel (emit_label l)));
+    { efa_code_label = (fun l ->
+        emit_frametable_section_item l;
+        D.qword (ConstLabel (emit_label l)));
       efa_data_label = (fun l -> D.qword (ConstLabel (emit_label l)));
       efa_16 = (fun n -> D.word (const n));
       efa_32 = (fun n -> D.long (const_32 n));
@@ -1148,9 +1210,13 @@ let end_assembly() =
            end else
              D.long c
         );
-      efa_def_label = (fun l -> _label (emit_label l));
+      efa_def_label = (fun l ->
+        emit_frametable_section_dbg l;
+        _label (emit_label l));
       efa_string = (fun s -> D.bytes (s ^ "\000"))
     };
+
+  emit_frametable_section_end ();
 
   if Config.spacetime then begin
     emit_spacetime_shapes ()

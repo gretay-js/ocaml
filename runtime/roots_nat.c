@@ -107,6 +107,7 @@ static void fill_hashtable(link *frametables) {
       }
       caml_frame_descriptors[h] = d;
       d = next_frame_descr(d);
+      if (d == NULL) break;
     }
   }
 }
@@ -206,6 +207,7 @@ void caml_unregister_frametable(intnat *table) {
   for (j = 0; j < len; j++) {
     remove_entry(d);
     d = next_frame_descr(d);
+    if (d == NULL) break;
   }
 
   iter_list(frametables,lnk) {

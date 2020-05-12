@@ -104,7 +104,7 @@ let mk_stop_after ~native f =
 ;;
 
 let mk_function_sections f =
-  if Config.function_sections then
+  if Config.function_and_data_sections then
     "-function-sections",  Arg.Unit f,
     " Generate each function in a separate section if target supports it"
   else
@@ -113,6 +113,18 @@ let mk_function_sections f =
                       -function-sections")
     in
     "-function-sections", Arg.Unit err, " (option not available)"
+;;
+
+let mk_data_sections f =
+  if Config.function_and_data_sections then
+    "-data-sections",  Arg.Unit f,
+    " Generate each data item in a separate section if target supports it"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -data-sections")
+    in
+    "-data-sections", Arg.Unit err, " (option not available)"
 ;;
 
 let mk_save_ir_after ~native f =
@@ -1108,6 +1120,7 @@ module type Optcomp_options = sig
   val _dinterval : unit -> unit
   val _save_ir_after : string -> unit
   val _function_sections : unit -> unit
+  val _data_sections : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1334,6 +1347,7 @@ struct
     mk_save_ir_after ~native:true F._save_ir_after;
     mk_start_from ~native:true F._start_from;
     mk_function_sections F._function_sections;
+    mk_data_sections F._data_sections;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
