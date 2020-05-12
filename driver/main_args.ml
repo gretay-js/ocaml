@@ -127,6 +127,18 @@ let mk_data_sections f =
     "-data-sections", Arg.Unit err, " (option not available)"
 ;;
 
+let mk_frametable_sections f =
+  if Config.frametable_sections then
+    "-frametable-sections",  Arg.Unit f,
+    " Generate frametable in a separate section if target supports it"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -frametable-sections")
+    in
+    "-frametable-sections", Arg.Unit err, " (option not available)"
+;;
+
 let mk_save_ir_after ~native f =
   let pass_names =
     Clflags.Compiler_pass.(available_pass_names
@@ -1348,6 +1360,7 @@ struct
     mk_start_from ~native:true F._start_from;
     mk_function_sections F._function_sections;
     mk_data_sections F._data_sections;
+    mk_frametable_sections F._frametable_sections;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;

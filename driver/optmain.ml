@@ -64,6 +64,9 @@ module Options = Main_args.Make_optcomp_options (struct
     assert (Config.function_and_data_sections);
     first_ccopts := "-fdata-sections" :: !first_ccopts;
     data_sections := true
+  let _data_sections () =
+    assert (Config.frametable_sections);
+    frametable_sections := true
   let _g = set debug
   let _i = set print_types
   let _stop_after pass =

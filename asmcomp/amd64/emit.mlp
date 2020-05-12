@@ -270,7 +270,7 @@ let record_frame_label ?label live raise_ dbg =
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size())
     ~live_offset:!live_offset ~raise_frame:raise_ dbg;
-  if !Clflags.data_sections then begin
+  if !Clflags.frametable_sections then begin
     assert (not (Hashtbl.mem lbl2names lbl));
     Hashtbl.add lbl2names lbl !function_name
   end;
@@ -1029,6 +1029,7 @@ let frametable_section_prefix =
   sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
 
 let emit_frametable_section ?flags ?link name =
+  assert !Config.function_and_data_sections;
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->
@@ -1040,25 +1041,25 @@ let emit_frametable_section ?flags ?link name =
     D.section [frametable_section_prefix^name] flags args
 
 let emit_frametable_section_begin () =
-  if !Clflags.data_sections then
+  if !Clflags.frametable_sections then
     emit_frametable_section "begin"
   else
     D.data()
 
 let emit_frametable_section_end () =
-  if !Clflags.data_sections then begin
+  if !Clflags.frametable_sections then begin
     emit_frametable_section "end";
     D.qword (const 0)
   end
 
 let emit_frametable_section_item i =
-  if !Clflags.data_sections then begin
+  if !Clflags.frametable_sections then begin
     let fun_name = Hashtbl.find lbl2names i in
     emit_frametable_section ~flags:"ao" ~link:fun_name (String.of_int i)
   end
 
 let emit_frametable_section_dbg i =
-  if !Clflags.data_sections then begin
+  if !Clflags.frametable_sections then begin
     emit_frametable_section (String.of_int i)
   end
 
