@@ -228,6 +228,7 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _function_sections : unit -> unit
   val _data_sections : unit -> unit
+  val _frametable_sections : unit -> unit
 end;;
 
 module type Opttop_options = sig

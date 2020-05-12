@@ -272,7 +272,7 @@ let record_frame_label ?label live raise_ dbg =
     ~live_offset:!live_offset ~raise_frame:raise_ dbg;
   if !Clflags.frametable_sections then begin
     assert (not (Hashtbl.mem lbl2names lbl));
-    Hashtbl.add lbl2names lbl !function_name
+    Hashtbl.add lbl2names lbl (emit_symbol !function_name)
   end;
   lbl
 
@@ -1015,7 +1015,7 @@ let emit_named_data_section section =
   match section with
   | None ->
     if !Clflags.data_sections then begin
-      let name = String.of_int !data_section_counter in
+      let name = Int.to_string !data_section_counter in
       incr data_section_counter;
       let name = Compilenv.make_symbol (Some name) in
       f { name; flags="wa" }
@@ -1026,10 +1026,10 @@ let emit_named_data_section section =
 
 
 let frametable_section_prefix =
-  sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
+  Printf.sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
 
 let emit_frametable_section ?flags ?link name =
-  assert !Config.frametable_sections;
+  assert Config.frametable_sections;
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->
@@ -1055,12 +1055,12 @@ let emit_frametable_section_end () =
 let emit_frametable_section_item i =
   if !Clflags.frametable_sections then begin
     let fun_name = Hashtbl.find lbl2names i in
-    emit_frametable_section ~flags:"ao" ~link:fun_name (String.of_int i)
+    emit_frametable_section ~flags:"ao" ~link:fun_name (Int.to_string i)
   end
 
 let emit_frametable_section_dbg i =
   if !Clflags.frametable_sections then begin
-    emit_frametable_section (String.of_int i)
+    emit_frametable_section (Int.to_string i)
   end
 
 let data d =
