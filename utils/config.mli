@@ -226,9 +226,17 @@ val flat_float_array : bool
 (** Whether the compiler and runtime automagically flatten float
     arrays *)
 
-val function_and_data_sections : bool
+val function_sections : bool
 (** Whether the compiler was configured to generate
-    each function and data item in a separate section *)
+    each function in a separate section *)
+
+val data_sections : bool
+(** Whether the compiler was configured to generate
+    each data item in a separate section *)
+
+val frametable_sections : bool
+(** Whether the compiler has support for SHF_ORDER_LINK
+    that can be used for frametable sections *)
 
 val windows_unicode: bool
 (** Whether Windows Unicode runtime is enabled *)

@@ -104,7 +104,7 @@ let mk_stop_after ~native f =
 ;;
 
 let mk_function_sections f =
-  if Config.function_and_data_sections then
+  if Config.function_sections then
     "-function-sections",  Arg.Unit f,
     " Generate each function in a separate section if target supports it"
   else
@@ -116,7 +116,7 @@ let mk_function_sections f =
 ;;
 
 let mk_data_sections f =
-  if Config.function_and_data_sections then
+  if Config.data_sections then
     "-data-sections",  Arg.Unit f,
     " Generate each data item in a separate section if target supports it"
   else

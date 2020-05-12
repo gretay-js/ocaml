@@ -34,7 +34,12 @@ endif
 ifeq "$(FUNCTION_SECTIONS)" "true"
 OPTCOMPFLAGS += -function-sections
 endif
-
+ifeq "$(DATA_SECTIONS)" "true"
+OPTCOMPFLAGS += -data-sections
+endif
+ifeq "$(FRAMETABLE_SECTIONS)" "true"
+OPTCOMPFLAGS += -frametable-sections
+endif
 LIBNAME=threads
 
 ifeq "$(UNIX_OR_WIN32)" "unix"

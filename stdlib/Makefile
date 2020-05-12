@@ -33,6 +33,12 @@ endif
 ifeq "$(FUNCTION_SECTIONS)" "true"
 OPTCOMPFLAGS += -function-sections
 endif
+ifeq "$(DATA_SECTIONS)" "true"
+OPTCOMPFLAGS += -data-sections
+endif
+ifeq "$(FRAMETABLE_SECTIONS)" "true"
+OPTCOMPFLAGS += -frametable-sections
+endif
 OPTCOMPILER=$(ROOTDIR)/ocamlopt
 CAMLOPT=$(CAMLRUN) $(OPTCOMPILER)
 CAMLDEP=$(BOOT_OCAMLC) -depend

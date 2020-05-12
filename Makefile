@@ -60,6 +60,12 @@ OPTCOMPFLAGS= -function-sections
 else
 OPTCOMPFLAGS=
 endif
+ifeq "$(DATA_SECTIONS)" "true"
+OPTCOMPFLAGS += -data-sections
+endif
+ifeq "$(FRAMETABLE_SECTIONS)" "true"
+OPTCOMPFLAGS += -frametable-sections
+endif
 LINKFLAGS=
 
 ifeq "$(strip $(NATDYNLINKOPTS))" ""

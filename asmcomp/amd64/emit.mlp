@@ -1029,7 +1029,7 @@ let frametable_section_prefix =
   sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
 
 let emit_frametable_section ?flags ?link name =
-  assert !Config.function_and_data_sections;
+  assert !Config.frametable_sections;
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->

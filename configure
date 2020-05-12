@@ -695,6 +695,8 @@ flexdll_chain
 default_safe_string
 force_safe_string
 afl
+frametable_sections
+data_sections
 function_sections
 flat_float_array
 windows_unicode
@@ -846,6 +848,7 @@ enable_reserved_header_bits
 enable_force_safe_string
 enable_flat_float_array
 enable_function_sections
+enable_data_sections
 with_afl
 enable_shared
 enable_static
@@ -1522,6 +1525,7 @@ Optional Features:
                           do not use flat float arrays
   --disable-function-sections
                           do not emit each function in a separate section
+  --disable-data-sections do not emit each data item in a separate section
   --enable-shared[=PKGS]  build shared libraries [default=yes]
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-fast-install[=PKGS]
@@ -2817,6 +2821,8 @@ VERSION=4.09.0
 
 
 
+
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.common"
@@ -3173,6 +3179,14 @@ if test "${enable_function_sections+set}" = set; then :
   enableval=$enable_function_sections;
 else
   enable_function_sections=auto
+fi
+
+
+# Check whether --enable-data-sections was given.
+if test "${enable_data_sections+set}" = set; then :
+  enableval=$enable_data_sections;
+else
+  enable_data_sections=auto
 fi
 
 
@@ -16537,6 +16551,7 @@ $as_echo "$as_me: Function sections are not supported
   gcc-*|clang-*) :
     function_sections=true;
               internal_cflags="$internal_cflags -ffunction-sections";
+              internal_cppflags="$internal_cppflags -ffunction-sections";
               $as_echo "#define FUNCTION_SECTIONS 1" >>confdefs.h
  ;; #(
   *) :
@@ -16560,6 +16575,135 @@ esac;
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: Disabling function sections." >&5
 $as_echo "$as_me: Disabling function sections." >&6;}
+fi
+fi
+fi
+
+if test x"$enable_data_sections" = "xno"; then :
+  data_sections=false;
+   frametable_sections=false
+
+else
+  case $arch in #(
+  amd64|i386|arm|arm64) :
+    case $target in #(
+  *-cygwin*|*-mingw*|*-windows|*-apple-darwin*) :
+    data_sections=false;
+           { $as_echo "$as_me:${as_lineno-$LINENO}: No support for data sections on $target." >&5
+$as_echo "$as_me: No support for data sections on $target." >&6;} ;; #(
+  *) :
+    case $ocaml_cv_cc_vendor in #(
+  gcc-0123-*|gcc-4-01234567) :
+    data_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: Data sections are not
+              supported in GCC prior to version 4.8." >&5
+$as_echo "$as_me: Data sections are not
+              supported in GCC prior to version 4.8." >&6;} ;; #(
+  clang-012-*|clang-3-01234) :
+    data_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: Data sections are not supported
+              in Clang prior to version 3.5." >&5
+$as_echo "$as_me: Data sections are not supported
+              in Clang prior to version 3.5." >&6;} ;; #(
+  gcc-*|clang-*) :
+    data_sections=true;
+              internal_cflags="$internal_cflags -fdata-sections";
+              internal_cppflags="$internal_cppflags -fdata-sections";
+              $as_echo "#define DATA_SECTIONS 1" >>confdefs.h
+
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the assembler and linker support SHF_LINK_ORDER" >&5
+$as_echo_n "checking whether the assembler and linker support SHF_LINK_ORDER... " >&6; }
+
+  saved_CC="$CC"
+  saved_CFLAGS="$CFLAGS"
+  saved_CPPFLAGS="$CPPFLAGS"
+  saved_ac_ext="$ac_ext"
+  saved_ac_compile="$ac_compile"
+  # Move the content of confdefs.h to another file so it does not
+  # get included
+  mv confdefs.h confdefs.h.bak
+  touch confdefs.h
+
+
+  CFLAGS="-Wl,--gc-sections -Wl,--no-export-dynamic -o conftest.$ac_objext"
+  # Modify C-compiler variables to use the assembler
+  ac_ext="S"
+  ac_compile='$CC $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
+
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    .global main
+main:
+        call camlT__foo
+
+        .section .text.camlT__foo
+        .global camlT__foo
+camlT__foo:
+        nop
+
+        .section .text.camlT__bar
+        .global camlT__bar
+camlT__bar:
+        nop
+
+        .section .frametable.foo,"ao",@progbits,.text.camlT__foo
+        .global camlT__frametable_foo
+camlT__frametable_foo:
+        .word 0
+
+        .section .frametable.bar,"ao",@progbits,.text.camlT__bar
+        .global camlT__frametable_bar
+camlT__frametable_bar:
+        .word 0
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  $as_echo "#define FRAMETABLE_SECTIONS 1" >>confdefs.h
+
+    frametable_sections=true
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  frametable_sections=false
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+
+  # Restore the content of confdefs.h
+  mv confdefs.h.bak confdefs.h
+  ac_compile="$saved_ac_compile"
+  ac_ext="$saved_ac_ext"
+  CPPFLAGS="$saved_CPPFLAGS"
+  CFLAGS="$saved_CFLAGS"
+  CC="$saved_CC"
+
+ ;; #(
+  *) :
+    data_sections=false;
+              { $as_echo "$as_me:${as_lineno-$LINENO}: Data sections are not supported by
+              $ocaml_cv_cc_vendor." >&5
+$as_echo "$as_me: Data sections are not supported by
+              $ocaml_cv_cc_vendor." >&6;} ;; #(
+  *) :
+     ;;
+esac ;; #(
+  *) :
+     ;;
+esac ;; #(
+  *) :
+    data_sections=false ;;
+esac;
+  if test x"$data_sections" = "xfalse"; then :
+  frametable_sections=false;
+     if test x"$enable_data_sections" = "xyes"; then :
+  as_fn_error $? "Data sections are not supported." "$LINENO" 5
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Disabling data sections." >&5
+$as_echo "$as_me: Disabling data sections." >&6;}
 fi
 fi
 fi

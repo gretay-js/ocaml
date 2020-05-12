@@ -229,6 +229,8 @@ AFL_INSTRUMENT=@afl@
 MAX_TESTSUITE_DIR_RETRIES=@max_testsuite_dir_retries@
 FLAT_FLOAT_ARRAY=@flat_float_array@
 FUNCTION_SECTIONS=@function_sections@
+DATA_SECTIONS=@data_sections@
+FRAMETABLE_SECTIONS=@frametable_sections@
 AWK=@AWK@
 
 
