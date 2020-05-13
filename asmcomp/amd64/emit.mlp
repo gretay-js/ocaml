@@ -497,6 +497,7 @@ let emit_global_label s =
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
+let text_section_name s = ".text.caml."^s
 let emit_named_text_section func_name =
   if !Clflags.function_sections then
     begin match system with
@@ -508,7 +509,7 @@ let emit_named_text_section func_name =
        systems does not support function sections. *)
       ->  assert false
     | _ -> D.section
-             [ ".text.caml."^(emit_symbol func_name) ]
+             [ text_section_name (emit_symbol func_name) ]
              (Some "ax")
              ["@progbits"]
     end
@@ -1027,8 +1028,10 @@ let emit_named_data_section section =
 
 let emit_frametable_section ?flags ?link name =
   assert Config.frametable_sections;
+  assert !Clflags.function_sections;
+  assert !Clflags.data_sections;
   let name = Compilenv.make_symbol (Some name)
-             |> Printf.sprintf ".frametable.data.%s_" in
+             |> Printf.sprintf ".frametable.data.%s" in
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->
@@ -1040,21 +1043,24 @@ let emit_frametable_section ?flags ?link name =
     D.section [name] flags args
 
 let emit_frametable_section_begin () =
-  if !Clflags.frametable_sections then
-    emit_frametable_section "begin"
-  else
+  if !Clflags.frametable_sections then begin
+    let link = text_section_name (Compilenv.make_symbol (Some "code_begin")) in
+    emit_frametable_section ~flags:"ao" ~link "begin"
+  end else
     D.data()
 
 let emit_frametable_section_end () =
   if !Clflags.frametable_sections then begin
-    emit_frametable_section "end";
+    let link = text_section_name (Compilenv.make_symbol (Some "code_begin")) in
+    emit_frametable_section ~flags:"ao" ~link "end";
     D.qword (const 0)
   end
 
 let emit_frametable_section_item i =
   if !Clflags.frametable_sections then begin
     let fun_name = Hashtbl.find lbl2names i in
-    emit_frametable_section ~flags:"ao" ~link:fun_name (Int.to_string i)
+    let link = text_section_name fun_name in
+    emit_frametable_section ~flags:"ao" ~link (Int.to_string i)
   end
 
 let emit_frametable_section_dbg i =
