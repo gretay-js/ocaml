@@ -1071,11 +1071,13 @@ let emit_frametable_section_item i =
     emit_frametable_section ~flags:"ao" ~link (Int.to_string i)
   end
 
-let emit_frametable_section_dbg i =
+let _emit_frametable_section_dbg i =
   if !Clflags.frametable_sections then begin
     let name = Compilenv.make_symbol (Some ("dbg"^(Int.to_string i))) in
     emit_named_data_section (Some {name; flags="wa"})
   end
+
+let emit_frametable_section_dbg _i = D.data ()
 
 (* Beginning / end of an assembly file *)
 
