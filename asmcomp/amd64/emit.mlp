@@ -990,20 +990,6 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
-let emit_item = function
-  | Cglobal_symbol s -> D.global (emit_symbol s)
-  | Cdefine_symbol s -> add_def_symbol s; _label (emit_symbol s)
-  | Cint8 n -> D.byte (const n)
-  | Cint16 n -> D.word (const n)
-  | Cint32 n -> D.long (const_nat n)
-  | Cint n -> D.qword (const_nat n)
-  | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
-  | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
-  | Csymbol_address s -> add_used_symbol s; D.qword (ConstLabel (emit_symbol s))
-  | Cstring s -> D.bytes s
-  | Cskip n -> if n > 0 then D.space n
-  | Calign n -> D.align n
-
 (* CR gyorsh: update cmmgen to pass symbol name for section name *)
 let data_section_counter = ref 0 (* unique names for data sections *)
 
@@ -1025,13 +1011,33 @@ let emit_named_data_section section =
     end
   | Some s -> f s
 
+let emit_item = function
+  | Cglobal_symbol s -> D.global (emit_symbol s)
+  | Cdefine_symbol s -> add_def_symbol s; _label (emit_symbol s)
+  | Cint8 n -> D.byte (const n)
+  | Cint16 n -> D.word (const n)
+  | Cint32 n -> D.long (const_nat n)
+  | Cint n -> D.qword (const_nat n)
+  | Csingle f -> D.long  (Const (Int64.of_int32 (Int32.bits_of_float f)))
+  | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
+  | Csymbol_address s -> add_used_symbol s; D.qword (ConstLabel (emit_symbol s))
+  | Cstring s -> D.bytes s
+  | Cskip n -> if n > 0 then D.space n
+  | Calign n -> D.align n
+
+let data d =
+  emit_named_data_section d.section;
+  D.align 8;
+  List.iter emit_item d.items
+
+(* Emission of frametable sections *)
 
 let emit_frametable_section ?flags ?link name =
   assert Config.frametable_sections;
   assert !Clflags.function_sections;
   assert !Clflags.data_sections;
   let name = Compilenv.make_symbol (Some name)
-             |> Printf.sprintf ".frametable.data.%s" in
+             |> Printf.sprintf ".frametable.%s" in
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->
@@ -1051,7 +1057,7 @@ let emit_frametable_section_begin () =
 
 let emit_frametable_section_end () =
   if !Clflags.frametable_sections then begin
-    let link = text_section_name (Compilenv.make_symbol (Some "code_begin")) in
+    let link = text_section_name (Compilenv.make_symbol (Some "code_end")) in
     emit_frametable_section ~flags:"ao" ~link "end";
     D.qword (const 0)
   end
@@ -1065,13 +1071,9 @@ let emit_frametable_section_item i =
 
 let emit_frametable_section_dbg i =
   if !Clflags.frametable_sections then begin
-    emit_frametable_section (Int.to_string i)
+    let name = Compilenv.make_symbol (Some ("dbg"^(Int.to_string i))) in
+    emit_named_data_section (Some {name; flags="wa"})
   end
-
-let data d =
-  emit_named_data_section d.section;
-  D.align 8;
-  List.iter emit_item d.items
 
 (* Beginning / end of an assembly file *)
 
