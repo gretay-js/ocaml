@@ -1025,11 +1025,10 @@ let emit_named_data_section section =
   | Some s -> f s
 
 
-let frametable_section_prefix =
-  Printf.sprintf ".frametable.data.%s_" (Compilenv.make_symbol None)
-
 let emit_frametable_section ?flags ?link name =
   assert Config.frametable_sections;
+  let name = Compilenv.make_symbol (Some name)
+             |> Printf.sprintf ".frametable.data.%s_" in
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
   | _ ->
@@ -1038,7 +1037,7 @@ let emit_frametable_section ?flags ?link name =
       | None -> []
       | Some link -> ["@progbits";link]
     in
-    D.section [frametable_section_prefix^name] flags args
+    D.section [name] flags args
 
 let emit_frametable_section_begin () =
   if !Clflags.frametable_sections then
