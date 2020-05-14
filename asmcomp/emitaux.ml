@@ -201,6 +201,8 @@ let emit_frames a =
   in
   let emit_debuginfo (rs, rdbg) (lbl,next) =
     let d = List.hd rdbg in
+    (* CR gyorsh: wrong order between .data and .align, add a.efa_data
+       for section names *)
     a.efa_align Arch.size_addr;
     a.efa_def_label lbl;
     let info = pack_info rs d in
