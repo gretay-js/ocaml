@@ -772,7 +772,7 @@ AS_IF([test x"$enable_shared" != "xno"],
     |*-*-openbsd*|*-*-netbsd*|*-*-dragonfly*|*-*-gnu*|*-*-haiku*]],
       [sharedlib_cflags="-fPIC"
       mksharedlib="$CC -shared"
-#      oc_ldflags="$oc_ldflags -Wl,-E"
+      oc_ldflags="$oc_ldflags -Wl,-E"
       rpath="-Wl,-rpath,"
       mksharedlibrpath="-Wl,-rpath,"
       natdynlinkopts="-Wl,-E"
