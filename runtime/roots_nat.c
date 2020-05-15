@@ -101,13 +101,13 @@ static void fill_hashtable(link *frametables) {
     len = *tbl;
     d = (frame_descr *)(tbl + 1);
     for (j = 0; j < len; j++) {
+      if (d == NULL) break;
       h = Hash_retaddr(d->retaddr);
       while (caml_frame_descriptors[h] != NULL) {
         h = (h+1) & caml_frame_descriptors_mask;
       }
       caml_frame_descriptors[h] = d;
       d = next_frame_descr(d);
-      if (d == NULL) break;
     }
   }
 }
@@ -205,9 +205,9 @@ void caml_unregister_frametable(intnat *table) {
   len = *table;
   d = (frame_descr *)(table + 1);
   for (j = 0; j < len; j++) {
+    if (d == NULL) break;
     remove_entry(d);
     d = next_frame_descr(d);
-    if (d == NULL) break;
   }
 
   iter_list(frametables,lnk) {
