@@ -65,6 +65,14 @@ OPTCOMPFLAGS += -data-sections
 endif
 ifeq "$(FRAMETABLE_SECTIONS)" "true"
 OPTCOMPFLAGS += -frametable-sections
+# Requires linker script specific to the target and the system
+# Can it be determined at configure time?
+# or disabled for building the compiler itself?
+OPTLINKFLAGS = -cclib -Wl,--default-script=linker-script
+OPTLINKFLAGS += -cclib -Wl,--gc-sections
+OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
+else
+OPTLINKFLAGS=
 endif
 LINKFLAGS=
 
@@ -896,7 +904,8 @@ partialclean::
 
 ocamlc.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamlbytecomp.cmxa \
             $(BYTESTART:.cmo=.cmx)
-	$(CAMLOPT_CMD) $(LINKFLAGS) -o $@ $^ -cclib "$(BYTECCLIBS)"
+	$(CAMLOPT_CMD) $(LINKFLAGS) -o $@ $^ \
+                        -cclib "$(BYTECCLIBS)"
 
 partialclean::
 	rm -f ocamlc.opt
@@ -910,7 +919,7 @@ partialclean::
 
 ocamlopt.opt: compilerlibs/ocamlcommon.cmxa compilerlibs/ocamloptcomp.cmxa \
               $(OPTSTART:.cmo=.cmx)
-	$(CAMLOPT_CMD) $(LINKFLAGS) -o $@ $^
+	$(CAMLOPT_CMD) $(LINKFLAGS) $(OPTLINKFLAGS) -o $@ $^
 
 partialclean::
 	rm -f ocamlopt.opt
