@@ -993,23 +993,30 @@ let fundecl fundecl =
 (* CR gyorsh: update cmmgen to pass symbol name for section name *)
 let data_section_counter = ref 0 (* unique names for data sections *)
 
-let emit_named_data_section section =
-  let f s =
-    match system with
-    | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
-    | _ -> D.section [ ".data.caml."^s.name ] (Some s.flags) ["@progbits"]
-  in
+let emit_named_data_section_aux ~name ~flags =
+  match system with
+  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
+  | _ -> D.section [ ".data.caml."^name ] (Some flags) ["@progbits"]
+
+let emit_named_data_section ?(flags="wa") name =
+  if !Clflags.data_sections then begin
+    emit_named_data_section_aux ~name ~flags
+  end else begin
+    D.data ()
+  end
+
+let emit_data_section section =
   match section with
   | None ->
     if !Clflags.data_sections then begin
       let name = Int.to_string !data_section_counter in
       incr data_section_counter;
       let name = Compilenv.make_symbol (Some name) in
-      f { name; flags="wa" }
+      emit_named_data_section name
     end else begin
       D.data ()
     end
-  | Some s -> f s
+  | Some {name; flags} -> emit_named_data_section_aux ~name ~flags
 
 let emit_item = function
   | Cglobal_symbol s -> D.global (emit_symbol s)
@@ -1026,7 +1033,7 @@ let emit_item = function
   | Calign n -> D.align n
 
 let data d =
-  emit_named_data_section d.section;
+  emit_data_section d.section;
   D.align 8;
   List.iter emit_item d.items
 
@@ -1072,7 +1079,7 @@ let emit_frametable_section_item i =
 let emit_frametable_section_dbg i =
   if !Clflags.frametable_sections then begin
     let name = Compilenv.make_symbol (Some ("dbg"^(Int.to_string i))) in
-    emit_named_data_section (Some {name; flags="wa"})
+    emit_named_data_section name;
   end
 
 (* Beginning / end of an assembly file *)
@@ -1119,7 +1126,7 @@ let begin_assembly() =
     D.qword (Const 0xFFFFFFFFFFFFFFFFL);
   end;
 
-  D.data ();
+  emit_named_data_section "data_begin";
   emit_global_label "data_begin";
 
   emit_named_text_section (Compilenv.make_symbol (Some "code_begin"));
@@ -1184,7 +1191,7 @@ let end_assembly() =
 
   emit_imp_table();
 
-  D.data ();
+  emit_named_data_section "data_end";
   D.qword (const 0);  (* PR#6329 *)
   emit_global_label "data_end";
   D.qword (const 0);
@@ -1220,6 +1227,11 @@ let end_assembly() =
         );
       efa_def_label = (fun l ->
         emit_frametable_section_dbg l;
+        (* CR gyorsh: Emitaux.emit_frames calls efa_align before efa_def_label,
+           which puts .section directive, so the alignment ends up not in the right section.
+           Just emit another .align for now. Fix by adding efa_section_dbg and efa_section_item
+           instead of changing efa_def_label. *)
+        D.align Arch.size_addr;
         _label (emit_label l));
       efa_string = (fun s -> D.bytes (s ^ "\000"))
     };
