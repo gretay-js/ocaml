@@ -176,9 +176,16 @@ flags := -g -nostdlib $(include_directories) \
   -strict-sequence -safe-string -strict-formats \
   -w +a-4-9-41-42-44-45-48 -warn-error A
 
+optflags = -function-sections -data-sections -frametable-sections
+
+OPTLINKFLAGS = -cclib -Wl,--default-script=$(ROOTDIR)/linker-script
+OPTLINKFLAGS += -cclib -Wl,--gc-sections
+OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
+OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
+
 ocamlc := $(ROOTDIR)/runtime/ocamlrun $(ROOTDIR)/ocamlc $(flags)
 
-ocamlopt := $(ROOTDIR)/runtime/ocamlrun $(ROOTDIR)/ocamlopt $(flags)
+ocamlopt := $(ROOTDIR)/runtime/ocamlrun $(ROOTDIR)/ocamlopt $(flags) $(optflags)
 
 ocamldep := $(ROOTDIR)/runtime/ocamlrun $(ROOTDIR)/boot/ocamlc -depend
 depflags := -slash
@@ -206,7 +213,7 @@ ocamltest$(EXE): $(bytecode_modules)
 	$(ocamlc) -c $<
 
 ocamltest.opt$(EXE): $(native_modules)
-	$(ocamlopt_cmd) ocamlcommon.cmxa ocamlbytecomp.cmxa -o $@ $^
+	$(ocamlopt_cmd) ocamlcommon.cmxa ocamlbytecomp.cmxa $(OPTLINKFLAGS) -o $@ $^
 
 %.cmx: %.ml
 	$(ocamlopt) -c $<
