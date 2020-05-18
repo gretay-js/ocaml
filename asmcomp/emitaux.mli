@@ -49,6 +49,8 @@ val record_frame_descr :
 type emit_frame_actions =
   { efa_code_label: int -> unit;
     efa_data_label: int -> unit;
+    efa_named_section: int -> unit;
+    efa_named_section_dbg: int -> unit;
     efa_16: int -> unit;
     efa_32: int32 -> unit;
     efa_word: int -> unit;

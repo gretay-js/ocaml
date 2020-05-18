@@ -1021,6 +1021,8 @@ let end_assembly () =
       efa_data_label = (fun lbl ->
                        `	.type	{emit_label lbl}, %object\n`;
                        `	.quad	{emit_label lbl}\n`);
+      efa_named_section = (fun _ -> ());
+      efa_named_section_dbg = (fun _ -> ());
       efa_16 = (fun n -> `	.short	{emit_int n}\n`);
       efa_32 = (fun n -> `	.long	{emit_int32 n}\n`);
       efa_word = (fun n -> `	.quad	{emit_int n}\n`);

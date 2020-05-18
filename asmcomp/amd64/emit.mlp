@@ -1198,9 +1198,8 @@ let end_assembly() =
 
   let setcnt = ref 0 in
   emit_frames
-    { efa_code_label = (fun l ->
-        emit_frametable_section_item l;
-        D.qword (ConstLabel (emit_label l)));
+    { efa_code_label = (fun l -> D.qword (ConstLabel (emit_label l)));
+      efa_named_section = emit_frametable_section_item;
       efa_data_label = (fun l -> D.qword (ConstLabel (emit_label l)));
       efa_16 = (fun n -> D.word (const n));
       efa_32 = (fun n -> D.long (const_32 n));
@@ -1221,12 +1220,8 @@ let end_assembly() =
            end else
              D.long c
         );
+      efa_named_section_dbg = emit_frametable_section_dbg;
       efa_def_label = (fun l ->
-        emit_frametable_section_dbg l;
-        (* CR gyorsh: Emitaux.emit_frames calls efa_align before efa_def_label,
-           which puts .section directive, so the alignment ends up not in the right section.
-           Just emit another .align for now. Fix by adding efa_section_dbg and efa_section_item
-           instead of changing efa_def_label. *)
         D.align Arch.size_addr;
         _label (emit_label l));
       efa_string = (fun s -> D.bytes (s ^ "\000"))

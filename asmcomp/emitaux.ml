@@ -125,6 +125,8 @@ let record_frame_descr ~label ~frame_size ~live_offset ~raise_frame debuginfo =
 type emit_frame_actions =
   { efa_code_label: int -> unit;
     efa_data_label: int -> unit;
+    efa_named_section: int -> unit;
+    efa_named_section_dbg: int -> unit;
     efa_16: int -> unit;
     efa_32: int32 -> unit;
     efa_word: int -> unit;
@@ -173,6 +175,7 @@ let emit_frames a =
     a.efa_data_label (label_debuginfos rs rdbg)
   in
   let emit_frame fd =
+    a.efa_named_section fd.fd_lbl;
     a.efa_code_label fd.fd_lbl;
     a.efa_16 (if Debuginfo.is_none fd.fd_debuginfo
               then fd.fd_frame_size
@@ -185,6 +188,7 @@ let emit_frames a =
     | _ :: _ as rdbg -> emit_debuginfo_label fd.fd_raise rdbg
   in
   let emit_filename name lbl =
+    a.efa_named_section_dbg lbl;
     a.efa_def_label lbl;
     a.efa_string name;
     a.efa_align Arch.size_addr
@@ -201,6 +205,7 @@ let emit_frames a =
   in
   let emit_debuginfo (rs, rdbg) (lbl,next) =
     let d = List.hd rdbg in
+    a.efa_named_section_dbg lbl;
     a.efa_align Arch.size_addr;
     a.efa_def_label lbl;
     let info = pack_info rs d in
