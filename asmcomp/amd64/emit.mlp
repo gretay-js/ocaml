@@ -1000,6 +1000,7 @@ let emit_named_data_section_aux ~name ~flags =
 
 let emit_named_data_section ?(flags="wa") name =
   if !Clflags.data_sections then begin
+    let name = Compilenv.make_symbol (Some name) in
     emit_named_data_section_aux ~name ~flags
   end else begin
     D.data ()
@@ -1011,7 +1012,6 @@ let emit_data_section section =
     if !Clflags.data_sections then begin
       let name = Int.to_string !data_section_counter in
       incr data_section_counter;
-      let name = Compilenv.make_symbol (Some name) in
       emit_named_data_section name
     end else begin
       D.data ()
@@ -1074,7 +1074,7 @@ let emit_frametable_section_item i =
 
 let emit_frametable_section_dbg i =
   if !Clflags.frametable_sections then begin
-    let name = Compilenv.make_symbol (Some ("dbg"^(Int.to_string i))) in
+    let name = "dbg"^(Int.to_string i) in
     emit_named_data_section name;
   end
 
