@@ -993,15 +993,25 @@ let fundecl fundecl =
 (* CR gyorsh: update cmmgen to pass symbol name for section name *)
 let data_section_counter = ref 0 (* unique names for data sections *)
 
-let emit_named_data_section_aux ~name ~flags =
+let data_section_name name = ".data.caml."^(emit_symbol name)
+let emit_named_data_section_aux ~name ~flags ~args =
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
-  | _ -> D.section [ ".data.caml."^name ] (Some flags) ["@progbits"]
+  | _ ->
+    let args = match args with
+      | Default_args -> ["@progbits"]
+      | Custom_args args -> args
+    in
+    let flags = match flags with
+      | Default -> (Some "wa")
+      | Custom flags -> (Some flags)
+    in
+    D.section [ data_section_name name ] flags args
 
-let emit_named_data_section ?(flags="wa") name =
+let emit_named_data_section name =
   if !Clflags.data_sections then begin
     let name = Compilenv.make_symbol (Some name) in
-    emit_named_data_section_aux ~name ~flags
+    emit_named_data_section_aux ~name ~flags:Default ~args:Default_args
   end else begin
     D.data ()
   end
@@ -1016,7 +1026,51 @@ let emit_data_section section =
     end else begin
       D.data ()
     end
-  | Some {name; flags} -> emit_named_data_section_aux ~name ~flags
+  | Some {name; flags; args} -> emit_named_data_section_aux ~name ~flags ~args
+
+(* Emission of frametable and gc_root sections *)
+
+let emit_ordered_section ~prefix ~name ~link =
+  assert Config.frametable_sections;
+  assert !Clflags.function_sections;
+  assert !Clflags.data_sections;
+  match system with
+  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
+  | _ ->
+    let sec = Printf.sprintf ".caml.%s.%s" (prefix) (emit_symbol name) in
+    D.section [sec] (Some "ao") ["@progbits"; link]
+
+let emit_gc_roots_section name =
+  emit_ordered_section ~prefix:"gc_roots" ~name ~link:(data_section_name name)
+
+let emit_frametable_section name =
+  emit_ordered_section ~prefix:"frametable" ~name ~link:(text_section_name name)
+
+let emit_frametable_section_begin () =
+  if !Clflags.frametable_sections then begin
+    let name = Compilenv.make_symbol (Some "code_begin") in
+    emit_frametable_section name
+  end else
+    D.data()
+
+let emit_frametable_section_end () =
+  if !Clflags.frametable_sections then begin
+    let name = Compilenv.make_symbol (Some "code_end") in
+    emit_frametable_section name;
+    D.qword (const 0)
+  end
+
+let emit_frametable_section_item i =
+  if !Clflags.frametable_sections then begin
+    let name = Hashtbl.find lbl2names i in
+    emit_frametable_section name
+  end
+
+let emit_frametable_section_dbg i =
+  if !Clflags.frametable_sections then begin
+    let name = "dbg"^(Int.to_string i) in
+    emit_named_data_section name;
+  end
 
 let emit_item = function
   | Cglobal_symbol s -> D.global (emit_symbol s)
@@ -1032,50 +1086,41 @@ let emit_item = function
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align n
 
-let data d =
+let data_aux d =
   emit_data_section d.section;
   D.align 8;
   List.iter emit_item d.items
 
-(* Emission of frametable sections *)
-
-let emit_frametable_section ~link ~name =
-  assert Config.frametable_sections;
-  assert !Clflags.function_sections;
-  assert !Clflags.data_sections;
-  match system with
-  | S_macosx | S_win64 | S_mingw64 | S_cygwin -> assert false
-  | _ ->
-    let name = Printf.sprintf ".frametable.%s" (emit_symbol name) in
-    let link = text_section_name link in
-    D.section [name] (Some "ao") ["@progbits"; link]
-
-let emit_frametable_section_begin () =
+let data d =
   if !Clflags.frametable_sections then begin
-    let name = Compilenv.make_symbol (Some "begin") in
-    let link = Compilenv.make_symbol (Some "code_begin") in
-    emit_frametable_section ~name ~link
-  end else
-    D.data()
-
-let emit_frametable_section_end () =
-  if !Clflags.frametable_sections then begin
-    let name = Compilenv.make_symbol (Some "end") in
-    let link = Compilenv.make_symbol (Some "code_end") in
-    emit_frametable_section ~name ~link;
-    D.qword (const 0)
-  end
-
-let emit_frametable_section_item i =
-  if !Clflags.frametable_sections then begin
-    let fun_name = Hashtbl.find lbl2names i in
-    emit_frametable_section ~link:fun_name ~name:fun_name
-  end
-
-let emit_frametable_section_dbg i =
-  if !Clflags.frametable_sections then begin
-    let name = "dbg"^(Int.to_string i) in
-    emit_named_data_section name;
+    (* Detect gc_roots table and emit it using ordered sections,
+       similarly to frametables. Requires -nodynlink for safety,
+       because this doesn't change caml_globals_map, only caml_globals. *)
+    (* CR gyorsh: handle this gracefully in Cmmgen.emit_gc_roots_table. *)
+    let sym = Compilenv.make_symbol (Some "gc_roots") in
+    match d.items with
+    | ((Cglobal_symbol s1) as g)::((Cdefine_symbol s2) as d)::items
+      when String.equal s1 s2 && String.equal s1 sym ->
+      emit_gc_roots_section (Compilenv.make_symbol (Some "data_begin"));
+      D.align 8;
+      emit_item g;
+      emit_item d;
+      let rec emit_gc_roots = function
+        | [] -> assert false
+        | [(Cint 0n) as last] ->
+          emit_gc_roots_section (Compilenv.make_symbol (Some "data_end"));
+          emit_item last
+        | [_] -> assert false
+        | ((Csymbol_address s) as i)::tl ->
+          emit_gc_roots_section s;
+          emit_item i;
+          emit_gc_roots tl
+        | _ -> assert false
+      in
+      emit_gc_roots items
+    | _ -> data_aux d
+  end else begin
+    data_aux d
   end
 
 (* Beginning / end of an assembly file *)

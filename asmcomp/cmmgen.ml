@@ -3425,7 +3425,12 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
     else
       Cdefine_symbol symbol :: space
   in
-  cdata data :: cont
+  let section =
+    if !Clflags.data_sections then
+      Some { name = symbol; flags = Default; args = Default_args }
+    else None
+  in
+  Cdata { section; items=data } :: cont
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =

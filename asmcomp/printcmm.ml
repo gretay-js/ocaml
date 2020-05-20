@@ -287,7 +287,13 @@ let data ppf d =
   let s =
     match d.section with
     | None -> ""
-    | Some s -> sprintf " (section %s %s)" s.name s.flags
+    | Some s -> sprintf " (section %s %s %s)" s.name
+                  (match s.flags with
+                   | Default -> "default"
+                   | Custom s -> s)
+                  (match s.args with
+                   | Default_args -> "default"
+                   | Custom_args sl -> String.concat "," sl)
   in
   let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) d.items in
   fprintf ppf "@[<hv 1>(data%s%t)@]" s items

@@ -211,9 +211,13 @@ type data_item =
   | Cskip of int
   | Calign of int
 
+type section_flags = Default | Custom of string
+type section_args = Default_args | Custom_args of string list
+
 type section =
   { name: string;
-    flags: string;
+    flags: section_flags;
+    args: section_args;
   }
 
 type datadecl =

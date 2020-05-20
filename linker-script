@@ -153,7 +153,8 @@ SECTIONS
   .got            : { *(.got) *(.igot) }
   . = DATA_SEGMENT_RELRO_END (SIZEOF (.got.plt) >= 24 ? 24 : 0, .);
   .got.plt        : { *(.got.plt) *(.igot.plt) }
-  .frametables    : { *(.frametable.*) }
+  .caml.frametables    : { *(.caml.frametable.*) }
+  .caml.gc_roots       : { *(.caml.gc_roots.*) }
   .data           :
   {
     *(.data .data.* .gnu.linkonce.d.*)
