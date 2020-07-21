@@ -85,7 +85,7 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
-  | Cprobe _ -> typ_int
+  | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
 
 (* Infer the size in bytes of the result of an expression whose evaluation
@@ -506,8 +506,8 @@ method select_operation op args _dbg =
     let op = self#select_checkbound () in
     self#select_arith op (args @ extra_args)
   | (Cprobe { name; handler_code_sym; }, _) ->
-    Iprobe { name; handler_code_sym; }, args
-  | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
+    (Iprobe { name; handler_code_sym; }, args)
+  | (Cprobe_is_enabled {name}, _) -> (Iprobe_is_enabled {name}, [])
   | _ -> Misc.fatal_error "Selection.select_oper"
 
 method private select_arith_comm op = function
@@ -816,6 +816,7 @@ method emit_expr (env:environment) exp =
       | Some rarg ->
           let (rif, sif) = self#emit_sequence env eif in
           let (relse, selse) = self#emit_sequence env eelse in
+
           let r = join env rif sif relse selse in
           self#insert env (Iifthenelse(cond, sif#extract, selse#extract))
                       rarg [||];
