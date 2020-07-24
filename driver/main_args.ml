@@ -326,6 +326,9 @@ let mk_no_probes f =
     "-no-probes", Arg.Unit f, " Ignore [%%probe ..]"
 ;;
 
+let mk_debug_probes f =
+    "-debug-probes", Arg.Unit f, " Statically enable handler for debug [%%probe ..]"
+;;
 
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
@@ -1138,6 +1141,7 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+  val _debug_probes : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1367,6 +1371,7 @@ struct
     mk_start_from ~native:true F._start_from;
     mk_probes F._probes;
     mk_no_probes F._no_probes;
+    mk_debug_probes F._debug_probes;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
@@ -1972,6 +1977,7 @@ module Default = struct
     let _v () = print_version_and_library "native-code compiler"
     let _no_probes = clear probes
     let _probes = set probes
+    let _debug_probes = set debug_probes
   end
 
   module Odoc_args = struct
