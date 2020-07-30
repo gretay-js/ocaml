@@ -207,5 +207,9 @@ let operation_can_raise op =
   match op with
   | Icall_ind _ | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound _) | Iintop_imm (Icheckbound _, _)
+<<<<<<< Updated upstream
+=======
+  | Iprobe _
+>>>>>>> Stashed changes
   | Ialloc _ -> true
   | _ -> false

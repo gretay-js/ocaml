@@ -377,7 +377,11 @@ method schedule_fundecl f =
       let critical_outputs =
         match i.desc with
           Lop(Icall_ind _ | Itailcall_ind _) -> [| i.arg.(0) |]
+<<<<<<< Updated upstream
         | Lop(Icall_imm _ | Itailcall_imm _ | Iextcall _) -> [||]
+=======
+        | Lop(Icall_imm _ | Itailcall_imm _ | Iextcall _ | Iprobe _) -> [||]
+>>>>>>> Stashed changes
         | Lreturn -> [||]
         | _ -> i.arg in
       List.iter (fun x -> ignore (longest_path critical_outputs x)) ready_queue;
