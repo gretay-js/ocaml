@@ -1684,7 +1684,12 @@ let end_assembly() =
     };
 
   emit_frametable_section_end ();
-  if system = S_linux then begin
+  if system = S_linux &&
+     (* Assembly directive size requires constant expression and
+        thus cannot be used across different sections, even though
+        we know that they will be layed out contiguously. *)
+     not !Clflags.frametable_sections
+  then begin
     let frametable = emit_symbol (Compilenv.make_symbol (Some "frametable")) in
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
