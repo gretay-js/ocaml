@@ -268,6 +268,13 @@ CAMLprim value caml_bytes_set64(value str, value index, value newval)
   return Val_unit;
 }
 
+value stat (mlsize_t sz1, mlsize_t sz2, value res)
+{
+  printf ("caml_string_equal: %d %d is %s\n",Bsize_wsize(sz1),Bsize_wsize(sz2),
+          (res == Val_true ? "true" : "false"));
+  return res;
+}
+
 CAMLprim value caml_string_equal(value s1, value s2)
 {
   mlsize_t sz1, sz2;
