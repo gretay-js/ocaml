@@ -235,6 +235,7 @@ let emit_frames a =
     (* These must be 32-bit aligned, both because they contain a
        32-bit value, and because emit_debuginfo assumes the low 2 bits
        of their addresses are 0. *)
+    a.efa_named_section_dbg lbl;
     a.efa_align 4;
     a.efa_def_label lbl;
     a.efa_label_rel file_lbl 0l;
