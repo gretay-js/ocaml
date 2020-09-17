@@ -216,14 +216,9 @@ type data_item =
 type section_flags = Default | Custom of string
 type section_args = Default_args | Custom_args of string list
 
-type section =
-  { name: string;
-    flags: section_flags;
-    args: section_args;
-  }
-
 type datadecl =
-  { section: section option;
+  { section: string option;
+    align: bool;
     items: data_item list;
   }
 
@@ -349,3 +344,5 @@ let map_shallow f = function
   | Cvar _
     as c ->
       c
+
+let cdata items = Cdata { section = None; align = true; items; }

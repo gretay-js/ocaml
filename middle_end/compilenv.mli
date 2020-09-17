@@ -70,6 +70,14 @@ val is_predefined_exception: Symbol.t -> bool
 val unit_for_global: Ident.t -> Compilation_unit.t
         (* flambda-only *)
 
+val block_index_symbol: string -> int -> string
+        (* [block_index_symbol base index] returns the asm symbol that
+           corresponds to the [index] into the preallocated block with
+           asm symbol is [base]. *)
+
+val gc_roots_symbol : unit -> string
+        (* asm symbol for gc_roots of the current compilation unit.  *)
+
 val symbol_for_global: Ident.t -> string
         (* Return the asm symbol that refers to the given global identifier
            flambda-only *)

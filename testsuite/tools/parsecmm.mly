@@ -168,7 +168,7 @@ let access_array base numelt size =
 
 phrase:
     fundecl     { Cfunction $1 }
-  | datadecl    { Cdata { section = None; items=$1; } }
+  | datadecl    { Cdata { section = None; align = true; items=$1; } }
   | EOF         { raise End_of_file }
 ;
 fundecl:

@@ -113,6 +113,11 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | None -> prefix
   | Some id -> concat_symbol prefix id
 
+let block_index_symbol base index =
+  Printf.sprintf "%s__%d_" base index
+
+let gc_roots_symbol () = make_symbol (Some "gc_roots")
+
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
 

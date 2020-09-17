@@ -1147,24 +1147,18 @@ let fundecl fundecl =
 let data_section_counter = ref 0 (* unique names for data sections *)
 
 let data_section_name name = ".data.caml."^(emit_symbol name)
-let emit_named_data_section_aux ~name ~flags ~args =
+let emit_named_data_section_aux ~name =
   match system with
   | S_macosx | S_win64 | S_mingw64 | S_cygwin -> D.text ()
   | _ ->
-    let args = match args with
-      | Default_args -> ["@progbits"]
-      | Custom_args args -> args
-    in
-    let flags = match flags with
-      | Default -> (Some "wa")
-      | Custom flags -> (Some flags)
-    in
+    let args = ["@progbits"] in
+    let flags = (Some "wa") in
     D.section [ data_section_name name ] flags args
 
 let emit_named_data_section name =
   if !Clflags.data_sections then begin
     let name = Compilenv.make_symbol (Some name) in
-    emit_named_data_section_aux ~name ~flags:Default ~args:Default_args
+    emit_named_data_section_aux ~name
   end else begin
     D.data ()
   end
@@ -1179,7 +1173,7 @@ let emit_data_section section =
     end else begin
       D.data ()
     end
-  | Some {name; flags; args} -> emit_named_data_section_aux ~name ~flags ~args
+  | Some name -> emit_named_data_section_aux ~name
 
 (* Emission of frametable and gc_root sections *)
 
@@ -1241,7 +1235,7 @@ let emit_item = function
 
 let data_aux d =
   emit_data_section d.section;
-  D.align 8;
+  if d.align then D.align 8;
   List.iter emit_item d.items
 
 let data d =
@@ -1249,15 +1243,12 @@ let data d =
     (* Detect gc_roots table and emit it using ordered sections,
        similarly to frametables. Requires -nodynlink for safety,
        because this doesn't change caml_globals_map, only caml_globals. *)
-    (* CR gyorsh: handle this gracefully in Cmmgen.emit_gc_roots_table. *)
-    let sym = Compilenv.make_symbol (Some "gc_roots") in
-    match d.items with
-    | ((Cglobal_symbol s1) as g)::((Cdefine_symbol s2) as d)::items
-      when String.equal s1 s2 && String.equal s1 sym ->
+    let sym = Compilenv.gc_roots_symbol () in
+    match d.section with
+    | Some s when String.equal s sym ->
+      begin
       emit_gc_roots_section (Compilenv.make_symbol (Some "data_begin"));
       D.align 8;
-      emit_item g;
-      emit_item d;
       let rec emit_gc_roots = function
         | [] -> assert false
         | [(Cint 0n) as last] ->
@@ -1270,7 +1261,14 @@ let data d =
           emit_gc_roots tl
         | _ -> assert false
       in
-      emit_gc_roots items
+      match d.items with
+      | g::d::roots ->
+        emit_item g;
+        emit_item d;
+        emit_gc_roots roots
+      | _ -> Misc.fatal_errorf "Unexpected format of %s section:" sym
+               Printcmm.data d
+    end
     | _ -> data_aux d
   end else begin
     data_aux d

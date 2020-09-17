@@ -214,14 +214,9 @@ type data_item =
 type section_flags = Default | Custom of string
 type section_args = Default_args | Custom_args of string list
 
-type section =
-  { name: string;
-    flags: section_flags;
-    args: section_args;
-  }
-
 type datadecl =
-  { section: section option;
+  { section: string option;
+    align: bool;
     items: data_item list;
   }
 
@@ -253,3 +248,6 @@ val map_tail: (expression -> expression) -> expression -> expression
 
 val map_shallow: (expression -> expression) -> expression -> expression
   (** Apply the transformation to each immediate sub-expression. *)
+
+val cdata : data_item list -> phrase
+  (** Default data declaration. *)

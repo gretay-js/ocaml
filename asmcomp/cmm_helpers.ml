@@ -2565,8 +2565,6 @@ let entry_point namelist =
 
 (* Generate the table of globals *)
 
-let cdata items = Cdata { section = None; items; }
-
 let cint_zero = Cint 0n
 
 let global_table namelist =
@@ -2734,44 +2732,63 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
 (* Build the NULL terminated array of gc roots *)
 
 let emit_gc_roots_table ~symbols cont =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
-  cdata(Cglobal_symbol table_symbol ::
-        Cdefine_symbol table_symbol ::
-        List.map (fun s -> Csymbol_address s) symbols @
-        [Cint 0n])
+  let table_symbol = Compilenv.gc_roots_symbol () in
+  let items = Cglobal_symbol table_symbol ::
+              Cdefine_symbol table_symbol ::
+              List.map (fun s -> Csymbol_address s) symbols @
+              [Cint 0n] in
+  (Cdata { section = Some table_symbol; align = true; items; })
   :: cont
 
 (* Build preallocated blocks (used for Flambda [Initialize_symbol]
    constructs, and Clambda global module) *)
 
 let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
-  let space =
-    (* These words will be registered as roots and as such must contain
-       valid values, in case we are in no-naked-pointers mode.  Likewise
-       the block header must be black, below (see [caml_darken]), since
-       the overall record may be referenced. *)
-    List.map (fun field ->
-        match field with
-        | None ->
-            Cint (Nativeint.of_int 1 (* Val_unit *))
-        | Some (Clambda.Uconst_field_int n) ->
-            cint_const n
-        | Some (Clambda.Uconst_field_ref label) ->
-            Csymbol_address label)
-      fields
-  in
   let global = Cmmgen_state.(if exported then Global else Local) in
   let symb = (symbol, global) in
-  let data =
-    emit_block symb (block_header tag (List.length fields)) space
-  in
   let section =
-    if !Clflags.data_sections then
-      Some { name = symbol; flags = Default; args = Default_args }
+    if !Clflags.data_sections then Some symbol
     else None
   in
-  Cdata { section; items=data } :: cont
+  let val_unit = Cint (Nativeint.of_int 1 (* Val_unit *)) in
+  let len = List.length fields in
+  let get_val field =
+    match field with
+    | None ->
+      val_unit
+    | Some (Clambda.Uconst_field_int n) ->
+      cint_const n
+    | Some (Clambda.Uconst_field_ref label) ->
+      Csymbol_address label
+  in
 
+  (* These words will be registered as roots and as such must contain
+     valid values, in case we are in no-naked-pointers mode.  Likewise
+     the block header must be black, below (see [caml_darken]), since
+     the overall record may be referenced. *)
+  if (!Clflags.frametable_sections) then begin
+    let sec i = Some (Printf.sprintf "%s.%d" symbol i) in
+    let padding =
+      let items = List.init len (fun _ -> val_unit) in
+      Cdata { section = sec len; align = false; items }
+    in
+    let content =
+      List.mapi (fun i field ->
+          let sym = Compilenv.block_index_symbol symbol i in
+          let items = (cdefine_symbol (sym,global)) @ [get_val field] in
+          Cdata { section = sec i; align = false; items })
+        fields
+    in
+    let header = emit_block symb (block_header tag len) [] in
+    let block = Cdata { section; align = true; items = header } in
+    (block::content)@(padding::cont)
+  end else begin
+    let space = List.map get_val fields in
+    let data =
+      emit_block symb (block_header tag len) space
+    in
+    Cdata { section; align = true; items = data } :: cont
+  end
 
 let emit_preallocated_blocks preallocated_blocks cont =
   let symbols =
@@ -2779,4 +2796,9 @@ let emit_preallocated_blocks preallocated_blocks cont =
       preallocated_blocks
   in
   let c1 = emit_gc_roots_table ~symbols cont in
+  (* CR gyorsh: guard for now so that it only works for closure.
+     Need to find a way to distinguish module blocks
+     from other preallocated blocks that shouldn't be split. *)
+  assert (not !Clflags.frametable_sections ||
+          (List.compare_length_with preallocated_blocks 1) = 0);
   List.fold_left preallocate_block c1 preallocated_blocks

@@ -290,16 +290,15 @@ let data ppf d =
   let s =
     match d.section with
     | None -> ""
-    | Some s -> sprintf " (section %s %s %s)" s.name
-                  (match s.flags with
-                   | Default -> "default"
-                   | Custom s -> s)
-                  (match s.args with
-                   | Default_args -> "default"
-                   | Custom_args sl -> String.concat "," sl)
+    | Some s -> sprintf " (section %s)" s
+  in
+  let a =
+    match d.align with
+    | true -> ""
+    | false -> " (unaligned)"
   in
   let items ppf = List.iter (fun d -> fprintf ppf "@ %a" data_item d) d.items in
-  fprintf ppf "@[<hv 1>(data%s%t)@]" s items
+  fprintf ppf "@[<hv 1>(data%s%s%t)@]" s a items
 
 let phrase ppf = function
   | Cfunction f -> fundecl ppf f

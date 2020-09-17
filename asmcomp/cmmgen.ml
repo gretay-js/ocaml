@@ -175,8 +175,6 @@ let rec expr_size env = function
 
 (* Translate structured constants to Cmm data items *)
 
-let cdata items = Cdata { section = None; items; }
-
 let transl_constant dbg = function
   | Uconst_int n ->
       int_const dbg n
