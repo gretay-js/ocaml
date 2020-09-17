@@ -2767,16 +2767,16 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
      the block header must be black, below (see [caml_darken]), since
      the overall record may be referenced. *)
   if (!Clflags.frametable_sections) then begin
-    let sec i = Some (Printf.sprintf "%s.%d" symbol i) in
     let padding =
+      let sym = Compilenv.block_index_symbol symbol len in
       let items = List.init len (fun _ -> val_unit) in
-      Cdata { section = sec len; align = false; items }
+      Cdata { section = Some sym; align = false; items }
     in
     let content =
       List.mapi (fun i field ->
           let sym = Compilenv.block_index_symbol symbol i in
           let items = (cdefine_symbol (sym,global)) @ [get_val field] in
-          Cdata { section = sec i; align = false; items })
+          Cdata { section = Some sym; align = false; items })
         fields
     in
     let header = emit_block symb (block_header tag len) [] in
