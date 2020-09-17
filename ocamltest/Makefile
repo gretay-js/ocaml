@@ -182,9 +182,9 @@ flags := -g -nostdlib $(include_directories) \
 optflags = -function-sections -data-sections -frametable-sections
 
 OPTLINKFLAGS = -cclib -Wl,--default-script=$(ROOTDIR)/linker-script
-OPTLINKFLAGS += -cclib -Wl,--gc-sections
-OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
-OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
+# OPTLINKFLAGS += -cclib -Wl,--gc-sections
+# OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
+# OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
 
 ocamlc := $(BEST_OCAMLC) $(flags)
 ocamlopt :=  $(BEST_OCAMLOPT) $(flags) $(optflags)

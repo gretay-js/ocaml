@@ -62,9 +62,9 @@ OPTCOMPFLAGS += -frametable-sections
 # Can it be determined at configure time?
 # or disabled for building the compiler itself?
 OPTLINKFLAGS = -cclib -Wl,--default-script=linker-script
-OPTLINKFLAGS += -cclib -Wl,--gc-sections
-OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
-OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
+# OPTLINKFLAGS += -cclib -Wl,--gc-sections
+# OPTLINKFLAGS += -cclib -Wl,--no-export-dynamic
+# OPTLINKFLAGS += -cclib -Wl,--print-gc-sections
 else
 OPTLINKFLAGS=
 endif
