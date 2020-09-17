@@ -835,6 +835,16 @@ let check_constant_result ulam approx =
   match approx with
     Value_const c when is_pure ulam -> make_const c
   | Value_global_field (id, i) when is_pure ulam ->
+    if Config.module_block_symbols then begin
+      match ulam with
+      | Uprim(P.Pfield _, [Uprim(P.Pread_symbol _, _, _)], _) -> (ulam, approx)
+      | _ ->
+          let field_id = Compilenv.block_index_symbol id i in
+          let glb =
+            Uprim(P.Pread_symbol field_id, [], Debuginfo.none)
+          in
+          Uprim(P.Pfield 0, [glb], Debuginfo.none), approx
+    end else
       begin match ulam with
       | Uprim(P.Pfield _, [Uprim(P.Pread_symbol _, _, _)], _) -> (ulam, approx)
       | _ ->
@@ -1115,8 +1125,17 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
       let dbg = Debuginfo.from_location loc in
-      (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg id; ulam], dbg),
-       Value_unknown)
+      begin match init, Config.module_block_symbols with
+      | Root_initialization, true ->
+        let glb = Compilenv.symbol_for_global id in
+        let field_sym = Compilenv.block_index_symbol glb n in
+        let field_id = Uprim(P.Pread_symbol field_sym, [], dbg) in
+        (Uprim(P.Psetfield(0, is_ptr, init), [field_id; ulam], dbg),
+         Value_unknown)
+      | _ ->
+        (Uprim(P.Psetfield(n, is_ptr, init), [getglobal dbg id; ulam], dbg),
+         Value_unknown)
+    end
   | Lprim(Praise k, [arg], loc) ->
       let (ulam, _approx) = close env arg in
       let dbg = Debuginfo.from_location loc in
