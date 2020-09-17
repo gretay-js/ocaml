@@ -2746,10 +2746,6 @@ let emit_gc_roots_table ~symbols cont =
 let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
   let global = Cmmgen_state.(if exported then Global else Local) in
   let symb = (symbol, global) in
-  let section =
-    if !Clflags.data_sections then Some symbol
-    else None
-  in
   let val_unit = Cint (Nativeint.of_int 1 (* Val_unit *)) in
   let len = List.length fields in
   let get_val field =
@@ -2766,7 +2762,7 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
      valid values, in case we are in no-naked-pointers mode.  Likewise
      the block header must be black, below (see [caml_darken]), since
      the overall record may be referenced. *)
-  if (!Clflags.frametable_sections) then begin
+  if (Config.module_block_symbols) then begin
     let padding =
       let sym = Compilenv.block_index_symbol symbol len in
       let items = List.init len (fun _ -> val_unit) in
@@ -2780,14 +2776,14 @@ let preallocate_block cont { Clambda.symbol; exported; tag; fields } =
         fields
     in
     let header = emit_block symb (block_header tag len) [] in
-    let block = Cdata { section; align = true; items = header } in
+    let block = Cdata { section = Some symbol; align = true; items = header } in
     (block::content)@(padding::cont)
   end else begin
     let space = List.map get_val fields in
     let data =
       emit_block symb (block_header tag len) space
     in
-    Cdata { section; align = true; items = data } :: cont
+    Cdata { section = Some symbol; align = true; items = data } :: cont
   end
 
 let emit_preallocated_blocks preallocated_blocks cont =
@@ -2799,6 +2795,6 @@ let emit_preallocated_blocks preallocated_blocks cont =
   (* CR gyorsh: guard for now so that it only works for closure.
      Need to find a way to distinguish module blocks
      from other preallocated blocks that shouldn't be split. *)
-  assert (not !Clflags.frametable_sections ||
+  assert (not Config.module_block_symbols ||
           (List.compare_length_with preallocated_blocks 1) = 0);
   List.fold_left preallocate_block c1 preallocated_blocks

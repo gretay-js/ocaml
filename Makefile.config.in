@@ -239,6 +239,7 @@ FUNCTION_SECTIONS=@function_sections@
 PROBES=@probes@
 DATA_SECTIONS=@data_sections@
 FRAMETABLE_SECTIONS=@frametable_sections@
+MODULE_BLOCK_SYMBOLS=@module_block_symbols@
 AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
 

@@ -148,6 +148,7 @@ AC_SUBST([install_source_artifacts])
 AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([frame_pointers])
+AC_SUBST([module_block_symbols])
 AC_SUBST([spacetime])
 AC_SUBST([call_counts])
 AC_SUBST([libunwind_available])
@@ -282,6 +283,10 @@ AC_ARG_ENABLE([ocamldoc],
 AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
+
+AC_ARG_ENABLE([module-block-symbols],
+  [AS_HELP_STRING([--enable-module-block-symbols],
+    [refer to field of module blocks via symbols instead of indexes])])
 
 AC_ARG_ENABLE([naked-pointers],
   [AS_HELP_STRING([--disable-naked-pointers],
@@ -1580,6 +1585,15 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   )],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
+
+## Module block symbols
+
+AS_IF([test x"$enable_module_block_symbols" = "xyes"],
+  [AC_DEFINE([MODULE_BLOCK_SYMBOLS])
+   AC_MSG_NOTICE([using module block symbols])
+   module_block_symbols=true],
+  [AC_MSG_NOTICE([not using module block symbols])
+   module_block_symbols=false])
 
 ## No naked pointers
 

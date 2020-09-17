@@ -85,6 +85,7 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
 let data_sections = %%DATA_SECTIONS%%
 let frametable_sections = %%FRAMETABLE_SECTIONS%%
+let module_block_symbols = %%MODULE_BLOCK_SYMBOLS%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
 let exec_magic_number = "Caml1999X027"

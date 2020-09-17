@@ -241,6 +241,10 @@ val frametable_sections : bool
 (** Whether the compiler has support for SHF_ORDER_LINK
     that can be used for frametable sections *)
 
+val module_block_symbols : bool
+(** Whether the native-code compiler refers to fields of module blocks
+    using symbols. When [module_block_symbols] is[false], use indexes. *)
+
 val windows_unicode: bool
 (** Whether Windows Unicode runtime is enabled *)
 
