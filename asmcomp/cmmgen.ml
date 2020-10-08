@@ -848,11 +848,7 @@ and transl_prim_1 env p arg dbg =
   | Ppopcntbint bi ->
       tag_int(Cop(Cpopcnt,
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
-                  dbg) in
-      if bi = Pint32 && size_int = 8 then
-        tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
-      else
-        tag_int res dbg
+                  dbg)) dbg
   | Ppopcntbint bi ->
       tag_int (Cop(Cpopcnt,
                    [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
