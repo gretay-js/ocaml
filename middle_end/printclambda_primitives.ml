@@ -119,6 +119,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Plslint -> fprintf ppf "lsl"
   | Plsrint -> fprintf ppf "lsr"
   | Pasrint -> fprintf ppf "asr"
+  | Pbsrint -> fprintf ppf "bsr"
+  | Plzcntint -> fprintf ppf "lzcnt"
   | Pclzint -> fprintf ppf "clz"
   | Ppopcntint -> fprintf ppf "popcnt"
   | Pintcomp(cmp) -> Printlambda.integer_comparison ppf cmp
@@ -208,3 +210,5 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
+  | Pperfmon -> fprintf ppf "perfmon"
+  | Pperfmonint -> fprintf ppf "perfmonint"

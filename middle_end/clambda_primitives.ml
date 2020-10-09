@@ -52,6 +52,7 @@ type primitive =
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
+  | Pbsrint | Plzcntint
   | Pclzint
   | Ppopcntint
   | Pintcomp of integer_comparison
@@ -122,6 +123,8 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
+  | Pperfmon
+  | Pperfmonint
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

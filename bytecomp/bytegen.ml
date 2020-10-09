@@ -132,6 +132,7 @@ let preserve_tailcall_for_prim = function
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _
   | Pclzint|Ppopcntint|Pclzbint _|Ppopcntbint _
+  | Pbsrint | Plzcntint | Pperfmon | Pperfmonint
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 

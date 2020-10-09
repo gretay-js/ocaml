@@ -53,6 +53,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Plslint -> Plslint
   | Plsrint -> Plsrint
   | Pasrint -> Pasrint
+  | Pbsrint -> Pbsrint
+  | Plzcntint -> Plzcntint
   | Pclzint -> Pclzint
   | Ppopcntint -> Ppopcntint
   | Pintcomp comp -> Pintcomp comp
@@ -145,6 +147,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pint_as_pointer -> Pint_as_pointer
   | Popaque -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
+  | Pperfmon -> Pperfmon
+  | Pperfmonint -> Pperfmonint
 
   | Pbytes_to_string
   | Pbytes_of_string
