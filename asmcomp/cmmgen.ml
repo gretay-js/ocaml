@@ -573,7 +573,9 @@ let rec transl env e =
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Plzcntint | Pbsrint
          | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
+         | Pperfmon | Pperfmonint
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -810,8 +812,9 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
+  | Pbsrint ->
       let res = Cop(Cbsr, [transl env arg], dbg) in
-      tag_int (Cop(Caddi, [res; Cconst_int (-1)], dbg)) dbg
+      tag_int (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg)) dbg
   | Plzcntint -> tag_int (Cop(Clzcnt, [transl env arg], dbg)) dbg
   | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
   | Ppopcntint ->
@@ -885,6 +888,7 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
+    | Pperfmon | Pperfmonint
     | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
@@ -1070,6 +1074,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
+  | Pbsrint | Plzcntint
   | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
   | Pprobe_is_enabled _
     ->
@@ -1130,7 +1135,9 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
+  | Pbsrint | Plzcntint
   | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
+  | Pperfmon | Pperfmonint
   | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
@@ -1529,7 +1536,7 @@ let () =
   Location.register_error_of_exn
     (function
       | Error (loc, err) ->
-          Some (Location.error_of_printer loc report_error err)
+          Some (Location.error_of_printer ~loc report_error err)
       | _ ->
         None
     )
