@@ -562,6 +562,7 @@ let rec transl env e =
          | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
          | Pasrbint _ | Pbintcomp (_, _) | Pstring_load _ | Pbytes_load _
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
+         | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -801,7 +802,7 @@ and transl_prim_1 env p arg dbg =
   | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
   | Ppopcntint ->
       let res = Cop(Cpopcnt, [transl env arg], dbg) in
-      tag_int (Cop(Caddi, [res; Cconst_int (-1)], dbg)) dbg
+      tag_int (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg)) dbg
   (* Floating-point operations *)
   | Pfloatofint ->
       box_float dbg (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))
@@ -842,17 +843,13 @@ and transl_prim_1 env p arg dbg =
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
                   dbg) in
       if bi = Pint32 && size_int = 8 then
-        tag_int (Cop(Caddi, [res; Cconst_int (-32)], dbg)) dbg
+        tag_int (Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)) dbg
       else
         tag_int res dbg
   | Ppopcntbint bi ->
       tag_int(Cop(Cpopcnt,
                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
                   dbg)) dbg
-  | Ppopcntbint bi ->
-      tag_int (Cop(Cpopcnt,
-                   [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
-                   dbg)) dbg
   | Pbbswap bi ->
       box_int dbg bi (bbswap bi (transl_unbox_int dbg env bi arg) dbg)
   | Pbswap16 ->
@@ -1051,6 +1048,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
+  | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
   | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
@@ -1110,6 +1108,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
+  | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
   | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
