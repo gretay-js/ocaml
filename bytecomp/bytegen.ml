@@ -132,7 +132,7 @@ let preserve_tailcall_for_prim = function
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _
   | Pclzint|Ppopcntint|Pclzbint _|Ppopcntbint _
-  | Pbsrint | Plzcntint | Pperfmon | Pperfmonint
+  | Pbsrint | Plzcntint | Prdtsc | Prdpmc
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -681,7 +681,7 @@ let rec comp_expr env exp sz cont =
       end
   | Lprim((Pidentity | Popaque), [arg], _) ->
       comp_expr env arg sz cont
-  | Lprim((Pperfmon | Pperfmonint), [_;arg2], _) ->
+  | Lprim((Prdtsc | Prdpmc), [_;arg2], _) ->
       comp_expr env arg2 sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)

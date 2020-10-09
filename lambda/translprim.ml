@@ -366,8 +366,8 @@ let primitives_table =
     "%greaterequal", Comparison(Greater_equal, Compare_generic);
     "%greaterthan", Comparison(Greater_than, Compare_generic);
     "%compare", Comparison(Compare, Compare_generic);
-    "%perfmon", Primitive (Pperfmon, 2);
-    "%perfmonint", Primitive (Pperfmonint, 2);
+    "%rdtsc", Primitive (Prdtsc, 1);
+    "%rdpmc", Primitive (Prdpmc, 1);
   ]
 
 
@@ -765,7 +765,7 @@ let lambda_primitive_needs_event_after = function
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
   | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
-  | Pbsrint |Plzcntint |Pperfmon | Pperfmonint
+  | Pbsrint | Plzcntint | Prdtsc | Prdpmc
   | Pbbswap _ -> true
 
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _

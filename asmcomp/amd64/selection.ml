@@ -260,12 +260,8 @@ method! select_operation op args dbg =
     end
   | Cclz _ when !lzcnt_support ->
       (Ispecific Ilzcnt, args)
-  | Cperfmon s ->
-    begin match String.lowercase_ascii s with
-    | "rdtsc" -> (Ispecific Irdtsc, [])
-    | "rdpmc" -> (Ispecific Irdpmc, args)
-    | _ -> super#select_operation op args dbg
-    end
+  | Crdtsc -> (Ispecific Irdtsc, [])
+  | Crdpmc -> (Ispecific Irdpmc, args)
   | _ -> super#select_operation op args dbg
 
 (* Recognize float arithmetic with mem *)

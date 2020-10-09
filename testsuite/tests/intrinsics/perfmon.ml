@@ -4,10 +4,9 @@
  ** bytecode
 *)
 
-external perfmon : string -> int64 -> int64  = "%perfmon"
 
-let rdtsc () = perfmon "rdtsc" 0L
-let rdpmc = perfmon "rdpmc"
+external rdtsc : unit -> int64 = "%rdtsc"
+external rdpmc : int64 -> int64 = "%rdpmc"
 
 let [@inline never] work () =
   let min = 0 in

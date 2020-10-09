@@ -126,8 +126,8 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
-  | Pperfmon
-  | Pperfmonint
+  | Prdtsc
+  | Prdpmc
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

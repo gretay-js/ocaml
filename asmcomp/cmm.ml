@@ -155,7 +155,8 @@ and operation =
   | Ccheckbound
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
-  | Cperfmon of string
+  | Crdtsc
+  | Crdpmc
 
 type expression =
     Cconst_int of int * Debuginfo.t

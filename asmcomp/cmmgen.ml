@@ -33,11 +33,6 @@ module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm_helpers
 
-type error =
-  | Wrong_argument_perfmon_primitive
-
-exception Error of Location.t * error
-
 (* Environments used for translation to Cmm. *)
 
 type boxed_number =
@@ -125,12 +120,6 @@ let mut_from_env env ptr =
 let get_field env ptr n dbg =
   let mut = mut_from_env env ptr in
   get_field_gen mut ptr n dbg
-
-let get_perfmon_name arg dbg =
-  match arg with
-  | Uconst(Uconst_ref(_, Some (Uconst_string s))) -> s
-  | _ ->
-    raise(Error(Debuginfo.to_location dbg, Wrong_argument_perfmon_primitive))
 
 type rhs_kind =
   | RHS_block of int
@@ -575,7 +564,7 @@ let rec transl env e =
          | Pbytes_set _ | Pbigstring_load _ | Pbigstring_set _
          | Plzcntint | Pbsrint
          | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
-         | Pperfmon | Pperfmonint
+         | Prdtsc | Prdpmc
          | Pbbswap _), _)
         ->
           fatal_error "Cmmgen.transl:prim"
@@ -872,6 +861,19 @@ and transl_prim_1 env p arg dbg =
   | Pbswap16 ->
       tag_int (bswap16 (ignore_high_bit_int (untag_int
         (transl env arg) dbg)) dbg) dbg
+  | Prdtsc ->
+      let n = transl_unbox_int dbg env Pint64 arg in
+      box_int dbg Pint64
+        (Cop(Crdtsc, [make_unsigned_int Pint64 n dbg], dbg))
+  | Prdpmc ->
+          let n = transl_unbox_int dbg env Pint64 arg in
+      box_int dbg Pint64
+        (Cop(Crdpmc, [make_unsigned_int Pint64 n dbg], dbg))
+        (*
+  | Pperfmonint ->
+      tag_int (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
+                   [untag_int(transl env arg2) dbg], dbg)) dbg
+        *)
   | (Pfield_computed | Psequand | Psequor
     | Paddint | Psubint | Pmulint | Pandint
     | Porint | Pxorint | Plslint | Plsrint | Pasrint
@@ -888,7 +890,6 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pperfmon | Pperfmonint
     | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
@@ -1057,14 +1058,6 @@ and transl_prim_2 env p arg1 arg2 dbg =
       tag_int (Cop(Ccmpi cmp,
                      [transl_unbox_int dbg env bi arg1;
                       transl_unbox_int dbg env bi arg2], dbg)) dbg
-  | Pperfmon ->
-      let n = transl_unbox_int dbg env Pint64 arg2 in
-      box_int dbg Pint64 (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
-                              [make_unsigned_int Pint64 n dbg],
-                              dbg))
-  | Pperfmonint ->
-      tag_int (Cop((Cperfmon (get_perfmon_name arg1 dbg)),
-                   [untag_int(transl env arg2) dbg], dbg)) dbg
   | Pnot | Pnegint | Pintoffloat | Pfloatofint | Pnegfloat
   | Pabsfloat | Pstringlength | Pbyteslength | Pbytessetu | Pbytessets
   | Pisint | Pbswap16 | Pint_as_pointer | Popaque | Pread_symbol _
@@ -1076,6 +1069,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
   | Pbsrint | Plzcntint
   | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
+  | Prdtsc | Prdpmc
   | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
@@ -1137,7 +1131,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
   | Pbsrint | Plzcntint
   | Pclzint | Ppopcntint | Pclzbint _ |Ppopcntbint _
-  | Pperfmon | Pperfmonint
+  | Prdtsc | Prdpmc
   | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
@@ -1523,21 +1517,3 @@ let compunit (ulam, preallocated_blocks, constants) =
   Cmmgen_state.set_structured_constants [];
   let c4 = emit_preallocated_blocks preallocated_blocks c3 in
   emit_cmm_data_items_for_constants c4
-
-(* Error report *)
-
-open Format
-
-let report_error ppf = function
-  | Wrong_argument_perfmon_primitive ->
-      fprintf ppf "Perfmon primitive: first argument must be a string literal."
-
-let () =
-  Location.register_error_of_exn
-    (function
-      | Error (loc, err) ->
-          Some (Location.error_of_printer ~loc report_error err)
-      | _ ->
-        None
-    )
-
