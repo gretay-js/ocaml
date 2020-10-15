@@ -87,6 +87,7 @@ type prim =
   | Send
   | Send_self
   | Send_cache
+  | Intrinsic of string
 
 let used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -366,8 +367,6 @@ let primitives_table =
     "%greaterequal", Comparison(Greater_equal, Compare_generic);
     "%greaterthan", Comparison(Greater_than, Compare_generic);
     "%compare", Comparison(Compare, Compare_generic);
-    "%perfmon", Primitive (Pperfmon, 2);
-    "%perfmonint", Primitive (Pperfmonint, 2);
   ]
 
 
@@ -375,9 +374,14 @@ let lookup_primitive loc p =
   match Hashtbl.find primitives_table p.prim_name with
   | prim -> prim
   | exception Not_found ->
-      if String.length p.prim_name > 0 && p.prim_name.[0] = '%' then
-        raise(Error(loc, Unknown_builtin_primitive p.prim_name));
-      External p
+      let len = String.length p.prim_name in
+      if  len > 0 && p.prim_name.[0] = '%' then begin
+        if len > 1 && p.prim_name.[1] = '%' then
+          Intrinsic (String.sub p 2 (len - 2))
+        else
+          raise(Error(loc, Unknown_builtin_primitive p.prim_name));
+      end else
+        External p
 
 let lookup_primitive_and_mark_used loc p env path =
   match lookup_primitive loc p with
@@ -654,6 +658,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       Lprim(Pccall prim, Lconst (Const_pointer 0) :: args, loc)
   | External prim, args ->
       Lprim(Pccall prim, args, loc)
+  | Intrinsic name, args ->
+      Lprim(Pintrinsic name, args, loc)
   | Comparison(comp, knd), ([_;_] as args) ->
       let prim = comparison_primitive comp knd in
       Lprim(prim, args, loc)
@@ -709,6 +715,7 @@ let check_primitive_arity loc p =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
     | External _ -> true
+    | Intrinsic _ -> true
     | Comparison _ -> p.prim_arity = 2
     | Raise _ -> p.prim_arity = 1
     | Raise_with_backtrace -> p.prim_arity = 2
@@ -739,12 +746,12 @@ let transl_primitive loc p env ty path =
   match params with
   | [] -> body
   | _ ->
-      Lfunction{ kind = Curried;
-                 params;
-                 return = Pgenval;
-                 attr = default_stub_attribute;
-                 loc;
-                 body; }
+    Lfunction{ kind = Curried;
+               params;
+               return = Pgenval;
+               attr = default_stub_attribute;
+               loc;
+               body; }
 
 let lambda_primitive_needs_event_after = function
   | Prevapply | Pdirapply (* PR#6920 *)
@@ -765,7 +772,7 @@ let lambda_primitive_needs_event_after = function
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
   | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
-  | Pbsrint |Plzcntint |Pperfmon | Pperfmonint
+  | Pbsrint |Plzcntint | Pintrinsic _
   | Pbbswap _ -> true
 
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
@@ -785,6 +792,7 @@ let lambda_primitive_needs_event_after = function
 let primitive_needs_event_after = function
   | Primitive (prim,_) -> lambda_primitive_needs_event_after prim
   | External _ -> true
+  | Intrinsic -> true
   | Comparison(comp, knd) ->
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
   | Lazy_force | Send | Send_self | Send_cache -> true

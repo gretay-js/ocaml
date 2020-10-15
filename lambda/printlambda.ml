@@ -351,8 +351,7 @@ let primitive ppf = function
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
-  | Pperfmon -> fprintf ppf "perfmon"
-  | Pperfmonint -> fprintf ppf "perfmonint"
+  | Pintrinsic {name} -> fprintf ppf "intrinsic[%s]" name
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -466,8 +465,7 @@ let name_of_primitive = function
   | Pint_as_pointer -> "Pint_as_pointer"
   | Popaque -> "Popaque"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
-  | Pperfmon  -> "Perfmon"
-  | Pperfmonint  -> "Perfmonint"
+  | Pintrinsic _ -> "Intrinsic"
 
 let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   if is_a_functor then

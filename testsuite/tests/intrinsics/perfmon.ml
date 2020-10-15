@@ -7,10 +7,13 @@
     compare_programs = "false"
 *)
 
+
 external perfmon : string -> int64 -> int64  = "%perfmon"
 
-let rdtsc () = perfmon "rdtsc" 0L
-let rdpmc = perfmon "rdpmc"
+external intrinsic_int64 : string -> int64 -> int64  = "%intrinsic_int64"
+
+let rdtsc () = intrinsic_int64 "rdtsc" 0L
+let rdpmc = intrinsic_int64 "rdpmc"
 
 let [@inline never] work () =
   let min = 0 in

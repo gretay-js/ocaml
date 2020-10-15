@@ -312,10 +312,8 @@ let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
 let unit = "unit"
 let zero = "zero"
 let probe_handler = "probe_handler"
-let perfmon = "perfmon"
-let perfmon_arg = "perfmon_arg"
-let perfmonint = "perfmonint"
-let perfmonint_arg = "perfmonint_arg"
+let intrinsic = "intrinsic"
+let intrinsic_arg = "intrinsic_arg"
 
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
@@ -440,8 +438,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
   | Pprobe_is_enabled _ -> pprobe_is_enabled
-  | Pperfmon -> perfmon
-  | Pperfmonint -> perfmonint
+  | Pintrinsic _ -> intrinsic
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -555,5 +552,4 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
   | Pprobe_is_enabled _ -> pprobe_is_enabled_arg
-  | Pperfmon -> perfmon_arg
-  | Pperfmonint -> perfmonint_arg
+  | Pintrinsic _ -> intrinsic_arg

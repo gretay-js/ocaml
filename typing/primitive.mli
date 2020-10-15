@@ -39,11 +39,13 @@ val simple
   :  name:string
   -> arity:int
   -> alloc:bool
+  -> builtin:bool
   -> description
 
 val make
   :  name:string
   -> alloc:bool
+  -> builtin:bool
   -> native_name:string
   -> native_repr_args: native_repr list
   -> native_repr_res: native_repr
