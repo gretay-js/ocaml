@@ -147,7 +147,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pint_as_pointer -> Pint_as_pointer
   | Popaque -> Popaque
   | Pprobe_is_enabled {name} -> Pprobe_is_enabled {name}
-  | Pintrinsic {name} -> Pintrinsic {name}
 
 
   | Pbytes_to_string

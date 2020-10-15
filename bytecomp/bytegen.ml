@@ -132,7 +132,7 @@ let preserve_tailcall_for_prim = function
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
   | Pprobe_is_enabled _
   | Pclzint|Ppopcntint|Pclzbint _|Ppopcntbint _
-  | Pbsrint | Plzcntint | Pintrinsic
+  | Pbsrint | Plzcntint
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -401,7 +401,6 @@ let comp_primitive p args =
   | Psetfloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
-  | Pintrinsic p -> Kccall(Misc.intrinsic_impl p.name, p.arity)
   | Pnegint -> Knegint
   | Paddint -> Kaddint
   | Psubint -> Ksubint

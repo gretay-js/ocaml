@@ -210,5 +210,3 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
-  | Pperfmon -> fprintf ppf "perfmon"
-  | Pperfmonint -> fprintf ppf "perfmonint"

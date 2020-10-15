@@ -150,7 +150,6 @@ type primitive =
   | Popaque
   (* Statically-defined probes *)
   | Pprobe_is_enabled of { name: string }
-  | Pintrinsic of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge

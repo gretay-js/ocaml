@@ -123,7 +123,6 @@ type primitive =
   | Popaque
   (* Probes *)
   | Pprobe_is_enabled of { name : string }
-  | Pintrinsic of { name : string }
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
