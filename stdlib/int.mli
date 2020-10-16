@@ -100,7 +100,8 @@ external shift_right_logical : int -> int -> int = "%lsrint"
     of the sign of [x]. The result is unspecified if [n < 0] or
     [n > ]{!Sys.int_size}. *)
 
-external count_leading_zeros : int -> int = "%clzint"
+external count_leading_zeros : int -> (int [@untagged]) =
+  "caml_int_clz" "caml_int_clz_untagged" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
 external count_set_bits : int -> int = "%popcntint"

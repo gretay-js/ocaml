@@ -447,6 +447,21 @@ CAMLprim value caml_untagged_int_clz(value v1)
 #endif
 }
 
+/* Takes a tagged input and returns untagged output. */
+CAMLprim value caml_int_clz_untagged(value v1)
+{
+   /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input to builtin_clz is non-zero, to guard
+     against versions of builtin_clz that are undefined for intput 0.
+     The tag does not change the number of leading zeros.
+   */
+#ifdef ARCH_SIXTYFOUR
+  return int64_clz((uint64_t)v1);
+#else
+  return int32_clz((uint32_t)v1);
+#endif
+}
+
 CAMLprim value caml_int_clz(value v1)
 {
   /* Do not use Long_val(v1) conversion and preserve the tag. It
