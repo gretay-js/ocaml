@@ -12,8 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-external rdtsc : unit -> int64  =
-  "caml__rdtsc" "caml__rdtsc_unboxed" [@@unboxed] [@@noalloc]
+external rdtsc : unit -> (int64 [@unboxed])  =
+  "caml__rdtsc" "caml__rdtsc_unboxed" [@@noalloc]
 
 external rdpmc : int32 -> int64  =
   "caml__rdpmc" "caml__rdpmc_unboxed" [@@unboxed] [@@noalloc]

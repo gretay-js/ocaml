@@ -7,6 +7,8 @@
     compare_programs = "false"
 *)
 
+module I = Intrinsics
+
 let [@inline never] work () =
   let min = 0 in
   let max = 100 in
@@ -18,16 +20,16 @@ let [@inline never] work () =
   |> ignore
 
 let test_rdtsc () =
-  let before = Intrinsics.rdtsc () in
+  let before = I.rdtsc () in
   work ();
-  let after = Intrinsics.rdtsc () in
+  let after = I.rdtsc () in
   Printf.printf "%b\n" (Int64.equal before after)
 
 let test_rdpmc () =
-  let c = 0L in
-  let before = Intrinsics.rdpmc c in
+  let c = 0l in
+  let before = I.rdpmc c in
   work ();
-  let after = Intrinsics.rdpmc c in
+  let after = I.rdpmc c in
   Printf.printf "%b\n" (Int64.equal before after)
 
 let test =
