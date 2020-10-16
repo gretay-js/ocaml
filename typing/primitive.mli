@@ -29,7 +29,6 @@ type description = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
-    prim_builtin: bool;        (* Use a builtin primitive if exists *)
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: native_repr list;
     prim_native_repr_res: native_repr }
@@ -45,7 +44,6 @@ val simple
 val make
   :  name:string
   -> alloc:bool
-  -> builtin:bool
   -> native_name:string
   -> native_repr_args: native_repr list
   -> native_repr_res: native_repr

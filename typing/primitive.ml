@@ -30,7 +30,6 @@ type description =
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
-    prim_builtin: bool;        (* Use a builtin if exists *)
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: native_repr list;
     prim_native_repr_res: native_repr }
@@ -70,16 +69,14 @@ let simple ~name ~arity ~alloc =
   {prim_name = name;
    prim_arity = arity;
    prim_alloc = alloc;
-   prim_builtin = false;
    prim_native_name = "";
    prim_native_repr_args = make_native_repr_args arity Same_as_ocaml_repr;
    prim_native_repr_res = Same_as_ocaml_repr}
 
-let make ~name ~alloc ~builtin ~native_name ~native_repr_args ~native_repr_res =
+let make ~name ~alloc ~native_name ~native_repr_args ~native_repr_res =
   {prim_name = name;
    prim_arity = List.length native_repr_args;
    prim_alloc = alloc;
-   prim_builtin = builtin;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res}
@@ -99,10 +96,6 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   in
   let noalloc_attribute =
     Attr_helper.has_no_payload_attribute ["noalloc"; "ocaml.noalloc"]
-      valdecl.pval_attributes
-  in
-  let builtin_attribute =
-    Attr_helper.has_no_payload_attribute ["builtin"; "ocaml.builtin"]
       valdecl.pval_attributes
   in
   if old_style_float &&
@@ -138,7 +131,6 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   {prim_name = name;
    prim_arity = arity;
    prim_alloc = not noalloc;
-   prim_builtin = builtin_attribute;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
    prim_native_repr_res = native_repr_res}
@@ -210,7 +202,7 @@ let byte_name p =
 
 let native_name_is_external p =
   let nat_name = native_name p in
-  not p.prim_builtin && nat_name <> "" && nat_name.[0] <> '%'
+  nat_name <> "" && nat_name.[0] <> '%'
 
 let report_error ppf err =
   match err with
