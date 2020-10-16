@@ -36,7 +36,8 @@ let lognot x = logxor x (-1)
 external shift_left : int -> int -> int = "%lslint"
 external shift_right : int -> int -> int = "%asrint"
 external shift_right_logical : int -> int -> int = "%lsrint"
-external count_leading_zeros : int -> int = "%clzint"
+external count_leading_zeros : int -> (int [@untagged]) =
+  "caml_int_clz" "caml_int_clz_untagged" [@@noalloc]
 external count_set_bits : int -> int = "%popcntint"
 let equal : int -> int -> bool = ( = )
 let compare : int -> int -> int = Stdlib.compare

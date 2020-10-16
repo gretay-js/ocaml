@@ -122,7 +122,8 @@ external shift_right_logical : int64 -> int -> int64 = "%int64_lsr"
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= 64]. *)
 
-external count_leading_zeros : int64 -> int = "%int64_clz"
+external count_leading_zeros : (int64 [@unboxed]) -> (int [@untagged]) =
+  "caml_int64_clz" "caml_int64_clz_unboxed" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
 external count_set_bits : int64 -> int = "%int64_popcnt"

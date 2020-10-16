@@ -142,7 +142,8 @@ external shift_right_logical :
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
-external count_leading_zeros : nativeint -> int = "%nativeint_clz"
+external count_leading_zeros : (nativeint [@unboxed]) -> (int [@untagged]) =
+  "caml_nativeint_clz" "caml_nativeint_clz_unboxed" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
 external count_set_bits : nativeint -> int = "%nativeint_popcnt"
