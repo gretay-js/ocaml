@@ -2321,7 +2321,6 @@ asmcomp/cmmgen.cmo : \
     middle_end/printclambda_primitives.cmi \
     typing/primitive.cmi \
     utils/misc.cmi \
-    parsing/location.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
@@ -2342,7 +2341,6 @@ asmcomp/cmmgen.cmx : \
     middle_end/printclambda_primitives.cmx \
     typing/primitive.cmx \
     utils/misc.cmx \
-    parsing/location.cmx \
     lambda/lambda.cmx \
     lambda/debuginfo.cmx \
     utils/config.cmx \
@@ -2791,7 +2789,6 @@ asmcomp/selectgen.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
     asmcomp/mach.cmi \
-    parsing/location.cmi \
     lambda/lambda.cmi \
     lambda/debuginfo.cmi \
     utils/config.cmi \
@@ -2807,7 +2804,6 @@ asmcomp/selectgen.cmx : \
     utils/numbers.cmx \
     utils/misc.cmx \
     asmcomp/mach.cmx \
-    parsing/location.cmx \
     lambda/lambda.cmx \
     lambda/debuginfo.cmx \
     utils/config.cmx \
