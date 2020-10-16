@@ -23,10 +23,6 @@ open Mach
 module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
-type error =
-  | Unknown_perfmon_primitive of string
-
-exception Error of Location.t * error
 
 type environment =
   { vars : (Reg.t array
@@ -91,7 +87,6 @@ let oper_result_type = function
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
-  | Cperfmon _ -> typ_int
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -338,7 +333,6 @@ method is_simple_expr = function
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
-      | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -387,7 +381,6 @@ method effects_of exp =
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
       | Clsl | Clsr | Casr | Cbsr | Clzcnt | Cclz _ | Cpopcnt
-      | Cperfmon _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ ->
@@ -455,7 +448,7 @@ method select_checkbound () =
   Icheckbound { spacetime_index = 0; label_after_error = None; }
 method select_checkbound_extra_args () = []
 
-method select_operation op args dbg =
+method select_operation op args _dbg =
   match (op, args) with
   | (Capply _, Cconst_symbol (func, _dbg) :: rem) ->
     let label_after = Cmm.new_label () in
@@ -524,8 +517,6 @@ method select_operation op args dbg =
   | (Cprobe { name; handler_code_sym; }, _) ->
     Iprobe { name; handler_code_sym; }, args
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
-  | (Cperfmon s, _) ->
-      raise(Error(Debuginfo.to_location dbg, Unknown_perfmon_primitive s))
   | _ -> Misc.fatal_error "Selection.select_oper"
 
 method private select_arith_comm op = function
@@ -1329,21 +1320,3 @@ let _ =
 
 let reset () =
   current_function_name := ""
-
-
-(* Error report *)
-
-open Format
-
-let report_error ppf = function
-  | Unknown_perfmon_primitive name ->
-      fprintf ppf "Unknown perfmon builtin \"%s\"" name
-
-let () =
-  Location.register_error_of_exn
-    (function
-      | Error (loc, err) ->
-          Some (Location.error_of_printer ~loc report_error err)
-      | _ ->
-        None
-    )
