@@ -54,16 +54,16 @@ static uint64_t rdpmc(uint32_t c) { return 0; }
 static uint64_t rdtsc() { return 0; }
 #endif
 
-value caml__rdpmc_unboxed(value v1)
+value caml_rdpmc_unboxed(value v1)
 { return rdpmc((uint32_t) v1); }
 
-CAMLprim value caml__rdpmc(value v1)
+CAMLprim value caml_rdpmc(value v1)
 { return caml_copy_int64(rdpmc((uint32_t) (Int32_val(v1)))); }
 
-value caml__rdtsc_unboxed(void)
+value caml_rdtsc_unboxed(void)
 { return rdtsc(); }
 
-CAMLprim value caml__rdtsc(value v1)
+CAMLprim value caml_rdtsc(value v1)
 { return caml_copy_int64(rdtsc()); }
 
 
