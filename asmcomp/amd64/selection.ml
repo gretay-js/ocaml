@@ -125,7 +125,9 @@ let pseudoregs_for_operation op arg res =
    [effects_of], below. *)
 let inline_ops =
   [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
+    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap";
+    "caml_rdpmc_unboxed"; "caml_rdtsc_unboxed"
+  ]
 
 (* The selector class *)
 
@@ -234,10 +236,10 @@ method! select_operation op args dbg =
   | Cextcall("caml_int64_direct_bswap", _, _, _)
   | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
       (Ispecific (Ibswap 64), args)
-  | Cextcall("caml__rdtsc", _, _, _) ->
-      (Ispecific Irdtsc, [])
-  | Cextcall("caml__rdpmc", _, _, _) ->
-      (Ispecific Irdpmc, [])
+  | Cextcall("caml_rdtsc_unboxed", _, _, _) ->
+      (Ispecific Irdtsc, args)
+  | Cextcall("caml_rdpmc_unboxed", _, _, _) ->
+      (Ispecific Irdpmc, args)
   (* Some Intel targets do not support popcnt *)
   | Cpopcnt when not !popcnt_support ->
       (Iextcall { func = "caml_untagged_int_popcnt";
