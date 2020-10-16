@@ -15,8 +15,8 @@
 (** Performance monitoring instructions that read hadware counters,
     available on some x86 targets. Returns 0 on unsupported targets.  *)
 
-external rdtsc : unit -> (int64 [@unboxed])  =
-  "caml__rdtsc" "caml__rdtsc_unboxed" [@@noalloc]
-
-external rdpmc : int32 -> int64  =
-  "caml__rdpmc" "caml__rdpmc_unboxed" [@@unboxed] [@@noalloc]
+(* external rdtsc : unit -> (int64 [@unboxed])  =
+ *   "caml__rdtsc" "caml__rdtsc_unboxed" [@@noalloc]
+ *
+ * external rdpmc : int32 -> int64  =
+ *   "caml__rdpmc" "caml__rdpmc_unboxed" [@@unboxed] [@@noalloc] *)

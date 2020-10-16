@@ -16,6 +16,7 @@
 #define CAML_INTERNALS
 
 #include "caml/alloc.h"
+#include "caml/misc.h"
 #include "caml/mlvalues.h"
 
 /* #include <stdint.h> */
