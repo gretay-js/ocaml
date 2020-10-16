@@ -298,7 +298,7 @@ domain_b.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h \
  caml/address_class.h caml/domain.h
 intrinsics_b.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_b.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -606,7 +606,7 @@ domain_bd.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h 
  caml/address_class.h caml/domain.h
 intrinsics_bd.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_bd.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -919,7 +919,7 @@ domain_bi.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h 
  caml/address_class.h caml/domain.h
 intrinsics_bi.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_bi.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -1227,7 +1227,7 @@ domain_bpic.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.
  caml/address_class.h caml/domain.h
 intrinsics_bpic.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_bpic.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -1533,7 +1533,7 @@ domain_n.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h \
  caml/address_class.h caml/domain.h
 intrinsics_n.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_n.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -1838,7 +1838,7 @@ domain_nd.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h 
  caml/address_class.h caml/domain.h
 intrinsics_nd.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_nd.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -2143,7 +2143,7 @@ domain_ni.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.h 
  caml/address_class.h caml/domain.h
 intrinsics_ni.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_ni.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
@@ -2448,7 +2448,7 @@ domain_npic.$(O): domain.c caml/domain_state.h caml/misc.h caml/config.h caml/m.
  caml/address_class.h caml/domain.h
 intrinsics_npic.$(O): intrinsics.c caml/alloc.h caml/misc.h caml/config.h \
  caml/m.h caml/s.h caml/mlvalues.h caml/domain_state.h \
- caml/domain_state.tbl caml/mlvalues.h
+ caml/domain_state.tbl caml/misc.h caml/mlvalues.h
 win32_npic.$(O): win32.c caml/alloc.h caml/misc.h caml/config.h caml/m.h caml/s.h \
  caml/mlvalues.h caml/domain_state.h caml/domain_state.tbl \
  caml/address_class.h caml/fail.h caml/io.h caml/memory.h caml/gc.h \
