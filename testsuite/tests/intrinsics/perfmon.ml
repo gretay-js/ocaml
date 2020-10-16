@@ -1,10 +1,6 @@
 (* TEST
- * arch_amd64
- ** bytecode
-    reference = "${test_source_directory}/perfmon.byte.reference"
- ** native
-    reference = "${test_source_directory}/perfmon.opt.reference"
-    compare_programs = "false"
+ * bytecode
+ * native
 *)
 
 module I = Intrinsics
@@ -23,14 +19,18 @@ let test_rdtsc () =
   let before = I.rdtsc () in
   work ();
   let after = I.rdtsc () in
-  Printf.printf "%b\n" (Int64.equal before after)
+  let pass = (not (Int64.equal before after)) ||
+             ((Int64.equal before 0L) && (Int64.equal after 0L)) in
+  assert pass
 
 let test_rdpmc () =
   let c = 0l in
   let before = I.rdpmc c in
   work ();
   let after = I.rdpmc c in
-  Printf.printf "%b\n" (Int64.equal before after)
+  let pass = (not (Int64.equal before after)) ||
+             ((Int64.equal before 0L) && (Int64.equal after 0L)) in
+  assert pass
 
 let test =
   test_rdtsc ();
