@@ -438,15 +438,6 @@ CAMLprim value caml_int_bsr(value v1)
 #endif
 }
 
-CAMLprim value caml_untagged_int_clz(value v1)
-{
-#ifdef ARCH_SIXTYFOUR
-  return wrap_int64_clz((uint64_t)v1);
-#else
-  return wrap_int32_clz((uint32_t)v1);
-#endif
-}
-
 /* Takes a tagged input and returns untagged output. */
 CAMLprim value caml_int_clz_untagged(value v1)
 {
