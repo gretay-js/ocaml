@@ -36,7 +36,7 @@ static uint64_t rdtsc()
   __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
   return ((uint64_t)lo) | (((uint64_t)hi)<<32);
 }
-#elif #defined(_MSC_VER)
+#elif defined(_MSC_VER)
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)
 
@@ -65,5 +65,3 @@ value caml_rdtsc_unboxed(void)
 
 CAMLprim value caml_rdtsc(value v1)
 { return caml_copy_int64(rdtsc()); }
-
-

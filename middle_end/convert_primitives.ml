@@ -53,10 +53,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Plslint -> Plslint
   | Plsrint -> Plsrint
   | Pasrint -> Pasrint
-  | Pbsrint -> Pbsrint
-  | Plzcntint -> Plzcntint
-  | Pclzint -> Pclzint
-  | Ppopcntint -> Ppopcntint
   | Pintcomp comp -> Pintcomp comp
   | Pcompare_ints -> Pcompare_ints
   | Pcompare_floats -> Pcompare_floats
@@ -103,8 +99,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Plsrbint bi -> Plsrbint bi
   | Pasrbint bi -> Pasrbint bi
   | Pbbswap bi -> Pbbswap bi
-  | Pclzbint bi -> Pclzbint bi
-  | Ppopcntbint bi -> Ppopcntbint bi
   | Pdivbint { size; is_safe } -> Pdivbint { size; is_safe }
   | Pmodbint { size; is_safe } -> Pmodbint { size; is_safe }
   | Pbintcomp (bi, comp) -> Pbintcomp (bi, comp)

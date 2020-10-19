@@ -119,8 +119,6 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Plslint -> fprintf ppf "lsl"
   | Plsrint -> fprintf ppf "lsr"
   | Pasrint -> fprintf ppf "asr"
-  | Pbsrint -> fprintf ppf "bsr"
-  | Plzcntint -> fprintf ppf "lzcnt"
   | Pclzint -> fprintf ppf "clz"
   | Ppopcntint -> fprintf ppf "popcnt"
   | Pintcomp(cmp) -> Printlambda.integer_comparison ppf cmp

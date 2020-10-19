@@ -70,10 +70,6 @@ type primitive =
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
-  | Pbsrint
-  | Plzcntint
-  | Pclzint
-  | Ppopcntint
   | Pintcomp of integer_comparison
   | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
   | Poffsetint of int
@@ -114,8 +110,6 @@ type primitive =
   | Plslbint of boxed_integer
   | Plsrbint of boxed_integer
   | Pasrbint of boxed_integer
-  | Pclzbint of boxed_integer
-  | Ppopcntbint of boxed_integer
   | Pbintcomp of boxed_integer * integer_comparison
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout

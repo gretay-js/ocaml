@@ -773,9 +773,22 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let args = transl_args prim.prim_native_repr_args args in
-  wrap_result
-    (Cop(Cextcall(Primitive.native_name prim,
-                  typ_res, prim.prim_alloc, None), args, dbg))
+  let op =
+    match Primitive.native_name prim with
+    | "caml_int64_clz_unboxed"
+    | "caml_int32_clz_unboxed"
+    | "caml_nativeint_clz_unboxed" ->
+        (Cop(Cclz {non_zero=false},args, dbg))
+    | "caml_int_clz_untagged" ->
+        (Cop(Cclz {non_zero=true}, args, dbg))
+    | "caml_int_popcnt_untagged" ->
+        let res = Cop(Cpopcnt, args, dbg) in
+        (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg))
+    | native_name
+      -> (Cop(Cextcall(native_name, typ_res, prim.prim_alloc, None),
+              args, dbg))
+  in
+  wrap_result op
 
 and transl_prim_1 env p arg dbg =
   match p with
@@ -800,14 +813,6 @@ and transl_prim_1 env p arg dbg =
       offsetint n (transl env arg) dbg
   | Poffsetref n ->
       offsetref n (transl env arg) dbg
-  | Pbsrint ->
-      let res = Cop(Cbsr, [transl env arg], dbg) in
-      tag_int (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg)) dbg
-  | Plzcntint -> tag_int (Cop(Clzcnt, [transl env arg], dbg)) dbg
-  | Pclzint -> tag_int (Cop(Cclz {non_zero=true}, [transl env arg], dbg)) dbg
-  | Ppopcntint ->
-      let res = Cop(Cpopcnt, [transl env arg], dbg) in
-      tag_int (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg)) dbg
   (* Floating-point operations *)
   | Pfloatofint ->
       box_float dbg (Cop(Cfloatofint, [untag_int(transl env arg) dbg], dbg))

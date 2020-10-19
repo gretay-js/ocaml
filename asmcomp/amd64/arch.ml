@@ -62,6 +62,7 @@ type specific_operation =
   | Izextend32                         (* 32 to 64 bit conversion with zero
                                           extension *)
   | Ilzcnt                             (* count leading zeros instruction *)
+  | Ibsr                               (* bit scan reverse instruction *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
 
@@ -155,6 +156,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "zextend32 %a" printreg arg.(0)
   | Ilzcnt ->
       fprintf ppf "lzcnt %a" printreg arg.(0)
+  | Ibsr ->
+      fprintf ppf "bsr %a" printreg arg.(0)
   | Irdtsc ->
       fprintf ppf "rdtsc"
   | Irdpmc ->

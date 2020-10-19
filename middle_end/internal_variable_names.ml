@@ -77,8 +77,6 @@ let parrayrefu = "Parrayrefu"
 let parraysets = "Parraysets"
 let parraysetu = "Parraysetu"
 let pasrbint = "Pasrbint"
-let pclzbint = "Pclzbint"
-let ppopcntbint = "Ppopcntbint"
 let pasrint = "Pasrint"
 let pbbswap = "Pbbswap"
 let pbigarraydim = "Pbigarraydim"
@@ -107,10 +105,6 @@ let pbytesrefu = "Pbytesrefu"
 let pbytessets = "Pbytessets"
 let pbytessetu = "Pbytessetu"
 let pccall = "Pccall"
-let pbsrint = "Pbsrint"
-let plzcntint = "Plzcntint"
-let pclzint = "Pclzint"
-let ppopcntint = "Ppopcntint"
 let pctconst = "Pctconst"
 let pcvtbint = "Pcvtbint"
 let pdirapply = "Pdirapply"
@@ -192,8 +186,6 @@ let parraysets_arg = "Parraysets_arg"
 let parraysetu_arg = "Parraysetu_arg"
 let partial_fun = "partial_fun"
 let pasrbint_arg = "Pasrbint_arg"
-let pclzbint_arg = "Pclzbint_arg"
-let ppopcntbint_arg = "Ppopcntbint_arg"
 let pasrint_arg = "Pasrint_arg"
 let pbbswap_arg = "Pbbswap_arg"
 let pbigarraydim_arg = "Pbigarraydim_arg"
@@ -216,10 +208,6 @@ let pbytesrefu_arg = "Pbytesrefu_arg"
 let pbytessets_arg = "Pbytessets_arg"
 let pbytessetu_arg = "Pbytessetu_arg"
 let pccall_arg = "Pccall_arg"
-let pbsrint_arg = "Pbsrint_arg"
-let plzcntint_arg = "Plzcntint_arg"
-let pclzint_arg = "Pclzint_arg"
-let ppopcntint_arg = "Ppopcntint_arg"
 let pctconst_arg = "Pctconst_arg"
 let pcvtbint_arg = "Pcvtbint_arg"
 let pdirapply_arg = "Pdirapply_arg"
@@ -364,10 +352,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pcompare_bints _ -> pcompare_bints
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
-  | Pbsrint -> pbsrint
-  | Plzcntint -> plzcntint
-  | Pclzint -> pclzint
-  | Ppopcntint -> ppopcntint
   | Pintoffloat -> pintoffloat
   | Pfloatofint -> pfloatofint
   | Pnegfloat -> pnegfloat
@@ -410,8 +394,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Plslbint _ -> plslbint
   | Plsrbint _ -> plsrbint
   | Pasrbint _ -> pasrbint
-  | Pclzbint _ -> pclzbint
-  | Ppopcntbint _ -> ppopcntbint
   | Pbintcomp _ -> pbintcomp
   | Pbigarrayref _ -> pbigarrayref
   | Pbigarrayset _ -> pbigarrayset
@@ -477,10 +459,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pcompare_bints _ -> pcompare_bints_arg
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
-  | Pbsrint -> pbsrint_arg
-  | Plzcntint -> plzcntint_arg
-  | Pclzint -> pclzint_arg
-  | Ppopcntint -> ppopcntint_arg
   | Pintoffloat -> pintoffloat_arg
   | Pfloatofint -> pfloatofint_arg
   | Pnegfloat -> pnegfloat_arg
@@ -523,8 +501,6 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Plslbint _ -> plslbint_arg
   | Plsrbint _ -> plsrbint_arg
   | Pasrbint _ -> pasrbint_arg
-  | Pclzbint _ -> pclzbint_arg
-  | Ppopcntbint _ -> ppopcntbint_arg
   | Pbintcomp _ -> pbintcomp_arg
   | Pbigarrayref _ -> pbigarrayref_arg
   | Pbigarrayset _ -> pbigarrayset_arg

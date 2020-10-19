@@ -388,56 +388,6 @@ int wrap_int64_clz(uint64_t x)
   return res;
 }
 
-
-
-/* Code for benchmarking purposes only! */
-/* Assume 64-bit Intel target and GCC Compiler */
-
-uint64_t __inline int64_bsr(uint64_t a)
-{
-  uint64_t b;
-  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
-  return b;
-}
-
-uint32_t __inline int32_bsr(uint32_t a)
-{
-  uint32_t b;
-  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
-  return b;
-}
-
-uint64_t __inline int64_lzcnt(uint64_t a)
-{
-  uint64_t b;
-  __asm__ ("lzcnt %1, %0" : "=r" (b) : "r" (a) );
-  return b;
-}
-
-CAMLprim value caml_int_lzcnt(value v1)
-{
-  /* Supported only on amd64.
-     On other architectures will fail to assemble.  */
-  /* Do not use Long_val(v1) conversion and preserve the tag,
-     because it doesn't affect the number of leading zeros.
-  */
-  return Val_long(int64_lzcnt((uint64_t)v1));
-}
-
-CAMLprim value caml_int_bsr(value v1)
-{
-  /* Do not use Long_val(v1) conversion and preserve the tag. It
-     guarantees that the input to builtin_clz is non-zero, to guard
-     against versions of builtin_clz that are undefined for intput 0.
-     Adjust the resulting index to account for the tag.
-  */
-#ifdef ARCH_SIXTYFOUR
-  return Val_long(int64_bsr((uint64_t)v1)-1);
-#else
-  return Val_long(int32_bsr((uint32_t)v1)-1);
-#endif
-}
-
 /* Takes an untagged input and returns untagged output. */
 CAMLprim value caml_untagged_int_clz(value v1)
 {
@@ -475,6 +425,131 @@ CAMLprim value caml_int_clz(value v1)
 #else
   return Val_long(int32_clz((uint32_t)v1));
 #endif
+}
+
+
+
+#if (defined(TARGET_amd64) || defined(TARGET_i386)) && defined(__GNUC__)
+uint64_t __inline int64_bsr(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+
+uint32_t __inline int32_bsr(uint32_t a)
+{
+  uint32_t b;
+  __asm__ ("bsr %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+#elif defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(_BitScanReverse)
+
+uint32_t int32_bsr(uint32_t v)
+{
+  unsigned long n;
+  if (_BitScanReverse(&n, v)) return (unint32_t) n;
+  else return (uint32_t)-1;
+}
+
+int int64_bsr(uint64_t v)
+{
+  unsigned long n;
+#ifdef ARCH_SIXTYFOUR
+  if (_BitScanReverse64(&n, v)) return (uint64_t) n;
+  else return (unint64_t)-1;
+#else
+  /* _BitScanReverse64 is not supported */
+  if ((v >> 32) == 0)
+    {
+      return (unit64_t) int32_bsr((uint32_t)v);
+    }
+  else
+    {
+      _BitScanReverse(&n,(v>>32));
+      return (uint64_t) n+32;
+    }
+#endif
+}
+#else
+uint64_t __inline int64_bsr(uint64_t a) { return (63 - wrap_int64_clz(a)); }
+uint32_t __inline int32_bsr(uint32_t a) { return (31 - wrap_int32_clz(a)); }
+#endif
+
+#if defined(TARGET_amd64) && defined(__GNUC__)
+uint64_t __inline int64_lzcnt(uint64_t a)
+{
+  uint64_t b;
+  __asm__ ("lzcnt %1, %0" : "=r" (b) : "r" (a) );
+  return b;
+}
+#else
+uint64_t __inline int64_lzcnt(uint64_t a) { return wrap_int64_clz(a); }
+#endif
+
+uint64_t __inline int32_lzcnt(uint32_t a) { return wrap_int32_clz(a); }
+
+/* Takes as input a tagged int and returns untagged int. */
+value caml_int_bsr_untagged(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag. It
+     guarantees that the input is non-zero, to guard
+     against undefined behavior of bsr for input 0.
+     Adjust the resulting index to account for the tag.
+     When input is 0, output is -1.
+  */
+#ifdef ARCH_SIXTYFOUR
+  return int64_bsr((uint64_t)v1)-1;
+#else
+  return int32_bsr((uint32_t)v1)-1;
+#endif
+}
+
+CAMLprim value caml_int_bsr(value v1)
+{
+  return Val_long(caml_int_bsr_untagged(v1));
+}
+
+/* Takes as input an untagged int and returns untagged int.
+
+   This is currently unused.
+
+   It can be used by the compiler to replace caml_int_lzcnt_untagged
+   in situations where the input is already untagged.
+
+   The expression                caml_untagged_int_lzcnt(x)-1
+   is expected to be faster than lzcnt(((x << 1 ) + 1)).
+
+   Emits lzcnt instruction without any adjustments for tags.
+   The compiler is expected to emit the adjustment -1.
+*/
+value caml_untagged_int_lzcnt(value v1)
+{
+#ifdef ARCH_SIXTYFOUR
+  return int64_lzcnt((uint64_t)v1);
+#else
+  return int32_lzcnt((uint32_t)v1);
+#endif
+}
+
+value caml_int_lzcnt_untagged(value v1)
+{
+  /* Do not use Long_val(v1) conversion and preserve the tag,
+     because it doesn't affect the number of leading zeros.
+  */
+
+#ifdef ARCH_SIXTYFOUR
+  return int64_lzcnt((uint64_t)v1);
+#else
+  return int32_lzcnt((uint32_t)v1);
+#endif
+}
+
+CAMLprim value caml_int_lzcnt(value v1)
+{
+  return Val_long(caml_int_lzcnt_untagged(v1));
 }
 
 CAMLprim value caml_untagged_int_popcnt(value v1)

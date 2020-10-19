@@ -75,10 +75,6 @@ type primitive =
   | Pdivint of is_safe | Pmodint of is_safe
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
-  | Pbsrint
-  | Plzcntint
-  | Pclzint
-  | Ppopcntint
   | Pintcomp of integer_comparison
   (* Comparions that return int (not bool like above) for ordering *)
   | Pcompare_ints | Pcompare_floats | Pcompare_bints of boxed_integer
@@ -123,8 +119,6 @@ type primitive =
   | Plslbint of boxed_integer
   | Plsrbint of boxed_integer
   | Pasrbint of boxed_integer
-  | Pclzbint of boxed_integer
-  | Ppopcntbint of boxed_integer
   | Pbintcomp of boxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   (* Operations on big arrays: (unsafe, #dimensions, kind, layout) *)

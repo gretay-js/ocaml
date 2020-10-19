@@ -33,6 +33,7 @@ method! class_of_operation op =
     | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
     | Ibswap _ | Isqrtf -> super#class_of_operation op
     | Ilzcnt -> Op_pure
+    | Ibsr -> Op_pure
     | Irdtsc | Irdpmc -> Op_other
     end
   | _ -> super#class_of_operation op

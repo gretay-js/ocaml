@@ -17,3 +17,16 @@ external rdtsc : unit -> (int64 [@unboxed])  =
 
 external rdpmc : int32 -> int64  =
   "caml_rdpmc" "caml_rdpmc_unboxed" [@@unboxed] [@@noalloc]
+
+external bsr : int -> (int [@untagged]) =
+  "caml_int_bsr" "caml_int_bsr_untagged" [@@noalloc]
+
+external int64_bsr : (int64 [@unboxed]) -> (int [@untagged]) =
+    "caml_bsr" "caml_bsr_int64_unboxed" [@@noalloc]
+
+external lzcnt : int -> (int [@untagged]) =
+  "caml_int_lzcnt" "caml_int_lzcnt_untagged" [@@noalloc]
+
+external lzcnt2 : int -> int =
+  "caml_int_lzcnt" "caml_untagged_int_lzcnt" [@@untagged] [@@noalloc]
+

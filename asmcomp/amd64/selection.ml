@@ -126,7 +126,8 @@ let pseudoregs_for_operation op arg res =
 let inline_ops =
   [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
     "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap";
-    "caml_rdpmc_unboxed"; "caml_rdtsc_unboxed"
+    "caml_rdpmc_unboxed"; "caml_rdtsc_unboxed";
+    "caml_bsr_unboxed"; "caml_lzcnt_unboxed";
   ]
 
 (* The selector class *)
@@ -240,6 +241,17 @@ method! select_operation op args dbg =
       (Ispecific Irdtsc, args)
   | Cextcall("caml_rdpmc_unboxed", _, _, _) ->
       (Ispecific Irdpmc, args)
+  | Cextcall(("caml_bsr_unboxed"|"caml_bsr_untagged"), _, _, _) ->
+      (Ispecific Ibsr, args)
+  | Cextcall("caml_lzcnt_unboxed", _, _, _)  when !lzcnt_support ->
+      (Ispecific Ilzcnt, args)
+  (* CR gyorsh:
+     generate -1
+       | Pbsrint ->
+      let res = Cop(Cbsr, [transl env arg], dbg) in
+      tag_int (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg)) dbg
+  *)
+
   (* Some Intel targets do not support popcnt *)
   | Cpopcnt when not !popcnt_support ->
       (Iextcall { func = "caml_untagged_int_popcnt";

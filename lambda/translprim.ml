@@ -163,10 +163,6 @@ let primitives_table =
     "%geint", Primitive ((Pintcomp Cge), 2);
     "%incr", Primitive ((Poffsetref(1)), 1);
     "%decr", Primitive ((Poffsetref(-1)), 1);
-    "%bsrint", Primitive (Pbsrint, 1);
-    "%lzcntint", Primitive (Plzcntint, 1);
-    "%clzint", Primitive (Pclzint, 1);
-    "%popcntint", Primitive (Ppopcntint, 1);
     "%intoffloat", Primitive (Pintoffloat, 1);
     "%floatofint", Primitive (Pfloatofint, 1);
     "%negfloat", Primitive (Pnegfloat, 1);
@@ -222,8 +218,6 @@ let primitives_table =
     "%nativeint_lsl", Primitive ((Plslbint Pnativeint), 2);
     "%nativeint_lsr", Primitive ((Plsrbint Pnativeint), 2);
     "%nativeint_asr", Primitive ((Pasrbint Pnativeint), 2);
-    "%nativeint_clz", Primitive ((Pclzbint Pnativeint), 1);
-    "%nativeint_popcnt", Primitive ((Ppopcntbint Pnativeint), 1);
     "%int32_of_int", Primitive ((Pbintofint Pint32), 1);
     "%int32_to_int", Primitive ((Pintofbint Pint32), 1);
     "%int32_neg", Primitive ((Pnegbint Pint32), 1);
@@ -238,8 +232,6 @@ let primitives_table =
     "%int32_lsl", Primitive ((Plslbint Pint32), 2);
     "%int32_lsr", Primitive ((Plsrbint Pint32), 2);
     "%int32_asr", Primitive ((Pasrbint Pint32), 2);
-    "%int32_clz", Primitive ((Pclzbint Pint32), 1);
-    "%int32_popcnt", Primitive ((Ppopcntbint Pint32), 1);
     "%int64_of_int", Primitive ((Pbintofint Pint64), 1);
     "%int64_to_int", Primitive ((Pintofbint Pint64), 1);
     "%int64_neg", Primitive ((Pnegbint Pint64), 1);
@@ -254,8 +246,6 @@ let primitives_table =
     "%int64_lsl", Primitive ((Plslbint Pint64), 2);
     "%int64_lsr", Primitive ((Plsrbint Pint64), 2);
     "%int64_asr", Primitive ((Pasrbint Pint64), 2);
-    "%int64_clz", Primitive ((Pclzbint Pint64), 1);
-    "%int64_popcnt", Primitive ((Ppopcntbint Pint64), 1);
     "%nativeint_of_int32", Primitive ((Pcvtbint(Pint32, Pnativeint)), 1);
     "%nativeint_to_int32", Primitive ((Pcvtbint(Pnativeint, Pint32)), 1);
     "%int64_of_int32", Primitive ((Pcvtbint(Pint32, Pint64)), 1);
@@ -762,8 +752,6 @@ let lambda_primitive_needs_event_after = function
   | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _
   | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_64 _
   | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-  | Pclzint | Ppopcntint | Pclzbint _ | Ppopcntbint _
-  | Pbsrint |Plzcntint
   | Pbbswap _ -> true
 
   | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Psetglobal _
