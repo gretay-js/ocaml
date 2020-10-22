@@ -2154,6 +2154,16 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
+let clz bi arg dbg =
+  let res = (Cop(Cclz {non_zero=false},[make_unsigned_int bi args dbg], dbg)) in
+  if bi = Pint32 && size_int = 8 then
+    Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
+  else
+    res
+
+let popcnt bi arg dbg =
+  Cop(Cpopcnt, [make_unsigned_int bi args.(0) dbg], dbg)
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* let pfield_computed = addr_array_ref *)

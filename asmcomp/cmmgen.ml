@@ -779,22 +779,16 @@ and transl_ccall env prim args dbg =
         Cop(Cclz {non_zero=true}, args, dbg)
     | "caml_untagged_int_clz" ->
         Cop(Cclz {non_zero=false}, args, dbg)
-    | "caml_int64_clz_unboxed"
-    | "caml_int32_clz_unboxed"
-    | "caml_nativeint_clz_unboxed" ->
-      let res = (Cop(Cclz {non_zero=false},[make_unsigned_int bi args.(0) dbg], dbg)) in
-      if bi = Pint32 && size_int = 8 then
-        Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
-      else
-        res
+    | "caml_int64_clz_unboxed" -> clz Pint64 args.(0) dbg
+    | "caml_int32_clz_unboxed" -> clz Pint32 args.(0) dbg
+    | "caml_nativeint_clz_unboxed" -> clz Pnativeint args.(0) dbg
     | "caml_int_popcnt_untagged" ->
         Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
     | "caml_untagged_int_popcnt" ->
         Cop(Cpopcnt, args, dbg)
-    | "caml_int64_popcnt_unboxed"
-    | "caml_int32_popcnt_unboxed"
-    | "caml_nativeint_popcnt_unboxed" ->
-        Cop(Cpopcnt, [make_unsigned_int bi args.(0) dbg], dbg)
+    | "caml_int64_popcnt_unboxed" -> popcnt Pint64 args.(0) dbg
+    | "caml_int32_popcnt_unboxed" -> popcnt Pint32 args.(0) dbg
+    | "caml_nativeint_popcnt_unboxed" -> popcnt Pnativeint args.(0) dbg
     | native_name ->
         Cop(Cextcall(native_name, typ_res, prim.prim_alloc, None), args, dbg)
   in
