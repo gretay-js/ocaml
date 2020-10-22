@@ -775,18 +775,28 @@ and transl_ccall env prim args dbg =
   let args = transl_args prim.prim_native_repr_args args in
   let op =
     match Primitive.native_name prim with
+    | "caml_int_clz_untagged" ->
+        Cop(Cclz {non_zero=true}, args, dbg)
+    | "caml_untagged_int_clz" ->
+        Cop(Cclz {non_zero=false}, args, dbg)
     | "caml_int64_clz_unboxed"
     | "caml_int32_clz_unboxed"
     | "caml_nativeint_clz_unboxed" ->
-        (Cop(Cclz {non_zero=false},args, dbg))
-    | "caml_int_clz_untagged" ->
-        (Cop(Cclz {non_zero=true}, args, dbg))
+      let res = (Cop(Cclz {non_zero=false},[make_unsigned_int bi args.(0) dbg], dbg)) in
+      if bi = Pint32 && size_int = 8 then
+        Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
+      else
+        res
     | "caml_int_popcnt_untagged" ->
-        let res = Cop(Cpopcnt, args, dbg) in
-        (Cop(Caddi, [res; Cconst_int (-1, dbg)], dbg))
-    | native_name
-      -> (Cop(Cextcall(native_name, typ_res, prim.prim_alloc, None),
-              args, dbg))
+        Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
+    | "caml_untagged_int_popcnt" ->
+        Cop(Cpopcnt, args, dbg)
+    | "caml_int64_popcnt_unboxed"
+    | "caml_int32_popcnt_unboxed"
+    | "caml_nativeint_popcnt_unboxed" ->
+        Cop(Cpopcnt, [make_unsigned_int bi args.(0) dbg], dbg)
+    | native_name ->
+        Cop(Cextcall(native_name, typ_res, prim.prim_alloc, None), args, dbg)
   in
   wrap_result op
 
@@ -848,18 +858,6 @@ and transl_prim_1 env p arg dbg =
       box_int dbg bi
         (Cop(Csubi, [Cconst_int (0, dbg); transl_unbox_int dbg env bi arg],
              dbg))
-  | Pclzbint bi ->
-      let res = Cop(Cclz {non_zero=false},
-                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
-                  dbg) in
-      if bi = Pint32 && size_int = 8 then
-        tag_int (Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)) dbg
-      else
-        tag_int res dbg
-  | Ppopcntbint bi ->
-      tag_int(Cop(Cpopcnt,
-                  [make_unsigned_int bi (transl_unbox_int dbg env bi arg) dbg],
-                  dbg)) dbg
   | Pbbswap bi ->
       box_int dbg bi (bbswap bi (transl_unbox_int dbg env bi arg) dbg)
   | Pbswap16 ->

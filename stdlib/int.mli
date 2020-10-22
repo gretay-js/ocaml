@@ -104,7 +104,16 @@ external count_leading_zeros : int -> (int [@untagged]) =
   "caml_int_clz" "caml_int_clz_untagged" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
-external count_set_bits : int -> int = "%popcntint"
+external count_leading_zeros2 : int -> int =
+  "caml_int_clz" "caml_untagged_int_clz" [@@untagged] [@@noalloc]
+(** Counts the number of most significant zero bits. *)
+
+external count_set_bits : int -> (int [@untagged]) =
+  "caml_int_popcnt" "caml_int_popcnt_untagged" [@@noalloc]
+(** Counts the number of bit set to 1. *)
+
+external count_set_bits2 : int -> int =
+  "caml_int_popcnt" "caml_untagged_int_popcnt" [@@untagged] [@@noalloc]
 (** Counts the number of bit set to 1. *)
 
 (** {1:preds Predicates and comparisons} *)

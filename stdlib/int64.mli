@@ -126,7 +126,8 @@ external count_leading_zeros : (int64 [@unboxed]) -> (int [@untagged]) =
   "caml_int64_clz" "caml_int64_clz_unboxed" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
-external count_set_bits : int64 -> int = "%int64_popcnt"
+external count_set_bits : (int64 [@unboxed]) -> (int [@untagged]) =
+  "caml_int64_popcnt" "caml_int64_clz_popcnt" [@@noalloc]
 (** Counts the number of bit set to 1. *)
 
 external of_int : int -> int64 = "%int64_of_int"

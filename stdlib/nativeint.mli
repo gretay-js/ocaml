@@ -146,7 +146,8 @@ external count_leading_zeros : (nativeint [@unboxed]) -> (int [@untagged]) =
   "caml_nativeint_clz" "caml_nativeint_clz_unboxed" [@@noalloc]
 (** Counts the number of most significant zero bits. *)
 
-external count_set_bits : nativeint -> int = "%nativeint_popcnt"
+external count_set_bits : (nativeint [@unboxed]) -> (int [@untagged]) =
+  "caml_nativeint_popcnt" "caml_nativeint_popcnt_unboxed" [@@noalloc]
 (** Counts the number of bits set to 1. *)
 
 external of_int : int -> nativeint = "%nativeint_of_int"
