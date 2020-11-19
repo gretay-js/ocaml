@@ -147,17 +147,19 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall { name = "sqrt" }, args, _)
+  (* inlined ops are simple if their arguments are *)
+  | Cop(Cextcall { name = "sqrt" }, args, _) ->
+      List.for_all self#is_simple_expr args
   | Cop(Cextcall { name = fn; builtin = true }, args, _)
     when List.mem fn inline_ops ->
-      (* inlined ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
   | _ ->
       super#is_simple_expr e
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall { name = "sqrt" }, args, _)
+  | Cop(Cextcall { name = "sqrt" }, args, _) ->
+      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | Cop(Cextcall { name = fn; builtin = true }, args, _)
     when List.mem fn inline_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of

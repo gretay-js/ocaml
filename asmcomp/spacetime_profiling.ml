@@ -113,6 +113,7 @@ let code_for_function_prologue ~function_name ~fun_dbg:dbg ~node_hole =
                   Cop (Cextcall { name = "caml_spacetime_allocate_node";
                                   ret = [| Int |];
                                   alloc = false;
+                                  builtin = false;
                                   label_after = None},
                 [cconst_int (1 (* header *) + !index_within_node);
                 Cvar pc;
@@ -155,6 +156,7 @@ let code_for_blockheader ~value's_header ~node ~dbg =
     *)
     Cop (Cextcall { name = "caml_spacetime_generate_profinfo";
                     ret = [| Int |];
+                    builtin = false;
                     alloc = false; label_after = Some label },
       [Cvar address_of_profinfo;
        cconst_int (index_within_node + 1)],
@@ -275,6 +277,7 @@ let code_for_call ~node ~callee ~is_tail ~label dbg =
         else cconst_int 1  (* [Val_unit] *)
       in
       Cop (Cextcall { name = "caml_spacetime_indirect_node_hole_ptr";
+                      builtin = false;
                       ret = [| Int |]; alloc = false; label_after = None },
         [callee; Cvar place_within_node; caller_node],
         dbg))

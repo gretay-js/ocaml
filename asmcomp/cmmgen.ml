@@ -736,6 +736,7 @@ and transl_make_array dbg env kind args =
   match kind with
   | Pgenarray ->
       Cop(Cextcall { name = "caml_make_array";
+                     builtin = false;
                      ret = typ_val; alloc = true; label_after = None},
           [make_alloc dbg 0 (List.map (transl env) args)], dbg)
   | Paddrarray | Pintarray ->
@@ -1332,7 +1333,9 @@ and transl_letrec env bindings cont =
       bindings
   in
   let op_alloc prim args =
-    Cop(Cextcall { name = prim; ret = typ_val; alloc = true; label_after = None },
+    Cop(Cextcall { name = prim; ret = typ_val; alloc = true;
+                   builtin = false;
+                   label_after = None },
         args, dbg) in
   let rec init_blocks = function
     | [] -> fill_nonrec bsz
@@ -1360,6 +1363,7 @@ and transl_letrec env bindings cont =
     | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
         let op =
           Cop(Cextcall { name = "caml_update_dummy"; ret = typ_void;
+                         builtin = false;
                          alloc = false; label_after = None },
               [Cvar (VP.var id); transl env exp], dbg) in
         Csequence(op, fill_blocks rem)

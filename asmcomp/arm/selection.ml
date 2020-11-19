@@ -273,6 +273,7 @@ method private select_operation_softfp op args dbg =
       in
       (Iintop_imm(Icomp(Iunsigned comp), 0),
        [Cop(Cextcall { name = func; ret = typ_int; alloc = false;
+                       builtin = false;
                        label_after = None }, args, dbg)])
   (* Add coercions around loads and stores of 32-bit floats *)
   | (Cload (Single, mut), args) ->
@@ -281,6 +282,7 @@ method private select_operation_softfp op args dbg =
   | (Cstore (Single, init), [arg1; arg2]) ->
       let arg2' =
         Cop(Cextcall {name = "__aeabi_d2f"; ret = typ_int; alloc = false;
+                      builtin = false;
                       label_after = None }, [arg2], dbg) in
       self#select_operation (Cstore (Word_int, init)) [arg1; arg2'] dbg
   (* Other operations are regular *)
