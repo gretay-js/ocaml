@@ -773,18 +773,20 @@ and transl_ccall env prim args dbg =
   in
   let args = transl_args prim.prim_native_repr_args args in
   let op =
-    match Primitive.native_name prim with
-    | "caml_int_clz_untagged" -> Cop(Cclz {non_zero=true}, args, dbg)
-    | "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
-    | "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
-    | "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
-    | "caml_int_popcnt_untagged" ->
+    match prim.prim_builtin, Primitive.native_name prim with
+    | true, "caml_int_clz_untagged" -> Cop(Cclz {non_zero=true}, args, dbg)
+    | true, "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
+    | true, "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
+    | true, "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
+    | true, "caml_int_popcnt_untagged" ->
         Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
-    | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
-    | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
-    | "caml_nativeint_popcnt_unboxed" -> popcnt Pnativeint (List.hd args) dbg
-    | native_name ->
+    | true, "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
+    | true, "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
+    | true, "caml_nativeint_popcnt_unboxed" ->
+        popcnt Pnativeint (List.hd args) dbg
+    | builtin, native_name ->
         Cop(Cextcall { name = native_name; ret = typ_res;
+                       builtin;
                        alloc = prim.prim_alloc; label_after = None},
             args, dbg)
   in

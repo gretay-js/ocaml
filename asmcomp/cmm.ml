@@ -124,6 +124,7 @@ type extcall =
   { name: string;
     ret: machtype;
     alloc: bool;
+    builtin: bool;
     label_after: label option;
   }
 

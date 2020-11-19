@@ -124,7 +124,7 @@ let pseudoregs_for_operation op arg res =
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_ops =
-  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
+  [ "caml_bswap16_direct"; "caml_int32_direct_bswap";
     "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap";
     "caml_rdpmc_unboxed"; "caml_rdtsc_unboxed";
     "caml_int_lzcnt_untagged";
@@ -147,7 +147,8 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall { name = fn }, args, _)
+  | Cop(Cextcall { name = "sqrt" }, args, _)
+  | Cop(Cextcall { name = fn; builtin = true }, args, _)
     when List.mem fn inline_ops ->
       (* inlined ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -156,7 +157,8 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall { name = fn }, args, _)
+  | Cop(Cextcall { name = "sqrt" }, args, _)
+  | Cop(Cextcall { name = fn; builtin = true }, args, _)
     when List.mem fn inline_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
@@ -233,7 +235,7 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
     end
-  | Cextcall { name; } ->
+  | Cextcall { name; builtin = true } ->
     begin match name with
     | "caml_bswap16_direct" -> (Ispecific (Ibswap 16), args)
     | "caml_int32_direct_bswap" -> (Ispecific (Ibswap 32), args)
@@ -278,10 +280,12 @@ method! select_operation op args dbg =
 method! emit_expr env exp =
   match exp with
   | Cop ((Cextcall { name = "caml_int_bsr_untagged"; ret; alloc = false;
+                     builtin = true;
                      label_after}),
          args, dbg) ->
     let exp = Cop(Caddi,
                   [Cop(Cextcall{ name = "int64_bsr";
+                                 builtin = true;
                                  ret; alloc = false; label_after },
                        args, dbg);
                    Cconst_int (-1, dbg)],

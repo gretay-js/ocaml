@@ -2147,12 +2147,14 @@ let bbswap bi arg dbg =
     | Pint64 -> "int64"
   in
   Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
+                 builtin = true;
                  ret = typ_int; alloc = false; label_after = None },
       [arg],
       dbg)
 
 let bswap16 arg dbg =
   (Cop(Cextcall { name = "caml_bswap16_direct";
+                  builtin = true;
                   ret = typ_int; alloc = false; label_after = None },
        [arg],
        dbg))

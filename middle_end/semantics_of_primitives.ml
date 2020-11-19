@@ -33,6 +33,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
                ( "caml_format_float" | "caml_format_int" | "caml_int32_format"
                | "caml_nativeint_format" | "caml_int64_format" ) } ->
       No_effects, No_coeffects
+  | Pccall { prim_builtin = true } -> (* CR gyorsh: not safe, but what to do? *)
+      No_effects, No_coeffects
   | Pccall _ -> Arbitrary_effects, Has_coeffects
   | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects

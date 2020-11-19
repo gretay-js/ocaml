@@ -118,6 +118,7 @@ type extcall =
   { name: string;
     ret: machtype;
     alloc: bool;
+    builtin: bool;
     label_after: label option;
         (** If specified, the given label will be placed immediately after the
             call (at the same place as any frame descriptor would reference). *)
