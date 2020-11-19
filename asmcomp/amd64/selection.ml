@@ -147,7 +147,7 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall (fn, _, _, _), args, _)
+  | Cop(Cextcall { name = fn }, args, _)
     when List.mem fn inline_ops ->
       (* inlined ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -156,7 +156,7 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall(fn, _, _, _), args, _)
+  | Cop(Cextcall { name = fn }, args, _)
     when List.mem fn inline_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
@@ -213,7 +213,7 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
-  | Cextcall("sqrt", _, false, _) ->
+  | Cextcall { name = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
@@ -232,25 +232,21 @@ method! select_operation op args dbg =
           (Ispecific(Ioffset_loc(n, addr)), [arg])
       | _ ->
           super#select_operation op args dbg
-      end
-  | Cextcall("caml_bswap16_direct", _, _, _) ->
-      (Ispecific (Ibswap 16), args)
-  | Cextcall("caml_int32_direct_bswap", _, _, _) ->
-      (Ispecific (Ibswap 32), args)
-  | Cextcall("caml_int64_direct_bswap", _, _, _)
-  | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
-      (Ispecific (Ibswap 64), args)
-  | Cextcall("caml_rdtsc_unboxed", _, _, _) ->
-      (Ispecific Irdtsc, args)
-  | Cextcall("caml_rdpmc_unboxed", _, _, _) ->
-      (Ispecific Irdpmc, args)
-  | Cextcall("caml_int64_bsr_unboxed", _, _, _) ->
-      (Ispecific(Ibsr {non_zero=false}), args)
-  | Cextcall("int64_bsr", _, _, _) ->
-      (Ispecific(Ibsr {non_zero=true}), args)
-  (* Some Intel targets do not support popcnt and lzcnt *)
-  | Cextcall("caml_int_lzcnt_untagged", _, _, _)  when !lzcnt_support ->
+    end
+  | Cextcall { name; } ->
+    begin match name with
+    | "caml_bswap16_direct" -> (Ispecific (Ibswap 16), args)
+    | "caml_int32_direct_bswap" -> (Ispecific (Ibswap 32), args)
+    | "caml_int64_direct_bswap" -> (Ispecific (Ibswap 64), args)
+    | "caml_rdtsc_unboxed" -> (Ispecific Irdtsc, args)
+    | "caml_rdpmc_unboxed" -> (Ispecific Irdpmc, args)
+    | "caml_int64_bsr_unboxed" -> (Ispecific(Ibsr {non_zero=false}), args)
+    | "int64_bsr" -> (Ispecific(Ibsr {non_zero=true}), args)
+    (* Some Intel targets do not support popcnt and lzcnt *)
+    | "caml_int_lzcnt_untagged" when !lzcnt_support ->
       (Ispecific Ilzcnt, args)
+    | _ -> super#select_operation op args dbg
+    end
   | Cpopcnt when not !popcnt_support ->
       (Iextcall { func = "caml_popcnt_internal";
                   alloc = false; label_after = Cmm.new_label (); }, args)
@@ -281,9 +277,12 @@ method! select_operation op args dbg =
 
 method! emit_expr env exp =
   match exp with
-  | Cop(Cextcall("caml_int_bsr_untagged", ty, false, dbg1), args, dbg) ->
+  | Cop ((Cextcall { name = "caml_int_bsr_untagged"; ret; alloc = false;
+                     label_after}),
+         args, dbg) ->
     let exp = Cop(Caddi,
-                  [Cop(Cextcall("int64_bsr", ty, false, dbg1),
+                  [Cop(Cextcall{ name = "int64_bsr";
+                                 ret; alloc = false; label_after },
                        args, dbg);
                    Cconst_int (-1, dbg)],
                   dbg)
