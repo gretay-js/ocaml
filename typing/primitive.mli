@@ -83,5 +83,6 @@ type error =
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
   | Inconsistent_attributes_for_effects
+  | Inconsistent_noalloc_attributes_for_effects
 
 exception Error of Location.t * error

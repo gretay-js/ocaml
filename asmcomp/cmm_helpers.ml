@@ -1360,6 +1360,7 @@ let int64_native_prim name arity ~alloc =
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
     ~builtin:false
+    ~effects:No_effects ~coeffects:No_coeffects
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 

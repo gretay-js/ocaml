@@ -45,6 +45,7 @@ type error =
   | Old_style_noalloc_with_noalloc_attribute
   | No_native_primitive_with_repr_attribute
   | Inconsistent_attributes_for_effects
+  | Inconsistent_noalloc_attributes_for_effects
 
 exception Error of Location.t * error
 
@@ -165,6 +166,9 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     raise (Error (valdecl.pval_loc,
                   No_native_primitive_with_repr_attribute));
   let noalloc = old_style_noalloc || noalloc_attribute in
+  if noalloc && (only_generative_effects_attribute || no_effects_attribute) then
+        raise (Error (valdecl.pval_loc,
+                  Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
       (make_native_repr_args arity Unboxed_float, Unboxed_float)
@@ -265,8 +269,11 @@ let report_error ppf err =
       "[@The native code version of the primitive is mandatory@ \
        when attributes [%@untagged] or [%@unboxed] are present.@]"
   | Inconsistent_attributes_for_effects ->
-    Format.fprintf ppf "Use at most one of \"[%@no_effects]\" and \
-                        \"[%@only_generative_effects]\"."
+    Format.fprintf ppf "Use at most one of [%@no_effects] and \
+                        [%@only_generative_effects]."
+  | Inconsistent_noalloc_attributes_for_effects ->
+    Format.fprintf ppf "Cannot use [%@%@no_effects] and [%@%@no_generative_effects] \
+                        in conjunction with [%@%@noalloc]."
 
 let () =
   Location.register_error_of_exn
