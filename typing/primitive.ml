@@ -166,8 +166,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     raise (Error (valdecl.pval_loc,
                   No_native_primitive_with_repr_attribute));
   let noalloc = old_style_noalloc || noalloc_attribute in
-  if noalloc && (only_generative_effects_attribute || no_effects_attribute) then
-        raise (Error (valdecl.pval_loc,
+  if noalloc && only_generative_effects_attribute then
+    raise (Error (valdecl.pval_loc,
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
@@ -272,7 +272,7 @@ let report_error ppf err =
     Format.fprintf ppf "Use at most one of [%@no_effects] and \
                         [%@only_generative_effects]."
   | Inconsistent_noalloc_attributes_for_effects ->
-    Format.fprintf ppf "Cannot use [%@%@no_effects] and [%@%@no_generative_effects] \
+    Format.fprintf ppf "Cannot use [%@%@no_generative_effects] \
                         in conjunction with [%@%@noalloc]."
 
 let () =
