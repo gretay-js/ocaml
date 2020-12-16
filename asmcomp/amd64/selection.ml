@@ -260,10 +260,12 @@ method! select_operation op args dbg =
       (* Takes untagged int and returns untagged int.
          Setting the top bit does not change the result of 63 bit operation,
          and guarantees the input is non-zero. *)
+      (* Constant shift value generates a very long instruction (10 bytes),
+         emit shift instruction instead. It saves only 1 byte. *)
+      (* let c = Cconst_natint ((Nativeint.shift_left 1n 63), dbg)  in *)
+      let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg)  in
       (Ispecific (Ibsf {non_zero=true}),
-       [Cop(Cor, [List.hd args;
-                  Cconst_natint ((Nativeint.shift_left 1n 63), dbg) ],
-            dbg)])
+       [Cop(Cor, [List.hd args; c], dbg)])
     | "caml_int64_ctz_unboxed"
     | "caml_nativeint_ctz_unboxed" -> (Ispecific(Ibsf {non_zero=false}), args)
     (* Some Intel targets do not support popcnt and lzcnt *)
