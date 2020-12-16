@@ -101,6 +101,7 @@ type instruction =
   | ANDPD of arg * arg
   | BSWAP of arg
   | BSR of arg * arg
+  | BSF of arg * arg
   | LZCNT of arg * arg
   | POPCNT of arg * arg
   | CALL of arg

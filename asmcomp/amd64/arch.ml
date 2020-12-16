@@ -67,6 +67,7 @@ type specific_operation =
                                           extension *)
   | Ilzcnt                             (* count leading zeros instruction *)
   | Ibsr of { non_zero : bool }        (* bit scan reverse instruction *)
+  | Ibsf of { non_zero : bool }        (* bit scan forward instruction *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
 
@@ -162,6 +163,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "lzcnt %a" printreg arg.(0)
   | Ibsr {non_zero} ->
       fprintf ppf "bsr non_zero=%b %a" non_zero printreg arg.(0)
+  | Ibsf {non_zero} ->
+      fprintf ppf "bsf non_zero=%b %a" non_zero printreg arg.(0)
   | Irdtsc ->
       fprintf ppf "rdtsc"
   | Irdpmc ->

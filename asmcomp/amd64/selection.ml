@@ -130,7 +130,10 @@ let inline_ops =
     "caml_int_lzcnt_untagged";
     "caml_int64_bsr_unboxed";
     "caml_int_bsr_untagged";
-    "int64_bsr";
+    "%int64_bsr";
+    "caml_int64_ctz_unboxed";
+    "caml_nativeint_ctz_unboxed";
+    "caml_untagged_int_ctz";
   ]
 
 (* The selector class *)
@@ -237,15 +240,32 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
     end
-  | Cextcall { name; builtin = true } ->
+  | Cextcall { name; builtin = true; ret; label_after } ->
     begin match name with
     | "caml_bswap16_direct" -> (Ispecific (Ibswap 16), args)
     | "caml_int32_direct_bswap" -> (Ispecific (Ibswap 32), args)
     | "caml_int64_direct_bswap" -> (Ispecific (Ibswap 64), args)
     | "caml_rdtsc_unboxed" -> (Ispecific Irdtsc, args)
     | "caml_rdpmc_unboxed" -> (Ispecific Irdpmc, args)
-    | "caml_int64_bsr_unboxed" -> (Ispecific(Ibsr {non_zero=false}), args)
-    | "int64_bsr" -> (Ispecific(Ibsr {non_zero=true}), args)
+    | "caml_int64_bsr_unboxed" | "caml_nativeint_bsr_unboxed" ->
+      (Ispecific(Ibsr {non_zero=false}), args)
+    | "caml_int_bsr_untagged" ->
+      (* '%' guarantees that it won't clash with user defined names *)
+      ((Iintop_imm (Isub, 1)),
+       [ Cop(Cextcall{ name = "%int64_bsr"; builtin = true; ret;
+                       alloc = false; label_after },
+             args, dbg) ])
+    | "%int64_bsr" -> (Ispecific(Ibsr {non_zero=true}), args)
+    | "caml_untagged_int_ctz" ->
+      (* Takes untagged int and returns untagged int.
+         Setting the top bit does not change the result of 63 bit operation,
+         and guarantees the input is non-zero. *)
+      (Ispecific (Ibsf {non_zero=true}),
+       [Cop(Cor, [List.hd args;
+                  Cconst_natint ((Nativeint.shift_left 1n 63), dbg) ],
+            dbg)])
+    | "caml_int64_ctz_unboxed"
+    | "caml_nativeint_ctz_unboxed" -> (Ispecific(Ibsf {non_zero=false}), args)
     (* Some Intel targets do not support popcnt and lzcnt *)
     | "caml_int_lzcnt_untagged" when !lzcnt_support ->
       (Ispecific Ilzcnt, args)
@@ -277,23 +297,6 @@ method! select_operation op args dbg =
     | _ -> super#select_operation op args dbg
     end
   | _ -> super#select_operation op args dbg
-
-
-method! emit_expr env exp =
-  match exp with
-  | Cop ((Cextcall { name = "caml_int_bsr_untagged"; ret; alloc = false;
-                     builtin = true;
-                     label_after}),
-         args, dbg) ->
-    let exp = Cop(Caddi,
-                  [Cop(Cextcall{ name = "int64_bsr";
-                                 builtin = true;
-                                 ret; alloc = false; label_after },
-                       args, dbg);
-                   Cconst_int (-1, dbg)],
-                  dbg)
-    in super#emit_expr env exp
-  | _ -> super#emit_expr env exp
 
 (* Recognize float arithmetic with mem *)
 

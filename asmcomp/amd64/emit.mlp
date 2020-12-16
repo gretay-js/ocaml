@@ -963,6 +963,18 @@ let emit_instr fallthrough i =
         I.mov (int (-1)) (res i 0);
         def_label lbl_nz
       end
+  | Lop(Ispecific(Ibsf {non_zero})) ->
+      (* CR gyorsh: can we do it at selection? *)
+      if non_zero then begin
+        (* No need to handle that bsr is undefind on 0 input. *)
+         I.bsf (arg i 0) (res i 0);
+      end else begin
+        let lbl_nz = new_label () in
+        I.bsf (arg i 0) (res i 0);
+        I.jne (label lbl_nz);
+        I.mov (int 64) (res i 0);
+        def_label lbl_nz
+      end
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _) ->
     let probe_label = new_label () in

@@ -114,6 +114,7 @@ module I = struct
   let and_ x y= emit (AND (x, y))
   let andpd x y = emit (ANDPD (x, y))
   let bsr x y = emit (BSR (x, y))
+  let bsf x y = emit (BSF (x, y))
   let lzcnt x y = emit (LZCNT (x, y))
   let popcnt x y = emit (POPCNT (x, y))
   let bswap x = emit (BSWAP x)

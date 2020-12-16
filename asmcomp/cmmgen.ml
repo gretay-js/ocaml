@@ -775,7 +775,10 @@ and transl_ccall env prim args dbg =
   let args = transl_args prim.prim_native_repr_args args in
   let op =
     match prim.prim_builtin, Primitive.native_name prim with
-    | true, "caml_int_clz_untagged" -> Cop(Cclz {non_zero=true}, args, dbg)
+    | true, "caml_int_clz_untagged" ->
+        (* Takes tagged int and returns untagged int.
+           The tag does not change the number of leading zeros. *)
+        Cop(Cclz {non_zero=true}, args, dbg)
     | true, "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
     | true, "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
     | true, "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
