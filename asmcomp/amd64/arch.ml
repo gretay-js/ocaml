@@ -23,6 +23,11 @@ let lzcnt_support = ref true
 (* POPCNT instruction is not available prior to Nehalem. *)
 let popcnt_support = ref true
 
+(* PREFETCHW instruction is not available on processors
+   based on Haswell or earlier microarchitectures.
+*)
+let prefetchw_support = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -38,11 +43,28 @@ let command_line_options =
       " Use popcnt instruction to count the number of bits set";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use popcnt instruction to count the number of bits set";
+    "-fprefetchw", Arg.Set prefetchw_support,
+      " Use prefetchw and prefetchwt1 instructions";
+    "-fno-prefetchw", Arg.Clear prefetchw_support,
+      " Do not use prefetchw and prefetchwt1 instructions";
   ]
 
 (* Specific operations for the AMD64 processor *)
 
 open Format
+
+type temporal_locality = Not_at_all | Low | Moderate | High
+
+let temporal_locality = function
+  | Not_at_all -> "none"
+  | Low -> "low"
+  | Moderate -> "moderate"
+  | High -> "high"
+
+type hint = {
+  is_write : bool;
+  locality: temporal_locality;
+}
 
 type addressing_mode =
     Ibased of string * int              (* symbol + displ *)
@@ -70,6 +92,8 @@ type specific_operation =
   | Ibsf of { non_zero : bool }        (* bit scan forward instruction *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
+  | Icrc32q                            (* compute crc *)
+  | Iprefetch of hint                  (* memory prefetching hint *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -169,7 +193,11 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdtsc"
   | Irdpmc ->
       fprintf ppf "rdpmc %a" printreg arg.(0)
-
+  | Icrc32q ->
+      fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Iprefetch {is_write; locality} ->
+      fprintf ppf "prefetch is_write=%b temporal_locality=%s %a" is_write
+        (temporal_locality locality) printreg arg.(0)
 let win64 =
   match Config.system with
   | "win64" | "mingw64" | "cygwin" -> true

@@ -574,6 +574,13 @@ val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
 
+
+(** [transl_builtin prim args dbg ~default]
+    returns [default] if the primitive is not supported, otherwise constructs
+    and returns the corresponding expression. *)
+val transl_builtin : Primitive.description -> expression list -> Debuginfo.t
+  -> default:expression -> expression
+
 (** Generic Cmm fragments *)
 
 (** Generate generic functions *)

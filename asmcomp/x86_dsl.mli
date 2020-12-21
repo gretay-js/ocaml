@@ -64,7 +64,6 @@ val mem64:
 
 val mem64_rip: data_type -> ?ofs:int -> string -> arg
 
-
 module D : sig
   (** Directives *)
 
@@ -108,6 +107,8 @@ module I : sig
   val andpd: arg -> arg -> unit
   val bsr : arg -> arg -> unit
   val bsf : arg -> arg -> unit
+  val prefetch : bool -> locality_hint -> arg -> unit
+  val crc32 : arg -> arg -> unit
   val lzcnt : arg -> arg -> unit
   val popcnt : arg -> arg -> unit
   val bswap: arg -> unit

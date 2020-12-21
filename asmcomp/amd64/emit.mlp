@@ -976,6 +976,18 @@ let emit_instr fallthrough i =
         def_label lbl_nz
       end
   | Lop (Iname_for_debugger _) -> ()
+  | Lop (Ispecific (Iprefetch {is_write;locality})) ->
+    let locality =
+      match locality with
+      | Not_at_all -> Nta
+      | Low -> T2
+      | Moderate -> T1
+      | High -> T0
+    in
+    I.prefetch is_write locality (arg i 0)
+  | Lop (Ispecific Icrc32q) ->
+    (* We have i.arg.(0) = i.res.(0) *)
+    I.crc32 (arg i 1) (res i 0)
   | Lop (Iprobe _) ->
     let probe_label = new_label () in
     let probe =

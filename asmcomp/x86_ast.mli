@@ -71,11 +71,12 @@ type addr =
     sym: string option;
     displ: int;
   }
-  (** Addressing modes:
-      displ + sym + base + idx * scale
-      (if scale = 0, idx is ignored and base must be None)
-  *)
+type locality_hint = Nta | T1 | T2 | T0
 
+(** Addressing modes:
+    displ + sym + base + idx * scale
+    (if scale = 0, idx is ignored and base must be None)
+*)
 type arg =
   | Imm of int64
   (** Operand is an immediate constant integer *)
@@ -102,6 +103,8 @@ type instruction =
   | BSWAP of arg
   | BSR of arg * arg
   | BSF of arg * arg
+  | PREFETCH of bool * locality_hint * arg
+  | CRC32 of arg * arg
   | LZCNT of arg * arg
   | POPCNT of arg * arg
   | CALL of arg

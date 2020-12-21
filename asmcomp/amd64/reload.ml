@@ -47,6 +47,7 @@ open Arch
      Iintoffloat                R       S
      Ispecific(Ilea)            R       R       R
      Ispecific(Ifloatarithmem)  R       R       R
+     Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
 
    Conditional branches:
      Iinttest                           S       R
@@ -103,6 +104,17 @@ method! reload_operation op arg res =
     let rdx = force res.(0) rdx in
     let rax = force res.(1) rax in
     ([| rcx |], [| rdx; rax |])
+  | Ispecific Icrc32q ->
+    (* First argument and result must be in the same register.
+       Second argument can be either in register or on stack. *)
+    (match stackp arg.(0), stackp res.(0), arg.(0).loc = res.(0).loc with
+     | true, false, true -> ([| res.(0); arg.(1) |], res)
+     | false, true, true -> (arg, [| arg.(0) |])
+     | false, false, false -> (arg, [| arg.(0) |])
+     | false, false, true -> (arg, res)
+     | true, true, _ ->
+       (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
+     | _ -> assert false (* impossible *))
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

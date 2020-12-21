@@ -36,6 +36,8 @@ method! class_of_operation op =
     | Ibsr _ -> Op_pure
     | Ibsf _ -> Op_pure
     | Irdtsc | Irdpmc -> Op_other
+    | Icrc32q -> Op_pure
+    | Iprefetch _ -> Op_other
     end
   | _ -> super#class_of_operation op
 

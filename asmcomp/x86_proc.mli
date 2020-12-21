@@ -30,9 +30,9 @@ val string_of_string_literal: string -> string
 val string_of_condition: condition -> string
 val string_of_symbol: (*prefix*) string -> string -> string
 val string_of_rounding: rounding -> string
+val string_of_hint: locality_hint -> string
 val buf_bytes_directive:
   Buffer.t -> (*directive*) string -> (*data*)string -> unit
-
 
 (** Buffer of assembly code *)
 

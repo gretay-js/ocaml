@@ -773,48 +773,15 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let args = transl_args prim.prim_native_repr_args args in
+  let default = Cop(Cextcall { name = Primitive.native_name prim; ret = typ_res;
+                               builtin = prim.prim_builtin;
+                               alloc = prim.prim_alloc; label_after = None},
+                    args, dbg)
+  in
   let op =
-    match prim.prim_builtin, Primitive.native_name prim with
-    | true, "caml_int_clz_untagged" ->
-        (* Takes tagged int and returns untagged int.
-           The tag does not change the number of leading zeros. *)
-        Cop(Cclz {non_zero=true}, args, dbg)
-    | true, "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
-    | true, "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
-    | true, "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
-    | true, "caml_int_popcnt_untagged" ->
-        Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
-    | true, "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
-    | true, "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
-    | true, "caml_nativeint_popcnt_unboxed" ->
-        popcnt Pnativeint (List.hd args) dbg
-    | true, "caml_int_as_native_pointer_unboxed" ->
-        int_as_pointer (List.hd args) dbg
-    | true, "caml_native_pointer_load_int_unboxed" ->
-        Cop(Cload (Word_int, Mutable), args, dbg)
-    | true, "caml_native_pointer_store_int_unboxed" ->
-        Cop(Cstore (Word_int, Assignment), args, dbg)
-    | true, "caml_native_pointer_load_float_unboxed" ->
-        Cop(Cload (Double_u, Mutable), args, dbg)
-    | true, "caml_native_pointer_store_float_unboxed" ->
-        Cop(Cstore (Double_u, Assignment), args, dbg)
-    | true, "caml_ext_pointer_load_int" ->
-        let p = int_as_pointer (List.hd args) dbg in
-        Cop(Cload (Word_int, Mutable), [p], dbg)
-    | true, "caml_ext_pointer_store_int" ->
-        let p = int_as_pointer (List.hd args) dbg in
-        Cop(Cstore (Word_int, Assignment), [p; List.nth args 1], dbg )
-    | true, "caml_ext_pointer_load_float_unboxed" ->
-        let p = int_as_pointer (List.hd args) dbg in
-        Cop(Cload (Double_u, Mutable), [p], dbg)
-    | true, "caml_ext_pointer_store_float_unboxed" ->
-        let p = int_as_pointer (List.hd args) dbg in
-        Cop(Cstore (Double_u, Assignment), [p; List.nth args 1], dbg )
-    | builtin, native_name ->
-        Cop(Cextcall { name = native_name; ret = typ_res;
-                       builtin;
-                       alloc = prim.prim_alloc; label_after = None},
-            args, dbg)
+    match prim.prim_builtin with
+    | false -> default
+    | true -> transl_builtin prim args dbg ~default
   in
   wrap_result op
 

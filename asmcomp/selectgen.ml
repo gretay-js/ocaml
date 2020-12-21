@@ -85,6 +85,7 @@ let oper_result_type = function
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Cprefetch _ -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
 
@@ -333,6 +334,7 @@ method is_simple_expr = function
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Cprefetch _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
@@ -383,6 +385,7 @@ method effects_of exp =
       | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Cprefetch _
       | Ccmpf _ ->
         EC.none
     in
@@ -746,6 +749,7 @@ method emit_expr (env:environment) exp =
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
           dbg))
+  | Cop(Cprefetch _, _, _) -> None
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None

@@ -124,6 +124,12 @@ let print_instr b = function
   | BSF (arg1, arg2) -> i2 b "bsf" arg1 arg2
   | LZCNT (arg1, arg2) -> i2 b "lzcnt" arg1 arg2
   | POPCNT (arg1, arg2) -> i2 b "popcnt" arg1 arg2
+  | CRC32 (arg1, arg2) -> i2 b "crc32q" arg1 arg2
+  | PREFETCH (is_write, locality, arg1) ->
+    (match is_write, locality with
+     | true, T0 -> i1 b "prefetchw" arg1
+     | true, _ -> i1 b "prefetchwt1" arg1
+     | false, _ -> i1 b ("prefetch" ^ string_of_hint locality) arg1)
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cdq"
   | CMOV (c, arg1, arg2) -> i2 b ("cmov" ^ string_of_condition c) arg1 arg2

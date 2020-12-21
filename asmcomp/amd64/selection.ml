@@ -136,6 +136,13 @@ let inline_ops =
     "caml_untagged_int_ctz";
   ]
 
+let select_locality (l : Cmm.temporal_locality) : Arch.temporal_locality =
+  match l with
+  | Not_at_all -> Not_at_all
+  | Low -> Low
+  | Moderate -> Moderate
+  | High -> High
+
 (* The selector class *)
 
 class selector = object (self)
@@ -150,6 +157,7 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
+  | Cop(Cprefetch _, _, _) -> false
   (* inlined ops are simple if their arguments are *)
   | Cop(Cextcall { name = "sqrt" }, args, _) ->
       List.for_all self#is_simple_expr args
@@ -161,6 +169,7 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
+  | Cop(Cprefetch _, _, _) -> Selectgen.Effect_and_coeffect.arbitrary
   | Cop(Cextcall { name = "sqrt" }, args, _) ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | Cop(Cextcall { name = fn; builtin = true }, args, _)
@@ -268,6 +277,8 @@ method! select_operation op args dbg =
        [Cop(Cor, [List.hd args; c], dbg)])
     | "caml_int64_ctz_unboxed"
     | "caml_nativeint_ctz_unboxed" -> (Ispecific(Ibsf {non_zero=false}), args)
+    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" ->
+      (Ispecific Icrc32q, args)
     (* Some Intel targets do not support popcnt and lzcnt *)
     | "caml_int_lzcnt_untagged" when !lzcnt_support ->
       (Ispecific Ilzcnt, args)
@@ -277,7 +288,9 @@ method! select_operation op args dbg =
       (Iextcall { func = "caml_popcnt_internal";
                   alloc = false; label_after = Cmm.new_label (); }, args)
   | Cclz _ when !lzcnt_support ->
-      (Ispecific Ilzcnt, args)
+    (Ispecific Ilzcnt, args)
+  | Cprefetch { is_write; locality; } ->
+    (Ispecific (Iprefetch {is_write; locality = select_locality locality}), args)
   (* AMD64 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
       (Iintop Imulh, args)
