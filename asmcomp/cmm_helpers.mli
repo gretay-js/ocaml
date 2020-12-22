@@ -440,6 +440,10 @@ val bbswap : Primitive.boxed_integer -> unary_primitive
     Operates on Cmm integers (untagged integers) *)
 val bswap16 : unary_primitive
 
+(** Count leading zeros and popcount *)
+val clz : Primitive.boxed_integer -> unary_primitive
+val popcnt : Primitive.boxed_integer -> unary_primitive
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 type assignment_kind = Caml_modify | Caml_initialize | Simple
@@ -569,6 +573,13 @@ val generic_apply :
 val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
+
+
+(** [transl_builtin prim args dbg ~default]
+    returns [default] if the primitive is not supported, otherwise constructs
+    and returns the corresponding expression. *)
+val transl_builtin : Primitive.description -> expression list -> Debuginfo.t
+  -> default:expression -> expression
 
 (** Generic Cmm fragments *)
 

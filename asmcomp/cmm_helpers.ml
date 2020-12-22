@@ -2166,6 +2166,16 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
+let clz bi arg dbg =
+  let res = (Cop(Cclz {non_zero=false},[make_unsigned_int bi arg dbg], dbg)) in
+  if bi = Primitive.Pint32 && size_int = 8 then
+    Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
+  else
+    res
+
+let popcnt bi arg dbg =
+  Cop(Cpopcnt, [make_unsigned_int bi arg dbg], dbg)
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* let pfield_computed = addr_array_ref *)
@@ -2307,6 +2317,33 @@ let bigstring_load size unsafe arg1 arg2 dbg =
           (bigstring_length ba dbg)
           idx
           (unaligned_load size ba_data idx dbg)))))
+
+let two_args name args =
+    match args with
+    | [arg1;arg2] -> arg1,arg2
+    | _ -> Misc.fatal_errorf "Cmm_helpers: expected exactly 2 arguments for %s"
+             name
+
+let bigstring_prefetch ~is_write locality args dbg =
+  let (arg1, arg2) = two_args "bigstring_prefetch" args in
+  bind "ba" arg1 (fun ba ->
+    bind "index" arg2 (fun idx ->
+      bind "ba_data"
+        (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
+        (fun ba_data ->
+           (* pointer to element "idx" of "ba" of type
+              (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t
+              is simply offset "idx" from "ba_data" *)
+           (Cop (Cprefetch {is_write; locality;},
+                 [add_int ba_data idx dbg],
+                 dbg
+                )))))
+
+let prefetch ~is_write locality arg dbg =
+  (Cop (Cprefetch {is_write; locality;}, [ arg ], dbg))
+
+let ext_pointer_prefetch ~is_write locality arg dbg =
+  prefetch ~is_write locality (add_const arg (-1) dbg) dbg
 
 let arrayref_unsafe kind arg1 arg2 dbg =
   match (kind : Lambda.array_kind) with
@@ -2510,6 +2547,86 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
          (fun ba_data ->
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
+
+let transl_builtin prim args dbg ~default =
+  match Primitive.native_name prim with
+  | "caml_int_clz_untagged" ->
+    (* Takes tagged int and returns untagged int.
+       The tag does not change the number of leading zeros. *)
+    Cop(Cclz {non_zero=true}, args, dbg)
+  | "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
+  | "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
+  | "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
+  | "caml_int_popcnt_untagged" ->
+    Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg)
+  | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
+  | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
+  | "caml_nativeint_popcnt_unboxed" ->
+    popcnt Pnativeint (List.hd args) dbg
+  |  "caml_int_as_native_pointer_unboxed" ->
+    int_as_pointer (List.hd args) dbg
+  | "caml_native_pointer_load_int_unboxed" ->
+    Cop(Cload (Word_int, Mutable), args, dbg)
+  | "caml_native_pointer_store_int_unboxed" ->
+    Cop(Cstore (Word_int, Assignment), args, dbg)
+  | "caml_native_pointer_load_float_unboxed" ->
+    Cop(Cload (Double_u, Mutable), args, dbg)
+  | "caml_native_pointer_store_float_unboxed" ->
+    Cop(Cstore (Double_u, Assignment), args, dbg)
+  | "caml_ext_pointer_load_int" ->
+    let p = int_as_pointer (List.hd args) dbg in
+    Cop(Cload (Word_int, Mutable), [p], dbg)
+  | "caml_ext_pointer_store_int" as name ->
+    let arg1, arg2 = two_args name args in
+    let p = int_as_pointer arg1 dbg in
+    Cop(Cstore (Word_int, Assignment), [p; arg2], dbg )
+  | "caml_ext_pointer_load_float_unboxed" ->
+    let p = int_as_pointer (List.hd args) dbg in
+    Cop(Cload (Double_u, Mutable), [p], dbg)
+  | "caml_ext_pointer_store_float_unboxed" as name ->
+    let arg1, arg2 = two_args name args in
+    let p = int_as_pointer arg1 dbg in
+    Cop(Cstore (Double_u, Assignment), [p; arg2], dbg )
+  (* Bigstring prefetch *)
+  | "caml_prefetch_write_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true High args dbg
+  | "caml_prefetch_write_t1_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Moderate args dbg
+  | "caml_prefetch_nta_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Not_at_all args dbg
+  | "caml_prefetch_t0_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false High args dbg
+  | "caml_prefetch_t1_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Moderate args dbg
+  | "caml_prefetch_t2_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Low args dbg
+  (* Ext_pointer prefetch *)
+  | "caml_prefetch_write_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true  High (List.hd args) dbg
+  | "caml_prefetch_write_t1_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true  Moderate (List.hd args) dbg
+  | "caml_prefetch_nta_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Not_at_all (List.hd args) dbg
+  | "caml_prefetch_t0_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false High (List.hd args) dbg
+  | "caml_prefetch_t1_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Moderate (List.hd args) dbg
+  | "caml_prefetch_t2_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Low (List.hd args) dbg
+  (* Native_pointer prefetch*)
+  | "caml_prefetch_write_native_pointer_unboxed" ->
+    prefetch ~is_write:true High (List.hd args) dbg
+  | "caml_prefetch_write_t1_native_pointer_unboxed" ->
+    prefetch ~is_write:true  Moderate (List.hd args) dbg
+  | "caml_prefetch_nta_native_pointer_unboxed" ->
+    prefetch ~is_write:false Not_at_all (List.hd args) dbg
+  | "caml_prefetch_t0_native_pointer_unboxed" ->
+    prefetch ~is_write:false High (List.hd args) dbg
+  | "caml_prefetch_t1_native_pointer_unboxed" ->
+    prefetch ~is_write:false Moderate (List.hd args) dbg
+  | "caml_prefetch_t2_native_pointer_unboxed" ->
+    prefetch ~is_write:false Low (List.hd args) dbg
+  | _ -> default
 
 (* Symbols *)
 
