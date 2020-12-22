@@ -87,6 +87,10 @@ val cur_label: unit -> label
 
 type rec_flag = Nonrecursive | Recursive
 
+(* XCR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
+   this refers to. *)
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
 type phantom_defining_expr =
   (* CR-soon mshinwell: Convert this to [Targetint.OCaml.t] (or whatever the
      representation of "target-width OCaml integers of type [int]"
@@ -114,6 +118,27 @@ type phantom_defining_expr =
   (** The phantom-let-bound variable points at a block with the given
       structure. *)
 
+(* CR gyorsh for mshinwell: not sure this halfway house.
+   On one hand, Cmm.effects does not have any use for
+   Primitive.effects.Only_generative_effects which
+   is abstracted in cmmgen to Cmm.effects.Arbitrary_effects.
+   On the other hand, Cmm.effects does not express the more refined effects
+   available in Selectgen.Effect.Raise and Selectgen.Coeffect.Read_mutable.
+   An obvious solution is to copy Primitive.effects over as is, but it
+   will be confusing to have it around and not used.
+*)
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+(* XCR mshinwell: Please pull out the change to use a record for Cextcall
+   into a separate patch.  (Also, just to check, I presume there's some
+   reason why this can't be an inline record?)
+
+   gyorsh: I didn't make an inline record because it is long.
+   Should I change it to an inline record?
+   ok, realized that inline record saves one dereference.
+   fixed. I'll make a separate patch for this change when rebasing the whole lot
+   onto flambda-backend.
+*)
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -127,14 +152,46 @@ type memory_chunk =
   | Double                             (* 64-bit-aligned 64-bit float *)
   | Double_u                           (* word-aligned 64-bit float *)
 
+type bswap_width_in_bits =
+  | Sixteen
+  | Thirtytwo
+  | Sixtyfour
+
 and operation =
     Capply of machtype
-  | Cextcall of string * machtype * bool * label option
+  | Cextcall of
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
+        label_after: label option;
+        (** If specified, the given label will be placed immediately after the
+            call (at the same place as any frame descriptor would reference). *)
+      }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  (* CR mshinwell: Why is count leading zeros here but count trailing zeros
+     is not?  Moving it here will probably simplify selection.ml, which is
+     harder to get right than the Cmm stages.
+
+     gyorsh: I don't have implementation of ctz for all other architectures,
+     whereas clz was from the previous patch that has been tested and reviewed
+     on all architectures before, and so was popcnt. Since then, we introduced
+     Proc.operation_supported so now I can put ctz in cmm too. The downside is
+     that we are making Cmm.operation bigger. If that's not an issue, we should
+     add sqrt and bswap.
+  *)
+  | Cclz of { arg_is_non_zero: bool; }
+  | Cctz of { arg_is_non_zero: bool; }
+  | Cpopcnt
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Csqrt
+  | Cbswap of bswap_width_in_bits
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)

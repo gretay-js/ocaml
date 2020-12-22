@@ -71,6 +71,8 @@ type addr =
     sym: string option;
     displ: int;
   }
+type locality_hint = Nta | T1 | T2 | T0
+
   (** Addressing modes:
       displ + sym + base + idx * scale
       (if scale = 0, idx is ignored and base must be None)
@@ -100,6 +102,13 @@ type instruction =
   | AND of arg * arg
   | ANDPD of arg * arg
   | BSWAP of arg
+  | BSR of arg * arg
+  | BSF of arg * arg
+  (* CR mshinwell: Let's keep this list in alphabetical order! *)
+  | PREFETCH of bool * locality_hint * arg
+  | CRC32 of arg * arg
+  | LZCNT of arg * arg
+  | POPCNT of arg * arg
   | CALL of arg
   | CDQ
   | CMOV of condition * arg * arg
@@ -169,6 +178,8 @@ type instruction =
   | OR of arg * arg
   | POP of arg
   | PUSH of arg
+  | RDTSC
+  | RDPMC
   | RET
   | ROUNDSD of rounding * arg * arg
   | SAL of arg * arg

@@ -72,6 +72,14 @@ let chunk = function
   | Double -> "float64"
   | Double_u -> "float64u"
 
+let temporal_locality = function
+  (* CR mshinwell: It's probably better to have this print "not_at_all" to
+     avoid confusion *)
+  | Nonlocal -> "none"
+  | Low -> "low"
+  | Moderate -> "moderate"
+  | High -> "high"
+
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
   | Cphantom_const_int i -> Targetint.print ppf i
@@ -101,7 +109,7 @@ let location d =
 
 let operation d = function
   | Capply _ty -> "app" ^ location d
-  | Cextcall(lbl, _ty, _alloc, _) ->
+  | Cextcall { name = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
@@ -126,6 +134,13 @@ let operation d = function
   | Clsl -> "<<"
   | Clsr -> ">>u"
   | Casr -> ">>s"
+  | Csqrt -> "sqrt"
+  | Cbswap Sixteen -> "bswap16"
+  | Cbswap Thirtytwo -> "bswap32"
+  | Cbswap Sixtyfour -> "bswap64"
+  | Cclz { arg_is_non_zero; } -> Printf.sprintf "clz %B" arg_is_non_zero
+  | Cctz { arg_is_non_zero; } -> Printf.sprintf "ctz %B" arg_is_non_zero
+  | Cpopcnt -> "popcnt"
   | Ccmpi c -> integer_comparison c
   | Caddv -> "+v"
   | Cadda -> "+a"
@@ -144,6 +159,9 @@ let operation d = function
   | Cprobe { name; handler_code_sym } ->
     Printf.sprintf "probe[%s %s]" name handler_code_sym
   | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
+  | Cprefetch { is_write; locality; } ->
+    Printf.sprintf "prefetch is_write=%b temporal_locality=%s" is_write
+      (temporal_locality locality)
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
@@ -212,7 +230,7 @@ let rec expr ppf = function
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
       | Capply mty -> fprintf ppf "@ %a" machtype mty
-      | Cextcall(_, mty, _, _) -> fprintf ppf "@ %a" machtype mty
+      | Cextcall { ret=mty } -> fprintf ppf "@ %a" machtype mty
       | _ -> ()
       end;
       fprintf ppf ")@]"

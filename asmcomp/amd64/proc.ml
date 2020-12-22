@@ -332,6 +332,7 @@ let destroyed_at_oper = function
       [| loc_spacetime_node_hole |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
+  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax |]
   | _ ->
     if fp then
 (* prevent any use of the frame pointer ! *)
@@ -399,3 +400,20 @@ let init () =
     num_available_registers.(0) <- 12
   end else
     num_available_registers.(0) <- 13
+
+let operation_supported = function
+  (* XCR mshinwell: This should be an exhaustive match. *)
+  | Cpopcnt -> !popcnt_support
+  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cclz _ | Cctz _
+  | Cprefetch _
+  | Csqrt | Cbswap _
+  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Craise _
+  | Ccheckbound
+  | Cprobe _ | Cprobe_is_enabled _
+    -> true

@@ -383,7 +383,10 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
                      lwhite: I don't think any of the existing events
                      are suitable. I had to add a new one for a similar
                      case in the array data types work.
-                     mshinwell: deferred CR *)
+                     mshinwell: deferred CR
+                     gyorsh: this is easy to addressed now along with the
+                     intrinsics patch, if by "event" you mean C stub.
+                  *)
                   name_expr ~name:Names.result
                     (Prim (prim, [numerator; denominator], dbg))))))))
   | Lprim ((Pdivint Safe | Pmodint Safe

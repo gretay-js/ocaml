@@ -485,6 +485,22 @@ CAMLprim_int64_2(mod)(int64_t dividend, int64_t divisor)
   return dividend % divisor;
 }
 
+CAMLprim_int64_2(div_unsafe)(int64_t dividend, int64_t divisor)
+{
+  /* PR#4740: on some processors, division crashes on overflow.
+     Implement the same behavior as for type "int". */
+  if (dividend == ((int64_t)1 << 63) && divisor == -1) return dividend;
+  return dividend / divisor;
+}
+
+CAMLprim_int64_2(mod_unsafe)(int64_t dividend, int64_t divisor)
+{
+  /* PR#4740: on some processors, division crashes on overflow.
+     Implement the same behavior as for type "int". */
+  if (dividend == ((int64_t)1 << 63) && divisor == -1) return 0;
+  return dividend % divisor;
+}
+
 CAMLprim_int64_2(and)(int64_t i1, int64_t i2)
 { return i1 & i2; }
 

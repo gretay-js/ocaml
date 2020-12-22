@@ -66,7 +66,7 @@ let env_empty = {
 
 let oper_result_type = function
     Capply ty -> ty
-  | Cextcall(_s, ty, _alloc, _) -> ty
+  | Cextcall { ret = ty; } -> ty
   | Cload (c, _) ->
       begin match c with
       | Word_val -> typ_val
@@ -76,15 +76,18 @@ let oper_result_type = function
   | Calloc -> typ_val
   | Cstore (_c, _) -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
-    Cand | Cor | Cxor | Clsl | Clsr | Casr |
+    Cand | Cor | Cxor | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt |
+    Cbswap _ |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Csqrt -> typ_float
   | Cfloatofint -> typ_float
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
   | Ccheckbound -> typ_void
+  | Cprefetch _ -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
 
@@ -276,6 +279,7 @@ module Effect_and_coeffect : sig
 
   val effect_only : Effect.t -> t
   val coeffect_only : Coeffect.t -> t
+  val effect_and_coeffect : Effect.t -> Coeffect.t -> t
 
   val join : t -> t -> t
   val join_list_map : 'a list -> ('a -> t) -> t
@@ -292,6 +296,7 @@ end = struct
 
   let effect_only e = e, Coeffect.None
   let coeffect_only ce = Effect.None, ce
+  let effect_and_coeffect e ce = e, ce
 
   let join (e1, ce1) (e2, ce2) =
     Effect.join e1 e2, Coeffect.join ce1 ce2
@@ -329,12 +334,15 @@ method is_simple_expr = function
       begin match op with
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Cprobe _
-      | Cprobe_is_enabled _ -> false
+      | Cprobe_is_enabled _ | Cprefetch _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
-      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
-      | Ccmpf _ | Ccheckbound -> List.for_all self#is_simple_expr args
+      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _
+      | Ccmpi _ | Caddv | Cadda | Ccmpa _
+      | Csqrt
+      | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
+      | Cintoffloat | Ccmpf _ | Ccheckbound ->
+        List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ -> false
@@ -377,9 +385,12 @@ method effects_of exp =
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
-      | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
-      | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
-        EC.none
+      | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _
+      | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Csqrt
+      | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
+      | Ccmpf _ -> EC.none
+      | Cprefetch _ -> EC.arbitrary
     in
     EC.join from_op (EC.join_list_map args self#effects_of)
   | Cassign _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
@@ -451,7 +462,7 @@ method select_operation op args _dbg =
   | (Capply _, _) ->
     let label_after = Cmm.new_label () in
     (Icall_ind { label_after; }, args)
-  | (Cextcall(func, _ty, alloc, label_after), _) ->
+  | (Cextcall { name = func; alloc; label_after }, _) ->
     let label_after =
       match label_after with
       | None -> Cmm.new_label ()
@@ -489,6 +500,8 @@ method select_operation op args _dbg =
   | (Clsl, _) -> self#select_shift Ilsl args
   | (Clsr, _) -> self#select_shift Ilsr args
   | (Casr, _) -> self#select_shift Iasr args
+  | (Cclz {arg_is_non_zero}, _) -> (Iintop (Iclz{arg_is_non_zero}), args)
+  | (Cpopcnt, _) -> (Iintop Ipopcnt, args)
   | (Ccmpi comp, _) -> self#select_arith_comp (Isigned comp) args
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args

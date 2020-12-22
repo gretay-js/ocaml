@@ -249,6 +249,11 @@ PROBES=@probes@
 AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
 
+LZCNT_SUPPORT=@lzcnt_support@
+POPCNT_SUPPORT=@popcnt_support@
+PREFETCHW_SUPPORT=@prefetchw_support@
+PREFETCHWT1_SUPPORT=@prefetchwt1_support@
+SSE42_SUPPORT=@sse42_support@
 
 ### Native command to build ocamlrun.exe
 

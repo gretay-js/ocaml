@@ -272,3 +272,111 @@ AC_DEFUN([OCAML_CHECK_LIBUNWIND], [
   LDFLAGS="$SAVED_LDFLAGS"
   CFLAGS="$SAVED_CFLAGS"
 ])
+
+AC_DEFUN([OCAML_CPU_SUPPORTS_POPCNT], [
+  AC_MSG_CHECKING([whether cpu supports popcnt])
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[
+#include "cpuid_check.h"
+
+int main()
+{
+  uint32_t abcd[4];
+
+  /* CPUID.(EAX=01H):ECX.POPCNT[bit 23] */
+  run_cpuid(1, 0, abcd);
+  return ((abcd[2] & (1 << 23)) == 0);
+}
+    ]])],
+    [popcnt_support=true
+    AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])],
+    [AC_MSG_RESULT([no assumed])])
+])
+
+AC_DEFUN([OCAML_CPU_SUPPORTS_LZCNT], [
+  AC_MSG_CHECKING([whether cpu supports lzcnt])
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[
+#include "cpuid_check.h"
+
+int main()
+{
+  uint32_t abcd[4];
+
+   /* CPUID.(EAX=80000001H):ECX.LZCNT[bit 5] */
+  run_cpuid(0x80000001, 0, abcd);
+  return ((abcd[2] & (1 << 5)) == 0);
+}
+    ]])],
+    [lzcnt_support=true
+    AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])],
+    [AC_MSG_RESULT([no assumed])])
+])
+
+
+AC_DEFUN([OCAML_CPU_SUPPORTS_SSE42], [
+  AC_MSG_CHECKING([whether cpu supports sse42])
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[
+#include "cpuid_check.h"
+
+int main()
+{
+  uint32_t abcd[4];
+
+  /* CPUID.(EAX=01H):ECX.SSE42[bit 20] for crc32 */
+  run_cpuid(1, 0, abcd);
+  return ((abcd[2] & (1 << 20)) == 0);
+}
+    ]])],
+    [sse42_support=true
+    AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])],
+    [AC_MSG_RESULT([no assumed])])
+])
+
+
+AC_DEFUN([OCAML_CPU_SUPPORTS_PREFETCHWT1], [
+  AC_MSG_CHECKING([whether cpu supports prefetchwt1])
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[
+#include "cpuid_check.h"
+
+int main()
+{
+  uint32_t abcd[4];
+
+  /* CPUID.(EAX=07H):ECX.PREFETCHWT1[bit 0] */
+  run_cpuid(7, 0, abcd);
+  return ((abcd[2] & 1) == 0);
+}
+    ]])],
+    [prefetchwt1_support=true
+    AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])],
+    [AC_MSG_RESULT([no assumed])])
+])
+
+
+AC_DEFUN([OCAML_CPU_SUPPORTS_PREFETCHW], [
+  AC_MSG_CHECKING([whether cpu supports prefetchw])
+  AC_RUN_IFELSE(
+    [AC_LANG_SOURCE([[
+#include "cpuid_check.h"
+
+int main()
+{
+  uint32_t abcd[4];
+
+  /* CPUID.(EAX=0x80000001H):ECX.PREFETCHW[bit 8] */
+  run_cpuid(0x80000001, 0, abcd);
+  return ((abcd[2] & (1 << 8)) == 0);
+}
+    ]])],
+    [prefetchw_support=true
+    AC_MSG_RESULT([yes])],
+    [AC_MSG_RESULT([no])],
+    [AC_MSG_RESULT([no assumed])])
+])

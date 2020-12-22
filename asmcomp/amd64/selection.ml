@@ -112,16 +112,71 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
+  | Ispecific Irdtsc ->
+  (* For rdtsc instruction, the result is in edx (high) and eax (low).
+     Make it simple and force the result in rdx and rax clobbered. *)
+    ([| |], [| rdx |])
+  | Ispecific Irdpmc ->
+  (* For rdpmc instruction, the argument must be in ecx
+     and the result is in edx (high) and eax (low).
+     Make it simple and force the argument in rcx, the result in rdx,
+     and rax clobbered *)
+    ([| rcx |], [| rdx |])
+  | Ispecific Icrc32q ->
+    (* arg.(0) and res.(0) must be the same *)
+    ([|res.(0); arg.(1)|], res)
+  | Ispecific (Ibswap _) -> assert false
   (* Other instructions are regular *)
-  | _ -> raise Use_default
+  | Iintop (Ipopcnt|Iclz _|Icomp _|Icheckbound _)
+  | Iintop_imm ((Imulh|Idiv|Imod|Ipopcnt|Iclz _|Icomp _|Icheckbound _), _)
+  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilzcnt|Ilea _|Istore_int (_, _, _)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _|Ibsr _|Ibsf _ |Iprefetch _)
+  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
+  | Iconst_symbol _|Icall_ind _|Icall_imm _|Itailcall_ind _|Itailcall_imm _
+  | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
+  | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> raise Use_default
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
-let inline_ops =
-  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
+(* XCR mshinwell: Please put these in the same order as in [select_operation]
+   below, so it's easier to make sure none are missing. *)
+(* Names in [inline_ops] that start with '*' are internal to Selection.
+   They work around the limitation of [select_operation] that
+   keeps [args] as Cmm terms even after translating
+   the operation itself to Mach. *)
+(* Keep in the same order as in [select_operation] below to make it easier
+   to keep in sync. The new check in [select_operation]
+   in combination with new tests helps guard against missing cases
+   and misspelled names. *)
+(* XCR mshinwell: With effects and coeffects propagated, we don't need inline_ops *)
+
+let select_locality (l : Cmm.prefetch_temporal_locality_hint)
+  : Arch.prefetch_temporal_locality_hint =
+  match l with
+  | Nonlocal -> Nonlocal
+  | Low -> Low
+  | Moderate -> Moderate
+  | High -> High
+
+let select_effects (e : Cmm.effects) : Selectgen.Effect.t =
+  match e with
+  | No_effects -> None
+  | Arbitrary_effects -> Arbitrary
+
+let select_coeffects (e : Cmm.coeffects) : Selectgen.Coeffect.t =
+  match e with
+  | No_coeffects -> None
+  | Has_coeffects -> Arbitrary
 
 (* The selector class *)
+
+
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
 
 class selector = object (self)
 
@@ -135,19 +190,41 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall (fn, _, _, _), args, _)
-    when List.mem fn inline_ops ->
-      (* inlined ops are simple if their arguments are *)
+  (* inlined ops without effects and coeffects are simple
+     if their arguments are *)
+  | Cop(Cextcall { builtin = true;
+                   effects = No_effects; coeffects = No_coeffects },
+        args, _) ->
+      (* XCR mshinwell: As per the CR in [effects_of] below, we should not be
+         deeming these operations as "simple" if the original [external]
+         declaration says that they do in fact have (co)effects. *)
       List.for_all self#is_simple_expr args
   | _ ->
       super#is_simple_expr e
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall(fn, _, _, _), args, _)
-    when List.mem fn inline_ops ->
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | _ ->
+  (* XCR mshinwell: This next line isn't needed, Selectgen takes care of this. *)
+    | Cop(Cextcall { builtin = true; effects=e; coeffects=ce; }, args, _)
+      ->
+      (* XCR mshinwell: I don't think we should remove sqrt from the inline_ops
+         list.  What about making inline_ops be a list of records, with each
+         record specifying the expected name and also the expected value of
+         [builtin]?
+
+         gyorsh: ideally, "sqrt" should simply be marked with builtin,
+         and the corresponding no_effects and no_coeffects,
+         but it would require a change in stdlib.
+         I added Csqrt to Cmm.operation to handle it earlier.
+      *)
+      (* XCR mshinwell: Shouldn't we use the effect/coeffect judgement
+         provided on the [external] declaration?  This will require
+         augmenting [Cextcall] with the relevant information. *)
+      let open Selectgen.Effect_and_coeffect in
+      join
+        (effect_and_coeffect (select_effects e) (select_coeffects ce))
+        (join_list_map args self#effects_of)
+    | _ ->
       super#effects_of e
 
 method select_addressing _chunk exp =
@@ -201,7 +278,11 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
-  | Cextcall("sqrt", _, false, _) ->
+  | Cbswap Sixteen -> Ispecific (Ibswap 16), args
+  | Cbswap Thirtytwo -> Ispecific (Ibswap 32), args
+  | Cbswap Sixtyfour -> Ispecific (Ibswap 64), args
+  | Cctz { arg_is_non_zero } -> Ispecific (Ibsf { arg_is_non_zero }), args
+  | Csqrt ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
@@ -221,13 +302,106 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
       end
-  | Cextcall("caml_bswap16_direct", _, _, _) ->
-      (Ispecific (Ibswap 16), args)
-  | Cextcall("caml_int32_direct_bswap", _, _, _) ->
-      (Ispecific (Ibswap 32), args)
-  | Cextcall("caml_int64_direct_bswap", _, _, _)
-  | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
-      (Ispecific (Ibswap 64), args)
+  (* CR mshinwell for mshinwell: Re-read this case after first round of
+     review *)
+  | Cextcall { name; builtin = true; ret; label_after } ->
+    (* XCR mshinwell: The standard in this file is unfortunately two more
+       spaces of indentation for match cases; let's follow that for
+       consistency.
+
+       gyorsh: fixed.
+
+    *)
+    (* XCR mshinwell: Let's please remove the tuple brackets on these return
+       values; they aren't needed, and tend to clutter.  This is quite
+       complicated to look at as it is...
+
+       gyorsh: fixed in the new code.
+       Should I also fix it in the rest of the function, or leave it as is?
+    *)
+    (* XCR mshinwell: Can we check [ret] in all of these cases?  It's presumably
+       uniquely defined in each case.
+
+       gyorsh: ah, that's a great idea! added.
+    *)
+      begin match name, ret with
+      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
+      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
+      | "caml_int64_crc_unboxed", [|Int|]
+      | "caml_int_crc_untagged", [|Int|] ->
+        if !Arch.crc32_support then
+          Ispecific Icrc32q, args
+        else
+          super#select_operation op args dbg
+      | "caml_int64_bsr_unboxed", [|Int|]
+      | "caml_nativeint_bsr_unboxed", [|Int|] ->
+        Ispecific(Ibsr { arg_is_non_zero = false; }), args
+      | "caml_int_bsr_untagged", [|Int|] ->
+        Ispecific(Ibsr { arg_is_non_zero = false; }),
+        [Cmm_helpers.clear_sign_bit (one_arg "bsr" args) dbg]
+      | "caml_int_bsr_tagged_to_untagged", [|Int|] ->
+        (* XCR mshinwell: Is it guaranteed that the Cop Cextcall will return a
+           tagged integer?  There should be a comment explaining why that is
+           the case, I think.  Can we add an assertion on [ret] to help check?
+           If we're going to use Isub 1 to remove the tag, it is imperative that
+           the value is tagged already, or the answer will be wrong (unlike if
+           we used a masking).
+
+           gyorsh: yes, it's guaranteed by the absence of [@untagged] annotation
+           on the declaration of the intrinsic.
+           Isub 1 is not to remove the tag, it is applied to the result of "bsr x"
+           where "x" is tagged to account for the way the presence
+           of the tag affects the result of bsr (i.e., the first non-zero
+           index is to the right of what "bsr x" returns.
+        *)
+        Iintop_imm (Isub, 1),
+        [ Cop(Cextcall{ name = "*int64_bsr"; builtin = true; ret;
+                        effects = Arbitrary_effects;
+                        coeffects = Has_coeffects;
+                        alloc = false; label_after; },
+              args, dbg) ]
+      | "*int64_bsr", [|Int|] ->
+        (* '*' guarantees that it won't clash with user defined names *)
+        Ispecific(Ibsr {arg_is_non_zero=true}), args
+      (* Some Intel targets do not support popcnt and lzcnt *)
+      | "caml_int_lzcnt_tagged_to_untagged", [|Int|] ->
+        if !lzcnt_support then
+        (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
+           below?  If this extcall should have always been caught in the Cmm
+           stage, this should be a fatal error.
+
+           It's not exactly the same.
+           We have a special intrinsic to emit lzcnt instruction directly,
+           whereas Cclz emits an instruction sequence using bsr unless lzcnt is
+           supported.
+        *)
+          Ispecific Ilzcnt, args
+        else
+          super#select_operation op args dbg
+      | _ ->
+        (* XCR mshinwell: Add a check here to make sure that [name] is not in
+           [inline_ops]?  I'm worried about missing cases, since there are a lot
+           of intrinsics now.
+
+           gyorsh: inlined_ops is not needed any more, this is the only place where
+           names are used in selection.ml
+        *)
+        super#select_operation op args dbg
+      end
+  | Cclz _ when !lzcnt_support -> Ispecific Ilzcnt, args
+  | Cprefetch { is_write; locality; } ->
+      (* Emit a regular prefetch hint when prefetchw is not supported.
+         Matches the behavior of gcc's __builtin_prefetch *)
+      let is_write =
+        if is_write && not !prefetchw_support
+        then false
+        else is_write
+      in
+      (* XCR mshinwell: List.hd again *)
+      let addr, eloc = self#select_addressing Word_int
+                         (one_arg "prefetch" args) in
+      let locality = select_locality locality in
+      Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   (* AMD64 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
       (Iintop Imulh, args)

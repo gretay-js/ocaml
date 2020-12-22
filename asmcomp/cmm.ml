@@ -111,6 +111,11 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+
 type phantom_defining_expr =
   | Cphantom_const_int of Targetint.t
   | Cphantom_const_symbol of string
@@ -133,16 +138,35 @@ type memory_chunk =
   | Double
   | Double_u
 
+type bswap_width_in_bits =
+  | Sixteen
+  | Thirtytwo
+  | Sixtyfour
+
 and operation =
     Capply of machtype
-  | Cextcall of string * machtype * bool * label option
-    (** If specified, the given label will be placed immediately after the
-        call (at the same place as any frame descriptor would reference). *)
+  | Cextcall of
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
+        label_after: label option;
+        (** If specified, the given label will be placed immediately after the
+            call (at the same place as any frame descriptor would reference). *)
+      }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cclz of { arg_is_non_zero: bool; }
+  | Cctz of { arg_is_non_zero: bool; }
+  | Cpopcnt
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Csqrt
+  | Cbswap of bswap_width_in_bits
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

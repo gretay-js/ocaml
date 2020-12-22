@@ -123,6 +123,9 @@ val tag_int : expression -> Debuginfo.t -> expression
 (** Integer untagging. [untag_int x = (x asr 1)] *)
 val untag_int : expression -> Debuginfo.t -> expression
 
+(** Clear the most significant bit of an untagged int. *)
+val clear_sign_bit : expression -> Debuginfo.t -> expression
+
 (** Specific division operations for boxed integers *)
 val safe_div_bi :
   Lambda.is_safe ->
@@ -569,6 +572,12 @@ val generic_apply :
 val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
+
+(** [transl_cextcall prim args dbg type_of_result] returns Cextcall operation
+    that corresponds to [prim]. If [prim] is a builtin supported on the target,
+    returns [Cmm.operation] variant for [prim]'s intrinsics. *)
+val cextcall : Primitive.description -> expression list -> Debuginfo.t ->
+  machtype -> expression
 
 (** Generic Cmm fragments *)
 

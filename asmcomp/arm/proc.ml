@@ -361,3 +361,23 @@ let assemble_file infile outfile =
 
 
 let init () = ()
+
+let operation_supported = function
+  | Cpopcnt -> false   (* ARM does not support popcnt *)
+  | Cclz _ -> !arch >= ARMv6   (* Supported in ARMv6 and above *)
+  | Cprefetch _ -> false
+  | Cctz _ ->  false (* Not implemented *)
+  | Csqrt -> !fpu >= VFPv2
+  | Cbswap Sixteen -> !arch >= ARMv6T2
+  | Cbswap Thirtytwo -> !arch >= ARMv6
+  | Cbswap Sixtyfour -> false
+  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Craise _
+  | Ccheckbound
+  | Cprobe _ | Cprobe_is_enabled _
+    -> true
