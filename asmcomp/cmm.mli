@@ -87,9 +87,9 @@ val cur_label: unit -> label
 
 type rec_flag = Nonrecursive | Recursive
 
-(* CR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
+(* XCR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
    this refers to. *)
-type temporal_locality = Not_at_all | Low | Moderate | High
+type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
 
 type phantom_defining_expr =
   (* CR-soon mshinwell: Convert this to [Targetint.OCaml.t] (or whatever the
@@ -157,7 +157,7 @@ and operation =
      harder to get right than the Cmm stages. *)
   | Cclz of { non_zero: bool; }
   | Cpopcnt
-  | Cprefetch of { is_write: bool; locality: temporal_locality; }
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)

@@ -111,7 +111,7 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
-type temporal_locality = Not_at_all | Low | Moderate | High
+type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
 
 type phantom_defining_expr =
   | Cphantom_const_int of Targetint.t
@@ -153,7 +153,7 @@ and operation =
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz of { non_zero: bool; }
   | Cpopcnt
-  | Cprefetch of { is_write: bool; locality: temporal_locality; }
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

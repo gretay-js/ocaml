@@ -169,6 +169,12 @@ AC_SUBST([flexlink_flags])
 AC_SUBST([PACKLD])
 AC_SUBST([stdlib_manpages])
 
+# Check support for certain architecture-specific instructions.
+# Used to enable the corresponding intrinsics.
+AC_SUBST([lzcnt_support])
+AC_SUBST([popcnt_support])
+AC_SUBST([prefetchw_support])
+
 ## Generated files
 
 AC_CONFIG_FILES([Makefile.common])
@@ -1858,6 +1864,19 @@ AS_CASE([$arch],
 AS_IF([test x"$probes" = "xfalse"],
   [AC_MSG_NOTICE([Disabling tracing probes: no support on $target.])],
   [])
+
+# Check support for certain architecture-specific instructions.
+# Used to enable the corresponding intrinsics.
+lzcnt_support=false
+popcnt_support=false
+prefetchw_support=false
+
+AS_CASE([$arch],
+  [amd64], # CR gyorsh: check cpuid
+    [lzcnt_support=true;
+     popcnt_support=true;
+     prefetchw_support=true],
+  [*],[])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],

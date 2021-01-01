@@ -86,6 +86,10 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
+let lzcnt_support = %%LZCNT_SUPPORT%%
+let popcnt_support = %%POPCNT_SUPPORT%%
+let prefetchw_support = %%PREFETCHW_SUPPORT%%
+
 let exec_magic_number = "Caml1999X028"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
 and cmi_magic_number = "Caml1999I028"

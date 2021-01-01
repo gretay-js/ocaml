@@ -13,10 +13,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR mshinwell: How do we determine the defaults for these values?
-   It seems like maybe a configure script test is needed. *)
+(* XCR mshinwell: How do we determine the defaults for these values?
+   It seems like maybe a configure script test is needed.
 
-(* CR mshinwell: This potentially major caveat should probably go in the help
+   gyorsh: I had it all set to true by default, because the support is available
+   in all but the most ancient CPUs. Also, I wanted to avoid
+   target-specific variables Config and architecture specific checks in
+   configure. The best way to do it at configure time is to check
+   for CPUID feature flags. I've updated configure scripts to do it.
+*)
+
+(* XCR mshinwell: This potentially major caveat should probably go in the help
    text of the relevant option below. *)
 
 (* LZCNT instruction is not available on Intel Architectures prior to Haswell.
@@ -24,17 +31,17 @@
    Important: lzcnt assembles to bsr on architectures prior to Haswell.  Code
    that uses lzcnt will run on older Intels and silently produce wrong
    results. *)
-let lzcnt_support = ref true
+let lzcnt_support = ref Config.lzcnt_support
 
-(* CR mshinwell: Likewise, I would put something to this effect in the help
+(* XCR mshinwell: Likewise, I would put something to this effect in the help
    text below. *)
 (* POPCNT instruction is not available prior to Nehalem. *)
-let popcnt_support = ref true
+let popcnt_support = ref Config.popcnt_support
 
 (* PREFETCHW instruction is not available on processors
    based on Haswell or earlier microarchitectures.
 *)
-let prefetchw_support = ref true
+let prefetchw_support = ref Config.prefetchw_support
 
 (* Machine-specific command-line options *)
 
@@ -44,17 +51,23 @@ let command_line_options =
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
     "-flzcnt", Arg.Set lzcnt_support,
-      " Use lzcnt instruction to count leading zeros";
+      " Use LZCNT instruction to count leading zeros. \n\
+LZCNT instruction is not available on Intel Architectures prior to Haswell.\n\
+Important: code that uses LZCNT will run on older Intels and silently produce\n\
+wrong results, because LZCNT assembles to BSR.\n";
     "-fno-lzcnt", Arg.Clear lzcnt_support,
-      " Do not use lzcnt instruction to count leading zeros";
+      " Do not use LZCNT instruction to count leading zeros";
     "-fpopcnt", Arg.Set popcnt_support,
-      " Use popcnt instruction to count the number of bits set";
+      " Use POPCNT instruction to count the number of bits set.\n\
+POPCNT instruction is not available prior to Nehalem.";
     "-fno-popcnt", Arg.Clear popcnt_support,
-      " Do not use popcnt instruction to count the number of bits set";
+      " Do not use POPCNT instruction to count the number of bits set";
     "-fprefetchw", Arg.Set prefetchw_support,
-      " Use prefetchw and prefetchwt1 instructions";
+      " Use PREFETCHW and PREFETCHWT1 instructions.\n\
+PREFETCHW instruction is not available on processors based on Haswell \n\
+or earlier microarchitectures.";
     "-fno-prefetchw", Arg.Clear prefetchw_support,
-      " Do not use prefetchw and prefetchwt1 instructions";
+      " Do not use PREFETCHW and PREFETCHWT1 instructions";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -76,9 +89,9 @@ type addressing_mode =
   | Iscaled of int * int                (* reg * scale + displ *)
   | Iindexed2scaled of int * int        (* reg + reg * scale + displ *)
 
-(* CR mshinwell: rename to prefetch_locality_hint or something?  (I left a
+(* XCR mshinwell: rename to prefetch_locality_hint or something?  (I left a
    similar CR elsewhere; it would be worth ensuring the names match.) *)
-type hint = {
+type prefetch_temporal_locality_hint = {
   is_write: bool;
   locality: temporal_locality;
   addr: addressing_mode;
