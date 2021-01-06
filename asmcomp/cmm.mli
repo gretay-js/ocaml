@@ -120,7 +120,11 @@ type phantom_defining_expr =
 
 (* CR mshinwell: Please pull out the change to use a record for Cextcall
    into a separate patch.  (Also, just to check, I presume there's some
-   reason why this can't be an inline record?) *)
+   reason why this can't be an inline record?)
+
+   gyorsh: I didn't make an inline record because it is long.
+   Should I change it to an inline record?
+*)
 type extcall =
   { name: string;
     ret: machtype;
@@ -154,7 +158,13 @@ and operation =
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   (* CR mshinwell: Why is count leading zeros here but count trailing zeros
      is not?  Moving it here will probably simplify selection.ml, which is
-     harder to get right than the Cmm stages. *)
+     harder to get right than the Cmm stages.
+
+     gyorsh: I don't have implementation of ctz for all other architectures,
+     whereas clz was from the previous patch that has been tested and reviewed
+     on all architectures before, and so did popcnt.
+     If it wasn't,
+  *)
   | Cclz of { non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }

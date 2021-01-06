@@ -259,3 +259,5 @@ val config_var : string -> string option
 val lzcnt_support : bool
 val popcnt_support : bool
 val prefetchw_support : bool
+val prefetchwt1_support : bool
+val sse42_support : bool

@@ -132,12 +132,14 @@ let inline_ops =
     "caml_int_lzcnt_untagged";
     "caml_int64_bsr_unboxed";
     "caml_int_bsr_untagged";
-    (* CR mshinwell: What is this one with the percent?  I didn't think %
+    (* XCR mshinwell: What is this one with the percent?  I didn't think %
        should appear at this stage.
        ...ah, I now see that there is a comment about this below.  There
        should be a comment here too, pointing out this is an unfortunate hack
        necessitated by the fact that [args] in the function below are still
        Cmm terms. *)
+    (* Primitives start with "%"
+    *)
     "%int64_bsr";
     "caml_int64_ctz_unboxed";
     "caml_nativeint_ctz_unboxed";
@@ -148,7 +150,8 @@ let inline_ops =
      *)
   ]
 
-let select_locality (l : Cmm.temporal_locality) : Arch.temporal_locality =
+let select_locality (l : Cmm.prefetch_temporal_locality_hint)
+  : Arch.prefetch_temporal_locality_hint =
   match l with
   | Not_at_all -> Not_at_all
   | Low -> Low
@@ -333,7 +336,8 @@ method! select_operation op args dbg =
        [Cop(Cor, [List.hd args; c], dbg)])
     | "caml_int64_ctz_unboxed"
     | "caml_nativeint_ctz_unboxed" -> (Ispecific(Ibsf {non_zero=false}), args)
-    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" ->
+    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged"
+      when !Arch.crc32_support ->
       (Ispecific Icrc32q, args)
     (* Some Intel targets do not support popcnt and lzcnt *)
     | "caml_int_lzcnt_untagged" when !lzcnt_support ->
