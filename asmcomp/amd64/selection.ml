@@ -125,7 +125,16 @@ let pseudoregs_for_operation op arg res =
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
   (* Other instructions are regular *)
-  | _ -> raise Use_default
+  | Ispecific (Ibswap _) -> assert false
+  | Iintop (Ipopcnt|Iclz _|Icomp _|Icheckbound _)
+  | Iintop_imm ((Imulh|Idiv|Imod|Ipopcnt|Iclz _|Icomp _|Icheckbound _), _)
+  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilzcnt|Ilea _|Istore_int (_, _, _)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _|Ibsr _|Ibsf _|Iprefetch _)
+  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
+  | Iconst_symbol _|Icall_ind _|Icall_imm _|Itailcall_ind _|Itailcall_imm _
+  | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
+  | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> raise Use_default
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)

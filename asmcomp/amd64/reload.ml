@@ -137,12 +137,21 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
-  (* CR mshinwell: Since we're here, let's please turn this into an
+  (* XCR mshinwell: Since we're here, let's please turn this into an
      exhaustive match.  (Maybe you could make a separate patch to do that.)
      This will increase confidence that we haven't missed any cases as we
      add intrinsics.  Please also do the same for pseudoregs_for_operation in
      selection.ml. *)
-  | _ -> (* Other operations: all args and results in registers *)
+  | Iintop (Ipopcnt | Iclz _)
+  | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilzcnt | Ilea _
+               | Istore_int (_, _, _)
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Ibswap _| Ifloatsqrtf _
+               | Ibsr _ | Ibsf _ | Iprefetch _)
+  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind _|Icall_imm _
+  | Itailcall_ind _|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
+  | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> (* Other operations: all args and results in registers *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =
