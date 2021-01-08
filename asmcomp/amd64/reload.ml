@@ -48,6 +48,8 @@ open Arch
      Ispecific(Ilea)            R       R       R
      Ispecific(Ifloatarithmem)  R       R       R
      Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
+     Ispecific(Irdtsc)          R                   (and Res = rdx)
+     Ispecific(Irdpmc)          R       R           (and Res = rdx, Arg1 = rcx)
 
    Conditional branches:
      Iinttest                           S       R
@@ -61,18 +63,11 @@ let stackp r =
     Stack _ -> true
   | _ -> false
 
-let rax = Proc.phys_reg 0
-let rdx = Proc.phys_reg 4
-let rcx = Proc.phys_reg 5
-
 class reload = object (self)
 
 inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
-  let force r target_reg =
-    if r = target_reg then r
-    else self#makereg target_reg in
   match op with
   | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icomp _|Icheckbound _) ->
       (* One of the two arguments can reside in the stack, but not both *)
@@ -97,26 +92,21 @@ method! reload_operation op arg res =
       else (arg, res)
   (* CR mshinwell for mshinwell: re-read the next three cases once
      comments addressed *)
-  | Ispecific Irdtsc ->
-    (* CR mshinwell: The table in the comment needs updating for this
+  | Ispecific (Irdtsc | Irdpmc) ->
+    (* XCR mshinwell: The table in the comment needs updating for this
        operation and the next one below *)
-    (* CR mshinwell: I don't think this [force] function is needed.  I'm not
+    (* XCR mshinwell: I don't think this [force] function is needed.  I'm not
        clear on the exact details, but these cases are very similar to
        Iintop (Idiv | Imod | Imulh) -- see selection.ml and the comment above
        which says "already forced in regs". *)
-    let rdx = force res.(0) rdx in
-    let rax = force res.(1) rax in
-    ([| |], [| rdx; rax |])
-  | Ispecific Irdpmc ->
-    (* CR mshinwell: Same as previous case. *)
-    let rcx = force arg.(0) rcx in
-    let rdx = force res.(0) rdx in
-    let rax = force res.(1) rax in
-    ([| rcx |], [| rdx; rax |])
+    (* XCR mshinwell: Same as previous case. *)
+    (* Irdtsc: res(0) already forced in reg.
+       Irdpmc: res(0) and arg(0) already forced in regs. *)
+      (arg, res)
   | Ispecific Icrc32q ->
     (* First argument and result must be in the same register.
-       Second argument can be either in register or on stack. *)
-    (* CR mshinwell: I think something is missing in selection.ml here.
+       Second argument can be either in a register or on stack. *)
+    (* XCR mshinwell: I think something is missing in selection.ml here.
        Look for example at the Iintop Imulf case.  That has a case in
        selection.ml to ensure that the register constraint is satisfied.
        I suspect that if we add a similar case in [pseudoregs_for_operation]
@@ -130,17 +120,12 @@ method! reload_operation op arg res =
        (In the case of selection.ml establishing a hard register constraint,
        the allocator presumably never changes that, which is why e.g. in the
        two cases above for the timestamp counters we shouldn't need any kind
-       of forcing function here.) *)
-    let first_arg_and_res_overlap = arg.(0).loc = res.(0).loc in
-    (match stackp arg.(0), stackp res.(0), first_arg_and_res_overlap with
-     | true, false, false -> [| res.(0); arg.(1) |], res
-     | false, true, false -> arg, [| arg.(0) |]
-     | false, false, false -> arg, [| arg.(0) |]
-     | false, false, true -> arg, res
-     | true, true, _ ->
-       let r = self#makereg arg.(0) in
-       [|r; arg.(1)|], [|r|]
-     | _ -> assert false (* impossible *))
+       of forcing function here.)
+
+      gretay: fixed, thank you for explaining it!*)
+      if stackp arg.(0)
+      then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
+      else (arg, res)
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))

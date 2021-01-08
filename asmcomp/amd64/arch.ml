@@ -47,7 +47,10 @@
 *)
 
 (* XCR mshinwell: This potentially major caveat should probably go in the help
-   text of the relevant option below. *)
+   text of the relevant option below.
+
+   gyorsh: done.
+*)
 
 (* LZCNT instruction is not available on Intel Architectures prior to Haswell.
 
@@ -109,7 +112,7 @@ open Format
 type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
 
 let prefetch_temporal_locality_hint = function
-  | Not_at_all -> "none" (* XCR mshinwell: same comment as in the Cmm part *)
+  | Not_at_all -> "none" (* CR mshinwell: same comment as in the Cmm part *)
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"
@@ -123,7 +126,7 @@ type addressing_mode =
 
 (* XCR mshinwell: rename to prefetch_locality_hint or something?  (I left a
    similar CR elsewhere; it would be worth ensuring the names match.) *)
-type prefetch = {
+type prefetch_info = {
   is_write: bool;
   locality: prefetch_temporal_locality_hint;
   addr: addressing_mode;
@@ -144,15 +147,15 @@ type specific_operation =
   | Izextend32                         (* 32 to 64 bit conversion with zero
                                           extension *)
   | Ilzcnt                             (* count leading zeros instruction *)
-  (* CR mshinwell: [non_zero] isn't very descriptive.  Maybe
+  (* XCR mshinwell: [non_zero] isn't very descriptive.  Maybe
      "arg_is_definitely_non_zero" or something (assuming that's what it
      means)? *)
-  | Ibsr of { non_zero : bool }        (* bit scan reverse instruction *)
-  | Ibsf of { non_zero : bool }        (* bit scan forward instruction *)
+  | Ibsr of { arg_is_non_zero : bool } (* bit scan reverse instruction *)
+  | Ibsf of { arg_is_non_zero : bool } (* bit scan forward instruction *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)
-  | Iprefetch of prefetch              (* memory prefetching hint *)
+  | Iprefetch of prefetch_info         (* memory prefetching hint *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -244,10 +247,10 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "zextend32 %a" printreg arg.(0)
   | Ilzcnt ->
       fprintf ppf "lzcnt %a" printreg arg.(0)
-  | Ibsr { non_zero; } ->
-      fprintf ppf "bsr non_zero=%b %a" non_zero printreg arg.(0)
-  | Ibsf { non_zero; } ->
-      fprintf ppf "bsf non_zero=%b %a" non_zero printreg arg.(0)
+  | Ibsr { arg_is_non_zero; } ->
+      fprintf ppf "bsr arg_is_non_zero=%b %a" arg_is_non_zero printreg arg.(0)
+  | Ibsf { arg_is_non_zero; } ->
+      fprintf ppf "bsf arg_is_non_zero=%b %a" arg_is_non_zero printreg arg.(0)
   | Irdtsc ->
       fprintf ppf "rdtsc"
   | Irdpmc ->

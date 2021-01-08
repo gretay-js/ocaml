@@ -2178,7 +2178,7 @@ let operation_supported op ~f =
   | false -> None
 
 let clz bi arg dbg =
-  let op = Cclz { non_zero = false; } in
+  let op = Cclz { arg_is_non_zero = false; } in
   operation_supported op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
     (* CR mshinwell: Use an exhaustive match on [bi] *)
@@ -2576,7 +2576,7 @@ let transl_builtin name args dbg =
        That subtraction operates on tagged integers, which implies [Cclz]
        must return a tagged integer -- yet here, it appears to be returning
        an untagged one... *)
-    let op = Cclz { non_zero = true; } in
+    let op = Cclz { arg_is_non_zero = true; } in
     operation_supported op ~f:(fun () -> Cop(op, args, dbg))
   (* CR mshinwell: We shouldn't just use [List.hd] as it could throw an
      unhelpful exception.  I think a helper function is needed, similarly

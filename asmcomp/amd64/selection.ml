@@ -113,11 +113,17 @@ let pseudoregs_for_operation op arg res =
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
   | Ispecific Irdtsc ->
-  (* Read the timestamp into edx (high) and eax (low). *)
-    ([| |], [| rdx; rax |])
+  (* For rdtsc the result is in edx (high) and eax (low).
+     Make it simple and force the result in rdx and rax clobbered. *)
+    ([| |], [| rdx |])
   | Ispecific Irdpmc ->
-  (* Read performance counter specified by ecx into edx (high) and eax (low). *)
-    ([| rcx |], [| rdx; rax |])
+  (* Read performance counter specified by ecx into edx (high) and eax (low).
+     Make it simple and force the argument in rcx, the result in rdx,
+     and rax clobbered *)
+    ([| rcx |], [| rdx |])
+  | Ispecific Icrc32q ->
+    (* arg.(0) and res.(0) must be the same *)
+    ([|res.(0); arg.(1)|], res)
   (* Other instructions are regular *)
   | _ -> raise Use_default
 
@@ -294,7 +300,7 @@ method! select_operation op args dbg =
     | "caml_rdtsc_unboxed" -> (Ispecific Irdtsc, args)
     | "caml_rdpmc_unboxed" -> (Ispecific Irdpmc, args)
     | "caml_int64_bsr_unboxed" | "caml_nativeint_bsr_unboxed" ->
-      (Ispecific(Ibsr { non_zero = false; }), args)
+      (Ispecific(Ibsr { arg_is_non_zero = false; }), args)
     | "caml_int_bsr_untagged" ->
       (* '%' guarantees that it won't clash with user defined names *)
       (* CR mshinwell: Is it guaranteed that the Cop Cextcall will return a
@@ -307,7 +313,7 @@ method! select_operation op args dbg =
        [ Cop(Cextcall{ name = "%int64_bsr"; builtin = true; ret;
                        alloc = false; label_after; },
              args, dbg) ])
-    | "%int64_bsr" -> (Ispecific(Ibsr {non_zero=true}), args)
+    | "%int64_bsr" -> (Ispecific(Ibsr {arg_is_non_zero=true}), args)
     | "caml_untagged_int_ctz" ->
       (* CR mshinwell: It's hard to follow what the argument and return types
          of these intrinsics are.  Maybe we could establish a standard naming
@@ -330,12 +336,13 @@ method! select_operation op args dbg =
          is the code that emits this extra byte)? *)
       (* let c = Cconst_natint ((Nativeint.shift_left 1n 63), dbg) in *)
       let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
-      (Ispecific (Ibsf {non_zero=true}),
+      (Ispecific (Ibsf {arg_is_non_zero=true}),
        (* CR mshinwell: As per comment elsewhere, don't use List.hd, as it
           might produce an unhelpful exception. *)
        [Cop(Cor, [List.hd args; c], dbg)])
     | "caml_int64_ctz_unboxed"
-    | "caml_nativeint_ctz_unboxed" -> (Ispecific(Ibsf {non_zero=false}), args)
+    | "caml_nativeint_ctz_unboxed" ->
+      (Ispecific(Ibsf {arg_is_non_zero=false}), args)
     | "caml_int64_crc_unboxed" | "caml_int_crc_untagged"
       when !Arch.crc32_support ->
       (Ispecific Icrc32q, args)

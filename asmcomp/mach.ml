@@ -24,7 +24,7 @@ type integer_comparison =
 type integer_operation =
     Iadd | Isub | Imul | Imulh | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-  | Iclz of { non_zero: bool; }
+  | Iclz of { arg_is_non_zero: bool; }
   | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound of { label_after_error : label option;

@@ -273,4 +273,14 @@ let operation_supported = function
   (* CR mshinwell: This should be an exhaustive match. *)
   | Cpopcnt -> false      (* ARM does not support popcnt *)
   | Cprefetch _ -> false  (* Not yet implemented by this compiler *)
-  | _ -> true
+  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cclz _
+  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Craise _
+  | Ccheckbound
+  | Cprobe _ | Cprobe_is_enabled _
+    -> true

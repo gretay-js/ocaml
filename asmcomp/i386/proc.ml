@@ -262,4 +262,14 @@ let init () = ()
 let operation_supported = function
   | Cpopcnt -> !popcnt_support (* Some Intel targets do not support popcnt *)
   | Cprefetch _ -> false (* Not implemented *)
-  | _ -> true
+  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cclz _
+  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Craise _
+  | Ccheckbound
+  | Cprobe _ | Cprobe_is_enabled _
+    -> true

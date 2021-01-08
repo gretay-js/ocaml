@@ -165,7 +165,7 @@ and operation =
      on all architectures before, and so did popcnt.
      If it wasn't,
   *)
-  | Cclz of { non_zero: bool; }
+  | Cclz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
   | Ccmpi of integer_comparison
