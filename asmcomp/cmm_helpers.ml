@@ -1353,16 +1353,28 @@ let box_sized size dbg exp =
 let default_prim name =
   Primitive.simple ~name ~arity:0(*ignored*) ~alloc:true
 
-
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
+  let effects, coeffects =
+    if alloc
+    then Arbitrary_effects, No_coeffects
+    else No_effects, No_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
     ~builtin:false
-    (* CR mshinwell: I don't think this is correct -- some of these have
-       [alloc = true], so must have (at least) effects *)
-    ~effects:No_effects ~coeffects:No_coeffects
+    (* XCR mshinwell: I don't think this is correct -- some of these have
+       [alloc = true], so must have (at least) effects
+
+       gyorsh: yes, it was intentional, but I should have added
+       a comment about it.
+       In the version you reviewed, effects and coeffects fields
+       of builtin=false were ignored by middle-end and not propagated
+       to the backend, so these settings didn't cause trouble,
+       but lying to the compiler is going to bite back
+       now that we keep track of effects
+       all the way to Mach and not only for builtins. *)
+    ~effects ~coeffects
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
@@ -1384,6 +1396,10 @@ let simplif_primitive_32bits :
                                  ~alloc:false)
   | Pmulbint Pint64 -> Pccall (int64_native_prim "caml_int64_mul" 2
                                  ~alloc:false)
+  | Pdivbint {size=Pint64; is_safe = Unsafe} ->
+      Pccall (int64_native_prim "caml_int64_div_unsafe" 2 ~alloc:false)
+  | Pmodbint {size=Pint64; is_safe = Unsafe} ->
+      Pccall (int64_native_prim "caml_int64_mod_unsafe" 2 ~alloc:false)
   | Pdivbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_div" 2
                                         ~alloc:true)
   | Pmodbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_mod" 2
