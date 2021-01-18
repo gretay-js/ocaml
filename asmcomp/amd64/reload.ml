@@ -141,7 +141,9 @@ method! reload_operation op arg res =
      exhaustive match.  (Maybe you could make a separate patch to do that.)
      This will increase confidence that we haven't missed any cases as we
      add intrinsics.  Please also do the same for pseudoregs_for_operation in
-     selection.ml. *)
+     selection.ml.
+
+     gyorsh: done. do you mean as a separate patch upstream?  *)
   | Iintop (Ipopcnt | Iclz _)
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilzcnt | Ilea _
                | Istore_int (_, _, _)

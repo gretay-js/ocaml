@@ -2165,9 +2165,13 @@ let arraylength kind arg dbg =
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
 
-(* CR mshinwell: Please check if there are test cases that ensure we are
+(* XCR mshinwell: Please check if there are test cases that ensure we are
    compiling the byte-swapping instructions as expected, since there have
-   been some changes here. *)
+   been some changes here.
+
+   gyorsh: yes, there are testsuite/tests/prim-bswap/bswap.ml
+   and all tests pass. I've also inspected the generated code manually.
+*)
 let bbswap bi arg dbg =
   let prim = match (bi : Primitive.boxed_integer) with
     | Pnativeint -> "nativeint"
@@ -2187,25 +2191,36 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
-(* CR mshinwell: Maybe rename to [if_operation_supported]? *)
-let operation_supported op ~f =
+(* XCR mshinwell: Maybe rename to [if_operation_supported]? *)
+let if_operation_supported op ~f =
   match Proc.operation_supported op with
   | true -> Some (f ())
   | false -> None
 
 let clz bi arg dbg =
   let op = Cclz { arg_is_non_zero = false; } in
-  operation_supported op ~f:(fun () ->
+  if_operation_supported op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
-    (* CR mshinwell: Use an exhaustive match on [bi] *)
-    (* CR mshinwell: Please ensure there are test cases that cover this case *)
+    (* XCR mshinwell: Use an exhaustive match on [bi]
+
+       gyorsh: I'm happy to make the change here, but why only here?
+       This condition is used many times in this file,
+       without an exhaustive match.
+    *)
+    (* XCR mshinwell: Please ensure there are test cases that cover this case
+
+       gyorsh: I change the name of the subfeature that
+       tests the new compiler in jane to upgrade-compiler-intrinsics
+       to ensure that all tests in the library
+       are run with the new compiler on 32-bit targets and other configurations.
+    *)
     if bi = Primitive.Pint32 && size_int = 8 then
       Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
     else
       res)
 
 let popcnt bi arg dbg =
-  operation_supported Cpopcnt ~f:(fun () ->
+  if_operation_supported Cpopcnt ~f:(fun () ->
     Cop(Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
@@ -2356,9 +2371,15 @@ let two_args name args =
   | _ ->
     Misc.fatal_errorf "Cmm_helpers: expected exactly 2 arguments for %s" name
 
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 1 argument for %s" name
+
 let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality; } in
-  operation_supported op ~f:(fun () ->
+  if_operation_supported op ~f:(fun () ->
     let arg1, arg2 = two_args "bigstring_prefetch" args in
     bind "ba" arg1 (fun ba ->
       bind "index" arg2 (fun idx ->
@@ -2372,11 +2393,13 @@ let bigstring_prefetch ~is_write locality args dbg =
 
 let prefetch ~is_write locality arg dbg =
   let op = Cprefetch { is_write; locality; } in
-  operation_supported op ~f:(fun () -> (Cop (op, [arg], dbg)))
+  if_operation_supported op ~f:(fun () -> (Cop (op, [arg], dbg)))
 
 let ext_pointer_prefetch ~is_write locality arg dbg =
-  (* CR mshinwell: Use [int_as_pointer] if possible *)
-  prefetch ~is_write locality (add_const arg (-1) dbg) dbg
+  (* XCR mshinwell: Use [int_as_pointer] if possible
+
+     gyorsh: ah, yes, I didn't think of it, thanks! *)
+  prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
 let arrayref_unsafe kind arg1 arg2 dbg =
   match (kind : Lambda.array_kind) with
@@ -2581,68 +2604,129 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+(**
+   [transl_builtin] is called from [Cmmgen.transl_ccall].
+   The names of builtins below correspond to the native code names associated
+   with "external" functions declared in the stand-alone library [ocaml_intrinsics].
+   See the library to determine whether the arguments and result of each builtin
+   are tagged / boxed or not. The common mechanism for handling this
+   is implemented in [Cmmgen.transl_ccall], in the same way other external calls
+   are handled.
+*)
 let transl_builtin name args dbg =
   match name with
   | "caml_int_clz_untagged" ->
     (* Takes tagged int and returns untagged int.
        The tag does not change the number of leading zeros. *)
-    (* CR mshinwell: I don't understand what's going on here.  In the [clz]
+    (* XCR mshinwell: I don't understand what's going on here.  In the [clz]
        function above there is no [tag_int] after the [Cclz] operation.  There
        is also a subtraction of 32 in the 32-bit-int-on-64-bit-platform case.
        That subtraction operates on tagged integers, which implies [Cclz]
        must return a tagged integer -- yet here, it appears to be returning
-       an untagged one... *)
+       an untagged one...
+
+
+       gyorsh: The intention here is to return untagged int,
+       and then cmmgen can tag it as part of the common mechanism for
+       handling args and result of "external" declarations
+       in [Cmmgen.transl_ccall]. It is possible to have tagged argument
+       and untagged result to native C stub, and that's what happens here.
+       The argument here is tagged and that is intentional:
+       the result of clz on untagged int
+       is the same as the result of "clz of tagged int" minus 1.
+       The advantage of keeping the tag is it guarantees that
+       the input to BSR instruction is not zero.
+
+       The argument in [clz] is unboxed, and the result is untagged,
+       so the subtraction of 32 in the case you mention operates on
+       untagged integers too.
+    *)
     let op = Cclz { arg_is_non_zero = true; } in
-    operation_supported op ~f:(fun () -> Cop(op, args, dbg))
-  (* CR mshinwell: We shouldn't just use [List.hd] as it could throw an
+    if_operation_supported op ~f:(fun () -> Cop(op, args, dbg))
+  (* XCR mshinwell: We shouldn't just use [List.hd] as it could throw an
      unhelpful exception.  I think a helper function is needed, similarly
-     to the one added for pairs of arguments, above. *)
-  (* CR mshinwell: Let's document whether all of these return tagged or
-     untagged integers too. *)
-  | "caml_int64_clz_unboxed" -> clz Pint64 (List.hd args) dbg
-  | "caml_int32_clz_unboxed" -> clz Pint32 (List.hd args) dbg
-  | "caml_nativeint_clz_unboxed" -> clz Pnativeint (List.hd args) dbg
+     to the one added for pairs of arguments, above.
+
+     gyorsh: fixed. replaced all (List.hd args) with "one_arg" function.
+  *)
+  (* XCR mshinwell: Let's document whether all of these return tagged or
+     untagged integers too.
+
+     gyorsh: The "external" declarations in the library document it. I'd
+     rather have just one copy of this documentation.
+     I'm adding a comment before
+     [transl_builitin] that points to the library. Hopefully,
+     the comment clarifies other confusion.
+  *)
+  (* CR gyorsh for mshinwell: I'm adding the intrinsics for
+     count_leading_zeros2 and count_set_bits2 functions from the library,
+     looks like I forgot to implement them in the compiler. *)
+  | "caml_int64_clz_unboxed" -> clz Pint64 (one_arg name args) dbg
+  | "caml_int32_clz_unboxed" -> clz Pint32 (one_arg name args) dbg
+  | "caml_nativeint_clz_unboxed" -> clz Pnativeint (one_arg name args) dbg
   | "caml_int_popcnt_untagged" ->
-    operation_supported Cpopcnt ~f:(fun () ->
+    if_operation_supported Cpopcnt ~f:(fun () ->
       (* CR mshinwell: Presumably this calculation is for untagging; if so
-         we should use [untag_int] instead. *)
+         we should use [untag_int] instead.
+
+         gyorsh: the argument is tagged, and that is intentional, it
+         saves a shift, but there is one extra "set" bit, which is account
+         by the (-1) below.
+      *)
       Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (List.hd args) dbg
-  | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (List.hd args) dbg
+  | "caml_untagged_int_popcnt"
+  | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (one_arg name args) dbg
+  | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed" ->
-    popcnt Pnativeint (List.hd args) dbg
-  | "caml_int_as_native_pointer_unboxed" ->
+    popcnt Pnativeint (one_arg name args) dbg
+  | "caml_ext_pointer_as_native_pointer_unboxed" ->
     (* CR mshinwell: The "_unboxed" is confusing here; there are no
        int32/int64/nativeint/float values involved.  I think it would be
        better to add a comment in this file explaining:
        - native pointers are handled in Cmm as unboxed nativeints
        - Ext pointers are handled as [...]
     *)
-    (* CR mshinwell: If this is the same as %int_as_pointer, why is this
-       case needed? *)
-    Some(int_as_pointer (List.hd args) dbg)
-  | "caml_native_pointer_load_int_unboxed" ->
+    (* XCR mshinwell: If this is the same as %int_as_pointer, why is this
+       case needed?
+
+       gyorsh: int_as_pointer returns a naked pointer.
+       The intrinsic returns nativeint so it has a different return type
+       from %int_as_pointer, but the native code implementation
+       on unboxed types is the same.
+       Unboxing or args and boxing of result is done in cmmgen.
+    *)
+    Some(int_as_pointer (one_arg name args) dbg)
+  | "caml_native_pointer_load_value_unboxed" ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
-  | "caml_native_pointer_store_int_unboxed" ->
+  | "caml_native_pointer_store_value_unboxed" ->
     Some(Cop(Cstore (Word_int, Assignment), args, dbg))
   | "caml_native_pointer_load_float_unboxed" ->
     Some(Cop(Cload (Double_u, Mutable), args, dbg))
   | "caml_native_pointer_store_float_unboxed" ->
     Some(Cop(Cstore (Double_u, Assignment), args, dbg))
   | "caml_ext_pointer_load_int" ->
-    let p = int_as_pointer (List.hd args) dbg in
+    let p = int_as_pointer (one_arg name args) dbg in
     Some(Cop(Cload (Word_int, Mutable), [p], dbg))
   | "caml_ext_pointer_store_int" ->
     let arg1, arg2 = two_args name args in
     let p = int_as_pointer arg1 dbg in
     Some(Cop(Cstore (Word_int, Assignment), [p; arg2], dbg ))
   | "caml_ext_pointer_load_float_unboxed" ->
-    let p = int_as_pointer (List.hd args) dbg in
-    (* CR mshinwell: Is this definitely meant to be Double_u instead of
+    let p = int_as_pointer (one_arg name args) dbg in
+    (* XCR mshinwell: Is this definitely meant to be Double_u instead of
        Double?  It might be worth checking what the code generation difference
        is.  I presume the one requiring alignment might be faster; maybe we
        should expose both?
-       Same comment for the next (store) case. *)
+       Same comment for the next (store) case.
+
+       gyorsh: There is no difference in code generation on amd64 target
+       (in amd64/selection.ml select_addressing ignores "chunk" argument,
+       and Double and Double_u are treated the same.)
+       In cmm_helpers, unboxed floats and unboxed float array accesses
+       use Double_u. Selectgen uses Double_u for stores.
+       I thought it would be better to match them.
+       Leo's patch PR9910 also uses Double_u for these operations..
+    *)
     Some(Cop(Cload (Double_u, Mutable), [p], dbg))
   | "caml_ext_pointer_store_float_unboxed" ->
     let arg1, arg2 = two_args name args in
@@ -2653,7 +2737,10 @@ let transl_builtin name args dbg =
      going to have prefetch as a Cmm operations, these C function names
      should probably match the data constructors (High, Moderate, etc).
      This would also make it obvious that this piece of code is correct; it
-     is not obvious at all at present. *)
+     is not obvious at all at present.
+
+     gyorsh: fixed.
+  *)
   | "caml_prefetch_write_bigstring_untagged" ->
     bigstring_prefetch ~is_write:true High args dbg
   | "caml_prefetch_write_t1_bigstring_untagged" ->
@@ -2668,30 +2755,30 @@ let transl_builtin name args dbg =
     bigstring_prefetch ~is_write:false Low args dbg
   (* Ext_pointer prefetch *)
   | "caml_prefetch_write_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  High (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:true  High (one_arg name args) dbg
   | "caml_prefetch_write_t1_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  Moderate (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:true  Moderate (one_arg name args) dbg
   | "caml_prefetch_nta_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Not_at_all (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:false Not_at_all (one_arg name args) dbg
   | "caml_prefetch_t0_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false High (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:false High (one_arg name args) dbg
   | "caml_prefetch_t1_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Moderate (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:false Moderate (one_arg name args) dbg
   | "caml_prefetch_t2_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Low (List.hd args) dbg
+    ext_pointer_prefetch ~is_write:false Low (one_arg name args) dbg
   (* Native_pointer prefetch *)
   | "caml_prefetch_write_native_pointer_unboxed" ->
-    prefetch ~is_write:true High (List.hd args) dbg
+    prefetch ~is_write:true High (one_arg name args) dbg
   | "caml_prefetch_write_t1_native_pointer_unboxed" ->
-    prefetch ~is_write:true  Moderate (List.hd args) dbg
+    prefetch ~is_write:true  Moderate (one_arg name args) dbg
   | "caml_prefetch_nta_native_pointer_unboxed" ->
-    prefetch ~is_write:false Not_at_all (List.hd args) dbg
+    prefetch ~is_write:false Not_at_all (one_arg name args) dbg
   | "caml_prefetch_t0_native_pointer_unboxed" ->
-    prefetch ~is_write:false High (List.hd args) dbg
+    prefetch ~is_write:false High (one_arg name args) dbg
   | "caml_prefetch_t1_native_pointer_unboxed" ->
-    prefetch ~is_write:false Moderate (List.hd args) dbg
+    prefetch ~is_write:false Moderate (one_arg name args) dbg
   | "caml_prefetch_t2_native_pointer_unboxed" ->
-    prefetch ~is_write:false Low (List.hd args) dbg
+    prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
 
 (* Symbols *)
