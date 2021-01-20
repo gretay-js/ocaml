@@ -203,10 +203,6 @@ let def_label ?typ s =
   mark_used s;
   D.label ?typ (emit_label s)
 
-let emit_Llabel fallthrough lbl =
-  if not fallthrough && !fastcode_flag then D.align 4;
-  def_label lbl
-
 (* Output a pseudo-register *)
 
 let reg = function
@@ -561,6 +557,25 @@ let emit_named_text_section func_name =
 let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
+let tailrec_entry_point_used = ref false
+
+(* [loop_entries] contains all labels that are targets of a retreating edge
+   in a DFS traversal of the control flow graph of the function.
+   For reducible graphs, [loop_entries] contains all loop headers.
+   If [align_loops] is 0 (default),
+   [loop_entries] is not computed and remains empty. *)
+let loop_entries = ref Int.Set.empty
+
+let emit_Llabel fallthrough lbl =
+  if !fastcode_flag then begin
+    if not fallthrough then D.align 4;
+    if !align_loops > 0 && Int.Set.mem lbl !loop_entries then
+      D.align !align_loops;
+    if !align_tailrec > 0 && lbl = !tailrec_entry_point
+       && !tailrec_entry_point_used && !align_tailrec > !align_loops then
+      D.align !align_tailrec
+  end;
+  def_label lbl
 
 (* Emit tracing probes *)
 
@@ -1072,6 +1087,99 @@ let emit_instr fallthrough i =
           I.jmp r11
       end
 
+(* [tailrec_entry_point_used] sets [tailrec_entry_point_used] if
+   the function contains a tailcall to itself and [align_tailrec] > 0. *)
+let check_tailrec_entry_used i =
+  if !align_tailrec > 0 then begin
+    tailrec_entry_point_used := false;
+    let rec check i =
+      match i.desc with
+      | Lend -> ()
+      | Lop(Itailcall_imm { func }) ->
+        begin
+          if func = !function_name then
+            tailrec_entry_point_used := true
+          else
+            check i.next
+        end;
+      | _ -> check i.next
+    in
+    check i
+  end
+
+(* [find_loop_entries] performs a depth-first traversal of the control
+   flow graph of the function and collects targets of retreating edges.
+   The result is in the set [loop_entries].
+   The computation does not take into account exceptional control flow,
+   so it might not miss loops that require raise. This underapproximation
+   is safe, because the information is only used to align local labels,
+   which do not require minimum alignment.
+*)
+let find_loop_entries i =
+  if !align_loops > 0 then begin
+    loop_entries := Int.Set.empty;
+    (* First pass: map each label to the corresponding instruction. *)
+    let rec map_label_to_instr i acc =
+      match i.desc with
+      | Lend -> acc
+      | Llabel lbl -> map_label_to_instr i.next (Int.Map.add lbl i acc)
+      | _ -> map_label_to_instr i.next acc
+    in
+    let label_to_instr = map_label_to_instr i Int.Map.empty in
+    (* Second pass: traverse the graph. *)
+    let visited = ref Int.Set.empty in
+    (* On entry to [traverse], [backbone] is a subset of [visited];
+       [backbone] contains all the labels on a simple path from entry to [i]
+       followed by the traversal. *)
+    let rec traverse i ~backbone =
+      let branch lbl =
+        match Int.Map.find_opt lbl label_to_instr with
+        | None ->
+          Misc.fatal_errorf
+            "find_loop_entries: instruction after label %d no found" lbl
+        | Some i -> traverse i ~backbone
+      in
+      let branch_opt l =
+        match l with
+        | None -> ()
+        | Some lbl -> branch lbl
+      in
+      match i.desc with
+      | Lend -> ()
+      | Llabel lbl ->
+        if not (Int.Set.mem lbl !visited) then begin
+          visited := Int.Set.add lbl !visited;
+          traverse i.next ~backbone:(Int.Set.add lbl backbone);
+        end else if Int.Set.mem lbl backbone then begin
+          loop_entries := Int.Set.add lbl !loop_entries
+        end
+      | Lbranch lbl ->
+        branch lbl
+      | Lcondbranch(_,lbl) ->
+        branch lbl;
+        traverse i.next ~backbone
+      | Lcondbranch3(l1, l2, l3) ->
+        branch_opt l1;
+        branch_opt l2;
+        branch_opt l3;
+        traverse i.next ~backbone
+      | Lswitch jumptbl ->
+        Array.iter (fun lbl -> branch lbl) jumptbl;
+        traverse i.next ~backbone
+      | Lop(Itailcall_imm { func }) ->
+        begin
+          if func = !function_name then
+            branch !tailrec_entry_point
+          else
+            traverse i.next ~backbone
+        end;
+      | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lop _ | Ladjust_trap_depth _ | Lpushtrap _ | Lraise _  ->
+        traverse i.next ~backbone
+    in
+    traverse i ~backbone:Int.Set.empty
+  end
+
 let rec emit_all fallthrough i =
   match i.desc with
   | Lend -> ()
@@ -1107,6 +1215,8 @@ let fundecl fundecl =
   prologue_required := fundecl.fun_prologue_required;
   frame_required := fundecl.fun_frame_required;
   all_functions := fundecl :: !all_functions;
+  check_tailrec_entry_used fundecl.fun_body;
+  find_loop_entries fundecl.fun_body;
   emit_named_text_section !function_name;
   D.align 16;
   add_def_symbol fundecl.fun_name;
@@ -1163,6 +1273,7 @@ let begin_assembly() =
   reset_probes ();
   float_constants := [];
   all_functions := [];
+  loop_entries := Int.Set.empty;
   used_labels := Int.Set.empty;
   if system = S_win64 then begin
     D.extrn "caml_call_gc" NEAR;
