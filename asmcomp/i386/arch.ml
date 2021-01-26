@@ -17,9 +17,25 @@
 
 let fast_math = ref false
 
+(* CR gyorsh: not used. here for testing only, to build stdlib. *)
+let align_loops = ref 0
+let align_tailrec = ref 0
+
 let command_line_options =
   [ "-ffast-math", Arg.Set fast_math,
-      " Inline trigonometric and exponential functions" ]
+      " Inline trigonometric and exponential functions";
+    "-falign-loops", Arg.Int (fun n ->
+      if n > 0 then align_loops := n
+      else Misc.fatal_error
+             "Please specify a positive <n> for -falign-loops <n>" ),
+      "<n> Align loop entry points (targets of retreating edges) \
+       to <n> bytes (default 0).";
+    "-falign-tailrec", Arg.Int (fun n ->
+      if n > 0 then align_tailrec := n
+      else Misc.fatal_error
+             "Please specify a positive <n> for -falign-tailrec <n>" ),
+      "<n> Align tail recursive entry points to <n> bytes (default 0).";
+  ]
 
 (* Specific operations for the Intel 386 processor *)
 
