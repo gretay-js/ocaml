@@ -64,6 +64,12 @@ let rec adjust_trap_depth delta_traps next =
     if delta_traps = 0 then next
     else cons_instr (Ladjust_trap_depth { delta_traps }) next
 
+(* Combine consecutive align directives. *)
+let rec combine_align k n =
+  match n.desc with
+  | Lalign m -> combine_align (max k m) n.next
+  | _ -> cons_instr (Lalign k) n
+
 (* Discard all instructions up to the next label.
    This function is to be called before adding a non-terminating
    instruction. *)
@@ -90,6 +96,20 @@ let rec discard_dead_code n =
        and the size of trap frames is machine-dependant and therefore not
        available here.  *)
     { n with next = discard_dead_code n.next; }
+  | Lalign k ->
+    (* CR gyorsh: Lalign implicitly refers to the next instruction.
+       We need to keep track of this when
+       instructions are discarded. The semantics isn't clear to me.
+       Should alignment directives be accumulated like Ladjust_trap_depth?
+       For full generality, we should be able to place .align anywhere
+       in the instruction sequence, but we only use it before labels, currently.
+       Alternatively, we could add an "align" field to Llabel,
+       or add "align" field to Linear.instruction. *)
+    let n = combine_align k n.next in
+    (* Do not discard alignment directive immediately followed by a label. *)
+    (match n.next.desc with
+     | Llabel _ -> n (* CR gyorsh: how to avoid repeating the base case? *)
+     | _ -> discard_dead_code n.next)
   | _ -> discard_dead_code n.next
 
 (*
@@ -104,6 +124,10 @@ let add_branch lbl n =
     let n1 = discard_dead_code n in
     match n1.desc with
     | Llabel lbl1 when lbl1 = lbl -> n1
+    | Lalign _ ->
+      (match n1.next.desc with
+       | Llabel lbl1 when lbl1 = lbl -> n1 (* CR gyorsh: repeat basecase *)
+       | _ -> cons_instr (Lbranch lbl) n1)
     | _ -> cons_instr (Lbranch lbl) n1
   else
     discard_dead_code n
@@ -132,16 +156,32 @@ let is_next_catch n = match !exit_label with
 let local_exit k =
   snd (find_exit_label_try_depth k) = !try_depth
 
+(* Detect local tail-recursion.
+   CR gyorsh: it can be done earlier, but
+   Selectgen.mark_tailcall does not currently have enough information
+   to detect self-tailcalls.
+   It needs current function name and the name of the function in Itailcall_imm.
+   The result would need to be passed from in Mach.fundecl field to linearize.
+*)
+let tailrec_entry_point_used = ref false
+
 (* Linearize an instruction [i]: add it in front of the continuation [n] *)
-let linear i n contains_calls =
+let linear i n contains_calls fun_name fun_fast =
   let rec linear i n =
+    let tailcall op i n =
+      if not Config.spacetime then
+        copy_instr (Lop op) i (discard_dead_code n)
+      else
+        copy_instr (Lop op) i (linear i.Mach.next n)
+    in
     match i.Mach.desc with
       Iend -> n
-    | Iop(Itailcall_ind _ | Itailcall_imm _ as op) ->
-        if not Config.spacetime then
-          copy_instr (Lop op) i (discard_dead_code n)
-        else
-          copy_instr (Lop op) i (linear i.Mach.next n)
+    | Iop(Itailcall_ind _ as op) ->
+      tailcall op i n
+    | Iop(Itailcall_imm { func; } as op) ->
+      if String.equal func fun_name  then
+        tailrec_entry_point_used := true;
+      tailcall op i n
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
         linear i.Mach.next n
@@ -207,7 +247,7 @@ let linear i n contains_calls =
                      i !n2
         end else
           copy_instr (Lswitch(Array.map (fun n -> lbl_cases.(n)) index)) i !n2
-    | Icatch(_rec_flag, handlers, body) ->
+    | Icatch(rec_flag, handlers, body) ->
         let (lbl_end, n1) = get_label(linear i.Mach.next n) in
         (* CR mshinwell for pchambart:
            1. rename "io"
@@ -225,8 +265,16 @@ let linear i n contains_calls =
         let n2 = List.fold_left2 (fun n (_nfail, handler) lbl_handler ->
             match handler.Mach.desc with
             | Iend -> n
-            | _ -> cons_instr (Llabel lbl_handler)
-                     (linear handler (add_branch lbl_end n)))
+            | _ ->
+              let k = (cons_instr (Llabel lbl_handler)
+                         (linear handler (add_branch lbl_end n))) in
+              match rec_flag with
+              | Recursive ->
+                if fun_fast && (!Clflags.align_loops > 0) then
+                  (cons_instr (Lalign !Clflags.align_loops) k)
+                else
+                  k
+              | Nonrecursive -> k)
             n1 handlers labels_at_entry_to_handlers
         in
         let n3 = linear body (add_branch lbl_end n2) in
@@ -261,7 +309,7 @@ let linear i n contains_calls =
         copy_instr (Lraise k) i (discard_dead_code n)
   in linear i n
 
-let add_prologue first_insn prologue_required =
+let add_prologue first_insn prologue_required fun_fast =
   (* The prologue needs to come after any [Iname_for_debugger] operations that
      refer to parameters.  (Such operations always come in a contiguous
      block, cf. [Selectgen].) *)
@@ -280,6 +328,18 @@ let add_prologue first_insn prologue_required =
           dbg = insn.dbg;
           live = insn.live;
         }
+      in
+      let tailrec_entry_point =
+        if fun_fast && !tailrec_entry_point_used &&
+           (!Clflags.align_loops > 0 || !Clflags.align_tailrec > 0) then
+          { desc = Lalign (max !Clflags.align_loops !Clflags.align_tailrec);
+            next = tailrec_entry_point;
+            arg = [| |];
+            res = [| |];
+            dbg = insn.dbg;
+            live = insn.live;
+          }
+        else tailrec_entry_point
       in
       (* We expect [Lprologue] to expand to at least one instruction---as such,
          if no prologue is required, we avoid adding the instruction here.
@@ -323,13 +383,18 @@ let add_prologue first_insn prologue_required =
 let fundecl f =
   let fun_prologue_required = Proc.prologue_required f in
   let contains_calls = f.Mach.fun_contains_calls in
+  tailrec_entry_point_used := false;
+  let fun_name = f.Mach.fun_name in
+  let fun_fast =
+    not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options) in
   let fun_tailrec_entry_point_label, fun_body =
-    add_prologue (linear f.Mach.fun_body end_instr contains_calls)
-      fun_prologue_required
+    add_prologue
+      (linear f.Mach.fun_body end_instr contains_calls fun_name fun_fast)
+      fun_prologue_required fun_fast
   in
-  { fun_name = f.Mach.fun_name;
+  { fun_name;
     fun_body;
-    fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
+    fun_fast;
     fun_dbg  = f.Mach.fun_dbg;
     fun_spacetime_shape = f.Mach.fun_spacetime_shape;
     fun_tailrec_entry_point_label;
