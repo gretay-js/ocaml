@@ -386,6 +386,13 @@ let no_overflow_mul a b =
 let no_overflow_lsl a k =
   0 <= k && k < Sys.word_size - 1 && min_int asr k <= a && a <= max_int asr k
 
+let words_padding_for_align n =
+  (* [k=0,1,2] do not need in any padding,
+     [k=3] requires at most 1 word of padding, and so on. *)
+  let k = log2 n in
+  if k <= 2 then 0
+  else (1 lsl (k - 2)) - 1
+
 module Int_literal_converter = struct
   (* To convert integer literals, allowing max_int + 1 (PR#4210) *)
   let cvt_int_aux str neg of_string =

@@ -39,6 +39,8 @@ let instr ppf i =
       fprintf ppf "reload retaddr"
   | Lreturn ->
       fprintf ppf "return %a" regs i.arg
+  | Lalign n ->
+      fprintf ppf "align %d" n
   | Llabel lbl ->
       fprintf ppf "%a:" label lbl
   | Lbranch lbl ->

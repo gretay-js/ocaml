@@ -813,6 +813,8 @@ let emit_instr fallthrough i =
       output_epilogue begin fun () ->
         I.ret ()
       end
+  | Lalign n ->
+      D.align n
   | Llabel lbl ->
       emit_Llabel fallthrough lbl
   | Lbranch lbl ->

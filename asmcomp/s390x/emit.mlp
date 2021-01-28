@@ -555,6 +555,9 @@ let emit_instr i =
         let n = frame_size() in
         emit_stack_adjust (-n);
         `	br	%r14\n`
+    | Lalign n ->
+        if n < 8 then `	.align	8\n`
+        else `	.align	{emit_int n}\n`
     | Llabel lbl ->
         `{emit_label lbl}:\n`
     | Lbranch lbl ->

@@ -249,6 +249,13 @@ val no_overflow_lsl: int -> int -> bool
         (* [no_overflow_lsl n k] returns [true] if the computation of
            [n lsl k] does not overflow. *)
 
+(* Overapproximate the number of 32-bit words of padding
+   required for [n] bytes alignment.
+   A program counter is [n] byte aligned if at least [log2 n]
+   low-order bits are zero.
+   Assumes that the current program counter is at least one word aligned. *)
+val words_padding_for_align : int -> int
+
 module Int_literal_converter : sig
   val int : string -> int
   val int32 : string -> int32

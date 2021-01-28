@@ -484,6 +484,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iname_for_debugger _) -> 0
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size ()
+    | Lalign n -> Misc.words_padding_for_align n
     | Llabel _ -> 0
     | Lbranch _ -> 1
     | Lcondbranch (tst, _) ->
@@ -805,6 +806,8 @@ let emit_instr i =
         ()
     | Lreturn ->
         output_epilogue (fun () -> `	ret\n`)
+    | Lalign n ->
+        `.align	{emit_int(Misc.log2 n)}\n`
     | Llabel lbl ->
         `{emit_label lbl}:\n`
     | Lbranch lbl ->

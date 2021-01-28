@@ -502,6 +502,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iname_for_debugger _) -> 0
     | Lreloadretaddr -> 2
     | Lreturn -> 2
+    | Lalign n -> Misc.words_padding_for_align n
     | Llabel _ -> 0
     | Lbranch _ -> 1
     | Lcondbranch _ -> 2
@@ -867,6 +868,8 @@ let emit_instr i =
     | Lreturn ->
         emit_free_frame();
         `	blr\n`
+    | Lalign n ->
+        `.align	{emit_int (Misc.log2 n)}\n`
     | Llabel lbl ->
         `{emit_label lbl}:\n`
     | Lbranch lbl ->

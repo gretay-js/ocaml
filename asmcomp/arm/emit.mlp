@@ -782,6 +782,9 @@ let emit_instr i =
         output_epilogue begin fun () ->
           `	bx	lr\n`; 1
         end
+    | Lalign n ->
+        `	.align	{emit_int(Misc.log2 n)}\n`;
+        Misc.words_padding_for_align n
     | Llabel lbl ->
         `{emit_label lbl}:\n`; 0
     | Lbranch lbl ->

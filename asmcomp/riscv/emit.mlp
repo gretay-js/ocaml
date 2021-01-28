@@ -459,6 +459,8 @@ let emit_instr i =
       let n = frame_size() in
       emit_stack_adjustment n;
       `	ret\n`
+  | Lalign n ->
+      `	.align	{emit_int (Misc.log2 n)}\n`
   | Llabel lbl ->
       `{emit_label lbl}:\n`
   | Lbranch lbl ->
