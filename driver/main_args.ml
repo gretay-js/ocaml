@@ -921,6 +921,15 @@ let mk_afl_inst_ratio f =
   \     (advanced, see afl-fuzz docs for AFL_INST_RATIO)"
 ;;
 
+let mk_align_loops f =
+  "-align-loops", Arg.Int f,
+  "<n> Align loop entry points (targets of retreating edges) \
+   to <n> bytes (default 0)."
+
+let mk_align_tailrec f =
+  "-align-tailrec", Arg.Int f,
+  "<n> Align tail recursive entry points to <n> bytes (default 0)."
+
 let mk__ f =
   "-", Arg.String f,
   "<file>  Treat <file> as a file name (even if it starts with `-')"
@@ -1145,6 +1154,8 @@ module type Optcomp_options = sig
   val _shared : unit -> unit
   val _afl_instrument : unit -> unit
   val _afl_inst_ratio : int -> unit
+  val _align_loops : int -> unit
+  val _align_tailrec : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
@@ -1359,6 +1370,8 @@ struct
     mk_absname F._absname;
     mk_afl_instrument F._afl_instrument;
     mk_afl_inst_ratio F._afl_inst_ratio;
+    mk_align_loops F._align_loops;
+    mk_align_tailrec F._align_tailrec;
     mk_annot F._annot;
     mk_binannot F._binannot;
     mk_inline_branch_factor F._inline_branch_factor;
@@ -1975,6 +1988,12 @@ module Default = struct
     include Compiler
     let _afl_inst_ratio n = afl_inst_ratio := n
     let _afl_instrument = set afl_instrument
+    let _align_loops n =
+      if n >= 0 then align_loops := n
+      else fatal "Please specify a non-negative <n> for -falign-tailrec <n>"
+    let _align_tailrec n =
+      if n >= 0 then align_tailrec := n
+      else fatal "Please specify a non-negative <n> for -falign-loops <n>"
     let _function_sections () =
       assert Config.function_sections;
       first_ccopts := ("-ffunction-sections" :: (!first_ccopts));

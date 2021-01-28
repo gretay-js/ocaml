@@ -208,6 +208,8 @@ val dump_flambda_verbose : bool ref
 val classic_inlining : bool ref
 val afl_instrument : bool ref
 val afl_inst_ratio : int ref
+val align_loops : int ref
+val align_tailrec : int ref
 val function_sections : bool ref
 val probes : bool ref
 
