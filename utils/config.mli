@@ -230,6 +230,12 @@ val flat_float_array : bool
 (** Whether the compiler and runtime automagically flatten float
     arrays *)
 
+val align_loops : int
+(** Code alignment of loop entries (where 0 means unaligned). *)
+
+val align_tailrec : int
+(** Code alignment of tail-recursive entries (where 0 means unaligned). *)
+
 val function_sections : bool
 (** Whether the compiler was configured to generate
     each function in a separate section *)

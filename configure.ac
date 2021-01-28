@@ -159,6 +159,8 @@ AC_SUBST([flambda_invariants])
 AC_SUBST([max_testsuite_dir_retries])
 AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
+AC_SUBST([align_loops])
+AC_SUBST([align_tailrec])
 AC_SUBST([function_sections])
 AC_SUBST([probes])
 AC_SUBST([afl])
@@ -337,6 +339,24 @@ AC_ARG_ENABLE([reserved-header-bits],
       [with_profinfo=true
       profinfo_width="$enable_reserved_header_bits"],
     [AC_MSG_ERROR([invalid argument to --enable-reserved-header-bits])])])
+
+AC_ARG_ENABLE([align-tailrec],
+  [AS_HELP_STRING([--enable-align-tailrec=BYTES],
+  [align tail-recursive entries to BYTES (must be a non-negative number)])],
+  [AS_CASE([$enable_align_tailrec],
+    [[[0-9]*]],[],
+    [AC_MSG_ERROR([invalid argument to --enable-align-tailrec])]
+    )],
+  [enable_align_tailrec=auto])
+
+AC_ARG_ENABLE([align-loops],
+  [AS_HELP_STRING([--enable-align-loops=BYTES],
+  [align loop entries to BYTES (must be a non-negative number)])],
+  [AS_CASE([$enable_align_loops],
+    [[[0-9]*]],[],
+    [AC_MSG_ERROR([invalid argument to --enable-align-loops])]
+    )],
+  [enable_align_loops=auto])
 
 AC_ARG_ENABLE([stdlib-manpages],
   [AS_HELP_STRING([--disable-stdlib-manpages],
@@ -1814,6 +1834,26 @@ AS_IF([test x"$enable_flat_float_array" = "xno"],
   [flat_float_array=false],
   [AC_DEFINE([FLAT_FLOAT_ARRAY])
   flat_float_array=true])
+
+AS_IF([test x"$enable_align_tailrec" = "xauto"],
+  [AS_CASE([$arch],
+    [amd64], [align_tailrec=16],
+    [*],[align_tailrec=0])],
+  [align_tailrec="$enable_align_tailrec"])
+
+AC_DEFINE_UNQUOTED([ALIGN_TAILREC], [$align_tailrec])
+
+AC_MSG_NOTICE([Align tail-recursive entries to $align_tailrec bytes.])
+
+AS_IF([test x"$enable_align_loops" = "xauto"],
+  [AS_CASE([$arch],
+    [amd64], [align_loops=16],
+    [*],[align_loops=0])],
+  [align_loops="$enable_align_loops"])
+
+AC_DEFINE_UNQUOTED([ALIGN_LOOPS], [$align_loops])
+
+AC_MSG_NOTICE([Align loops to $align_loops bytes.])
 
 AS_IF([test x"$enable_function_sections" = "xno"],
   [function_sections=false],

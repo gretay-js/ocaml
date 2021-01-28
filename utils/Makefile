@@ -110,6 +110,8 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST,WITH_SPACETIME) \
 	    $(call SUBST,ENABLE_CALL_COUNTS) \
 	    $(call SUBST,FLAT_FLOAT_ARRAY) \
+	    $(call SUBST,ALIGN_LOOPS) \
+	    $(call SUBST,ALIGN_TAILREC) \
 	    $(call SUBST,FUNCTION_SECTIONS) \
 	    $(call SUBST,PROBES) \
 	    $(call SUBST,CC_HAS_DEBUG_PREFIX_MAP) \
