@@ -482,6 +482,9 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Ibswap 16)) -> 2
     | Lop (Ispecific (Ibswap _)) -> 1
     | Lop (Iname_for_debugger _) -> 0
+    | Lop (Iprobe _)
+    | Lop (Iprobe_is_enabled _) ->
+      fatal_error "Emit_arm64.instr_size: probes not supported"
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size ()
     | Lalign n -> Misc.words_padding_for_align n
@@ -802,6 +805,9 @@ let emit_instr i =
             assert false
         end
     | Lop (Iname_for_debugger _) -> ()
+    | Lop (Iprobe _)
+    | Lop (Iprobe_is_enabled _) ->
+      fatal_error "Emit_arm64.emit_instr: probes not supported"
     | Lreloadretaddr ->
         ()
     | Lreturn ->
