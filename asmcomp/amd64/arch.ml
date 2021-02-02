@@ -15,8 +15,8 @@
 
 (* Machine-specific command-line options *)
 
-let align_loops = ref 0
-let align_tailrec = ref 0
+let align_loops = ref 16
+let align_tailrec = ref 16
 
 let command_line_options =
   [ "-fPIC", Arg.Set Clflags.pic_code,
