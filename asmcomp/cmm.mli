@@ -124,6 +124,8 @@ type phantom_defining_expr =
 
    gyorsh: I didn't make an inline record because it is long.
    Should I change it to an inline record?
+   ok, realized that inline record saves one dereference.
+   fixed.
 *)
 type extcall =
   { name: string;

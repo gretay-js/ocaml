@@ -2669,12 +2669,24 @@ let transl_builtin name args dbg =
       (* CR mshinwell: Presumably this calculation is for untagging; if so
          we should use [untag_int] instead.
 
-         gyorsh: the argument is tagged, and that is intentional, it
+         gyorsh: The argument is tagged, and that is intentional, it
          saves a shift, but there is one extra "set" bit, which is account
          by the (-1) below.
       *)
       Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_untagged_int_popcnt"
+  | "caml_untagged_int_popcnt" ->
+    (* Both argument and result are untagged. Untagging of a negative
+       value shifts in an extra bit. The following code
+       clears the shifted sign bit of the argument before passing it to popcnt.
+       This straightline code is faster than conditional code
+       for checking if the argument is negative.
+       This code is expected to be faster than [popcnt(x) - 1]
+       where x is tagged when the untagged argument is already
+       available from a previous computation. *)
+    Cop(Cpopcnt,
+        [Cop(Cintop(Cand,
+                    [one_arg name args,
+                     Cconst_int (lnot (1 lsl (size_int * 8)))], dbg)], dbg)
   | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (one_arg name args) dbg
   | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed" ->
