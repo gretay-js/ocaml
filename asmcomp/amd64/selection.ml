@@ -157,7 +157,7 @@ let inline_ops =
     "caml_rdtsc_unboxed";
     "caml_rdpmc_unboxed";
     "caml_int64_bsr_unboxed";
-    "caml_nativeint_bsr_unboxed"
+    "caml_nativeint_bsr_unboxed";
     "caml_int_bsr_untagged";
     (* XCR mshinwell: What is this one with the percent?  I didn't think %
        should appear at this stage.
@@ -193,6 +193,13 @@ let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   | High -> High
 
 (* The selector class *)
+
+
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
 
 class selector = object (self)
 
@@ -316,80 +323,116 @@ method! select_operation op args dbg =
   (* CR mshinwell for mshinwell: Re-read this case after first round of
      review *)
   | Cextcall { name; builtin = true; ret; label_after } ->
-    (* CR mshinwell: The standard in this file is unfortunately two more
+    (* XCR mshinwell: The standard in this file is unfortunately two more
        spaces of indentation for match cases; let's follow that for
-       consistency. *)
-    (* CR mshinwell: Let's please remove the tuple brackets on these return
+       consistency.
+
+       gyorsh: fixed.
+
+    *)
+    (* XCR mshinwell: Let's please remove the tuple brackets on these return
        values; they aren't needed, and tend to clutter.  This is quite
-       complicated to look at as it is... *)
+       complicated to look at as it is...
+
+       gyorsh: fixed in the new code.
+       Should I also fix it in the rest of the function, or leave it as is?
+    *)
     (* CR mshinwell: Can we check [ret] in all of these cases?  It's presumably
-       uniquely defined in each case. *)
-    begin match name with
-    | "caml_bswap16_direct" -> (Ispecific (Ibswap 16), args)
-    | "caml_int32_direct_bswap" -> (Ispecific (Ibswap 32), args)
-    | "caml_int64_direct_bswap"
-    | "caml_nativeint_direct_bswap" -> (Ispecific (Ibswap 64), args)
-    | "caml_rdtsc_unboxed" -> (Ispecific Irdtsc, args)
-    | "caml_rdpmc_unboxed" -> (Ispecific Irdpmc, args)
-    | "caml_int64_bsr_unboxed" | "caml_nativeint_bsr_unboxed" ->
-      (Ispecific(Ibsr { arg_is_non_zero = false; }), args)
-    | "caml_int_bsr_untagged" ->
-      (* '*' guarantees that it won't clash with user defined names *)
-      (* CR mshinwell: Is it guaranteed that the Cop Cextcall will return a
-         tagged integer?  There should be a comment explaining why that is
-         the case, I think.  Can we add an assertion on [ret] to help check?
-         If we're going to use Isub 1 to remove the tag, it is imperative that
-         the value is tagged already, or the answer will be wrong (unlike if
-         we used a masking). *)
-      ((Iintop_imm (Isub, 1)),
-       [ Cop(Cextcall{ name = "*int64_bsr"; builtin = true; ret;
-                       alloc = false; label_after; },
-             args, dbg) ])
-    | "*int64_bsr" -> (Ispecific(Ibsr {arg_is_non_zero=true}), args)
-    | "caml_untagged_int_ctz" ->
-      (* CR mshinwell: It's hard to follow what the argument and return types
-         of these intrinsics are.  Maybe we could establish a standard naming
-         scheme that names both the argument and result types at all times?
-         Also I think we should use proper names rather than abbreviations
-         for the names, both to avoid confusion, and to avoid platform-specific
-         names in code that is supposed to be generic.
-         Combining both of these suggestions would yield names like:
+       uniquely defined in each case.
+
+       gyorsh: ah, that's a great idea! added.
+    *)
+      begin match name, ret with
+      | "caml_bswap16_direct", [|Int|] -> Ispecific (Ibswap 16), args
+      | "caml_int32_direct_bswap", [|Int|] -> Ispecific (Ibswap 32), args
+      | "caml_int64_direct_bswap", [|Int|]
+      | "caml_nativeint_direct_bswap", [|Int|] -> Ispecific (Ibswap 64), args
+      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
+      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
+      | "caml_int64_bsr_unboxed", [|Int|]
+      | "caml_nativeint_bsr_unboxed", [|Int|] ->
+        Ispecific(Ibsr { arg_is_non_zero = false; }), args
+      | "caml_int_bsr_untagged", [|Int|] ->
+        (* CR mshinwell: Is it guaranteed that the Cop Cextcall will return a
+           tagged integer?  There should be a comment explaining why that is
+           the case, I think.  Can we add an assertion on [ret] to help check?
+           If we're going to use Isub 1 to remove the tag, it is imperative that
+           the value is tagged already, or the answer will be wrong (unlike if
+           we used a masking).
+
+           gyorsh: yes, it's guaranteed by the absence of [@untagged] annotation
+           on the declaration of the intrinsic.
+        *)
+        Iintop_imm (Isub, 1),
+        [ Cop(Cextcall{ name = "*int64_bsr"; builtin = true; ret;
+                        alloc = false; label_after; },
+              args, dbg) ]
+      | "*int64_bsr", [|Int|] ->
+        (* '*' guarantees that it won't clash with user defined names *)
+        Ispecific(Ibsr {arg_is_non_zero=true}), args
+      | "caml_untagged_int_ctz", [|Val|] ->
+        (* CR mshinwell: It's hard to follow what the argument and return types
+           of these intrinsics are.  Maybe we could establish a standard naming
+           scheme that names both the argument and result types at all times?
+           Also I think we should use proper names rather than abbreviations
+           for the names, both to avoid confusion, and to avoid platform-specific
+           names in code that is supposed to be generic.
+           Combining both of these suggestions would yield names like:
            caml_count_trailing_zeroes_untagged_int_to_untagged_int
-      *)
-      (* Takes untagged int and returns untagged int.
-         Setting the top bit does not change the result of 63 bit operation,
-         and guarantees the input is non-zero. *)
-      (* CR mshinwell: This should explain why it's beneficial for the input
-         to be guaranteed not to be zero *)
-      (* Constant shift value generates a very long instruction (10 bytes),
-         emit shift instruction instead, to save a byte. *)
-      (* CR mshinwell: This needs some more explanation.  Maybe augment the
-         commented-out line with some explanatory text (presuming that this
-         is the code that emits this extra byte)? *)
-      (* let c = Cconst_natint ((Nativeint.shift_left 1n 63), dbg) in *)
-      let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
-      (Ispecific (Ibsf {arg_is_non_zero=true}),
-       (* CR mshinwell: As per comment elsewhere, don't use List.hd, as it
-          might produce an unhelpful exception. *)
-       [Cop(Cor, [List.hd args; c], dbg)])
-    | "caml_int64_ctz_unboxed"
-    | "caml_nativeint_ctz_unboxed" ->
-      (Ispecific(Ibsf {arg_is_non_zero=false}), args)
-    | "caml_int64_crc_unboxed" | "caml_int_crc_untagged" ->
-      if !Arch.crc32_support ->
-      (Ispecific Icrc32q, args)
-    (* Some Intel targets do not support popcnt and lzcnt *)
-    | "caml_int_lzcnt_untagged" when !lzcnt_support ->
-      (* CR mshinwell: This appears to be a duplicate of the [Cclz] case
-         below?  If this extcall should have always been caught in the Cmm
-         stage, this should be a fatal error. *)
-      (Ispecific Ilzcnt, args)
-    | _ ->
-      (* CR mshinwell: Add a check here to make sure that [name] is not in
-         [inline_ops]?  I'm worried about missing cases, since there are a lot
-         of intrinsics now. *)
-      super#select_operation op args dbg
-    end
+
+           gyorsh: yes, I like the explicit pattern <arg>_to_<res>.
+           I didn't dare making the names even longer. I'll keep the instruction
+           names for intrinsics that are archi
+        *)
+        (* Takes untagged int and returns untagged int.
+           Setting the top bit does not change the result of 63 bit operation,
+           and guarantees the input is non-zero, which is required because
+           [bsf] instruction is not defined on input 0. *)
+        (* XCR mshinwell: This should explain why it's beneficial for the input
+           to be guaranteed not to be zero *)
+        (* XCR mshinwell: This needs some more explanation.  Maybe augment the
+           commented-out line with some explanatory text (presuming that this
+           is the code that emits this extra byte)? *)
+        (*
+           The expression [x lor (1 lsl 63)] sets the top bit of x.
+           [1 lsl 64] is a constant 64-bit value with the top bit 1
+           and all other bits are 0. The constant can be precomputed statically:
+
+             Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
+
+           However, the encoding of this OR instruction with the large static
+           constant is 10 bytes long. Instead, we emit a shift instruction,
+           which is 1 byte shorter. This will not require an extra register,
+           unless both argument and result of bsf are in the same register. *)
+        let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
+        Ispecific (Ibsf {arg_is_non_zero=true}),
+        (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
+           might produce an unhelpful exception. *)
+         [Cop(Cor, [one_arg "ctz" args; c], dbg)]
+      | "caml_int64_ctz_unboxed", [|Int|]
+      | "caml_nativeint_ctz_unboxed", [|Int|] ->
+        Ispecific(Ibsf {arg_is_non_zero=false}), args
+      | ("caml_int64_crc_unboxed"
+         | "caml_int_crc_untagged"), [|Int|] when !Arch.crc32_support ->
+        Ispecific Icrc32q, args
+      (* Some Intel targets do not support popcnt and lzcnt *)
+      | "caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+        (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
+           below?  If this extcall should have always been caught in the Cmm
+           stage, this should be a fatal error.
+
+           It's not exactly the same.
+           We have a special intrinsics to emit lzcnt instruction,
+           whereas Cclz emits an instruction sequence using bsr unless lzcnt is
+           supported.
+        *)
+        Ispecific Ilzcnt, args
+      | _ ->
+        (* CR mshinwell: Add a check here to make sure that [name] is not in
+           [inline_ops]?  I'm worried about missing cases, since there are a lot
+           of intrinsics now. *)
+        super#select_operation op args dbg
+      end
   | Cclz _ when !lzcnt_support -> Ispecific Ilzcnt, args
   | Cprefetch { is_write; locality; } ->
       (* Emit a regular prefetch hint when prefetchw is not supported.
@@ -399,10 +442,11 @@ method! select_operation op args dbg =
         then false
         else is_write
       in
-      (* CR mshinwell: List.hd again *)
-      let addr, eloc = self#select_addressing Word_int (List.hd args) in
+      (* XCR mshinwell: List.hd again *)
+      let addr, eloc = self#select_addressing Word_int
+                         (one_arg "prefetch" args) in
       let locality = select_locality locality in
-      (Ispecific (Iprefetch { is_write; addr; locality; }), [eloc])
+      Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   (* AMD64 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
       (Iintop Imulh, args)

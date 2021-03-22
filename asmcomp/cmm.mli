@@ -118,25 +118,16 @@ type phantom_defining_expr =
   (** The phantom-let-bound variable points at a block with the given
       structure. *)
 
-(* CR mshinwell: Please pull out the change to use a record for Cextcall
+(* XCR mshinwell: Please pull out the change to use a record for Cextcall
    into a separate patch.  (Also, just to check, I presume there's some
    reason why this can't be an inline record?)
 
    gyorsh: I didn't make an inline record because it is long.
    Should I change it to an inline record?
    ok, realized that inline record saves one dereference.
-   fixed.
+   fixed. I'll make a separate patch for this change when rebasing the whole lot
+   onto flambda-backend.
 *)
-type extcall =
-  { name: string;
-    ret: machtype;
-    alloc: bool;
-    builtin: bool;
-    label_after: label option;
-    (** If specified, the given label will be placed immediately after the
-        call (at the same place as any frame descriptor would reference). *)
-  }
-
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -152,7 +143,15 @@ type memory_chunk =
 
 and operation =
     Capply of machtype
-  | Cextcall of extcall
+  | Cextcall of
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        label_after: label option;
+        (** If specified, the given label will be placed immediately after the
+            call (at the same place as any frame descriptor would reference). *)
+      }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
@@ -164,8 +163,9 @@ and operation =
 
      gyorsh: I don't have implementation of ctz for all other architectures,
      whereas clz was from the previous patch that has been tested and reviewed
-     on all architectures before, and so did popcnt.
-     If it wasn't,
+     on all architectures before, and so was popcnt. Since then, we introduced
+     Proc.operation_supported so now I can put ctz in cmm too. The downside is
+     that cmm is bigger.
   *)
   | Cclz of { arg_is_non_zero: bool; }
   | Cpopcnt

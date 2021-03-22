@@ -122,14 +122,6 @@ type phantom_defining_expr =
   | Cphantom_read_symbol_field of { sym : string; field : int; }
   | Cphantom_block of { tag : int; fields : Backend_var.t list; }
 
-type extcall =
-  { name: string;
-    ret: machtype;
-    alloc: bool;
-    builtin: bool;
-    label_after: label option;
-  }
-
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -145,7 +137,15 @@ type memory_chunk =
 
 and operation =
     Capply of machtype
-  | Cextcall of extcall
+  | Cextcall of
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        label_after: label option;
+        (** If specified, the given label will be placed immediately after the
+            call (at the same place as any frame descriptor would reference). *)
+      }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment

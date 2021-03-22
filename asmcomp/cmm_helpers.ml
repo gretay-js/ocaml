@@ -1358,8 +1358,8 @@ let int64_native_prim name arity ~alloc =
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   let effects, coeffects =
     if alloc
-    then Arbitrary_effects, No_coeffects
-    else No_effects, No_coeffects in
+    then Primitive.Arbitrary_effects, Primitive.No_coeffects
+    else Primitive.No_effects, Primitive.No_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
     ~builtin:false
@@ -2670,7 +2670,7 @@ let transl_builtin name args dbg =
          we should use [untag_int] instead.
 
          gyorsh: The argument is tagged, and that is intentional, it
-         saves a shift, but there is one extra "set" bit, which is account
+         saves a shift, but there is one extra "set" bit, which is accounted for
          by the (-1) below.
       *)
       Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
@@ -2679,14 +2679,15 @@ let transl_builtin name args dbg =
        value shifts in an extra bit. The following code
        clears the shifted sign bit of the argument before passing it to popcnt.
        This straightline code is faster than conditional code
-       for checking if the argument is negative.
-       This code is expected to be faster than [popcnt(x) - 1]
-       where x is tagged when the untagged argument is already
+       for checking whether the argument is negative.
+       This code is expected to be faster than [popcnt(tagged_x) - 1]
+       when the untagged argument is already
        available from a previous computation. *)
-    Cop(Cpopcnt,
-        [Cop(Cintop(Cand,
-                    [one_arg name args,
-                     Cconst_int (lnot (1 lsl (size_int * 8)))], dbg)], dbg)
+    if_operation_supported Cpopcnt ~f:(fun () ->
+      Cop(Cpopcnt,
+          [Cop(Cand,
+               [one_arg name args;
+                Cconst_int ((lnot (1 lsl (size_int * 8))),dbg)], dbg)], dbg))
   | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (one_arg name args) dbg
   | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed" ->
