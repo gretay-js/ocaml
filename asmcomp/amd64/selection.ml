@@ -413,10 +413,14 @@ method! select_operation op args dbg =
       | "caml_nativeint_ctz_unboxed", [|Int|] ->
         Ispecific(Ibsf {arg_is_non_zero=false}), args
       | ("caml_int64_crc_unboxed"
-         | "caml_int_crc_untagged"), [|Int|] when !Arch.crc32_support ->
-        Ispecific Icrc32q, args
+        | "caml_int_crc_untagged"), [|Int|] ->
+        if !Arch.crc32_support then
+          Ispecific Icrc32q, args
+        else
+          super#select_operation op args dbg
       (* Some Intel targets do not support popcnt and lzcnt *)
-      | "caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+      | "caml_int_lzcnt_untagged", [|Int|] ->
+        if !lzcnt_support then
         (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
            below?  If this extcall should have always been caught in the Cmm
            stage, this should be a fatal error.
@@ -426,11 +430,15 @@ method! select_operation op args dbg =
            whereas Cclz emits an instruction sequence using bsr unless lzcnt is
            supported.
         *)
-        Ispecific Ilzcnt, args
+          Ispecific Ilzcnt, args
+        else
+          super#select_operation op args dbg
       | _ ->
-        (* CR mshinwell: Add a check here to make sure that [name] is not in
+        (* XCR mshinwell: Add a check here to make sure that [name] is not in
            [inline_ops]?  I'm worried about missing cases, since there are a lot
            of intrinsics now. *)
+        if List.mem name inline_ops then
+          Misc.fatal_errorf "Selection: unexpect intrinsics %s" name;
         super#select_operation op args dbg
       end
   | Cclz _ when !lzcnt_support -> Ispecific Ilzcnt, args
