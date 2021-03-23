@@ -121,11 +121,14 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
     Attr_helper.has_no_payload_attribute ["no_effects"; "ocaml.no_effects"]
       valdecl.pval_attributes
   in
-  (* CR mshinwell: There seems to be a spurious double underscore in the
-     "only generative effects" names? *)
+  (* XCR mshinwell: There seems to be a spurious double underscore in the
+     "only generative effects" names?
+
+     gyorsh: fixed. (I didn't have a test for it!)
+  *)
   let only_generative_effects_attribute =
-    Attr_helper.has_no_payload_attribute ["only_generative__effects";
-                                          "ocaml.only_generative__effects"]
+    Attr_helper.has_no_payload_attribute ["only_generative_effects";
+                                          "ocaml.only_generative_effects"]
       valdecl.pval_attributes
   in
   if no_effects_attribute && only_generative_effects_attribute then

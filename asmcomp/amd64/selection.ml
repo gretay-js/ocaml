@@ -149,7 +149,7 @@ let pseudoregs_for_operation op arg res =
    to keep in sync. The new check in [select_operation]
    in combination with new tests helps guard against missing cases
    and misspelled names. *)
-let inline_ops =
+let inline_ops_builtins =
   [ "caml_bswap16_direct";
     "caml_int32_direct_bswap";
     "caml_int64_direct_bswap";
@@ -183,6 +183,11 @@ let inline_ops =
        gyorsh: fixed, and also found one more that was missing.
      *)
   ]
+(* CR-someday gyorsh: Annotate "sqrt" in stdlib with
+   [@builtin][@no_effects][@no_coeffects][@noalloc]
+   and merge [inline_ops_simple] and [inline_ops_builtins] into one list. *)
+let inline_ops_simple = ["sqrt"]
+let inline_ops = inline_ops_simple @ inline_ops_builtins
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   : Arch.prefetch_temporal_locality_hint =
@@ -215,11 +220,12 @@ method! is_simple_expr e =
   match e with
   | Cop(Cprefetch _, _, _) -> false
   (* inlined ops are simple if their arguments are *)
-  | Cop(Cextcall { name = "sqrt" }, args, _) ->
+  | Cop(Cextcall { name }, args, _) when List.mem name inline_ops_simple ->
       List.for_all self#is_simple_expr args
-  | Cop(Cextcall { name = fn; builtin = true }, args, _)
-    when List.mem fn inline_ops ->
-      (* CR mshinwell: As per the CR in [effects_of] below, we should not be
+  | Cop(Cextcall { name; builtin = true;
+                   effects = No_effects; coeffects = No_coeffects }, args, _)
+    when List.mem name inline_ops_builtins ->
+      (* XCR mshinwell: As per the CR in [effects_of] below, we should not be
          deeming these operations as "simple" if the original [external]
          declaration says that they do in fact have (co)effects. *)
       List.for_all self#is_simple_expr args

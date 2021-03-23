@@ -118,6 +118,17 @@ type phantom_defining_expr =
   (** The phantom-let-bound variable points at a block with the given
       structure. *)
 
+(* CR gyorsh for mshinwell: not sure this halfway house.
+   On one hand, Cmm.effects does not have any use for
+   Primitive.effects.Only_generative_effects which
+   is abstracted in cmmgen to Cmm.effects.Arbitrary_effects.
+   On the other hand, Cmm.effects does not express the more refined effects
+   available in Selectgen.Effect.Raise and Selectgen.Coeffect.Read_mutable.
+   An obvious solution is to copy Primitive.effects over as is, but it
+   will be confusing to have it around and not used.
+*)
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
 (* XCR mshinwell: Please pull out the change to use a record for Cextcall
    into a separate patch.  (Also, just to check, I presume there's some
    reason why this can't be an inline record?)
@@ -148,6 +159,8 @@ and operation =
         ret: machtype;
         alloc: bool;
         builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
         label_after: label option;
         (** If specified, the given label will be placed immediately after the
             call (at the same place as any frame descriptor would reference). *)

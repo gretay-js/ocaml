@@ -114,6 +114,8 @@ let code_for_function_prologue ~function_name ~fun_dbg:dbg ~node_hole =
                                   ret = [| Int |];
                                   alloc = false;
                                   builtin = false;
+                                  effects = Arbitrary_effects;
+                                  coeffects = Arbitrary_coeffects
                                   label_after = None},
                 [cconst_int (1 (* header *) + !index_within_node);
                 Cvar pc;

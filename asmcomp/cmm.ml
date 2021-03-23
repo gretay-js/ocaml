@@ -113,6 +113,9 @@ type rec_flag = Nonrecursive | Recursive
 
 type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
 
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+
 type phantom_defining_expr =
   | Cphantom_const_int of Targetint.t
   | Cphantom_const_symbol of string
@@ -142,6 +145,8 @@ and operation =
         ret: machtype;
         alloc: bool;
         builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
         label_after: label option;
         (** If specified, the given label will be placed immediately after the
             call (at the same place as any frame descriptor would reference). *)
