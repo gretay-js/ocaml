@@ -149,12 +149,8 @@ let pseudoregs_for_operation op arg res =
    to keep in sync. The new check in [select_operation]
    in combination with new tests helps guard against missing cases
    and misspelled names. *)
-let inline_ops_builtins =
-  [ "caml_bswap16_direct";
-    "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap";
-    "caml_nativeint_direc_bswap";
-    "caml_rdtsc_unboxed";
+let inline_ops =
+  [ "caml_rdtsc_unboxed";
     "caml_rdpmc_unboxed";
     "caml_int64_bsr_unboxed";
     "caml_nativeint_bsr_unboxed";
@@ -183,11 +179,6 @@ let inline_ops_builtins =
        gyorsh: fixed, and also found one more that was missing.
      *)
   ]
-(* CR-someday gyorsh: Annotate "sqrt" in stdlib with
-   [@builtin][@no_effects][@no_coeffects][@noalloc]
-   and merge [inline_ops_simple] and [inline_ops_builtins] into one list. *)
-let inline_ops_simple = ["sqrt"]
-let inline_ops = inline_ops_simple @ inline_ops_builtins
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   : Arch.prefetch_temporal_locality_hint =
@@ -218,10 +209,8 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cprefetch _, _, _) -> false
-  (* inlined ops are simple if their arguments are *)
-  | Cop(Cextcall { name }, args, _) when List.mem name inline_ops_simple ->
-      List.for_all self#is_simple_expr args
+  (* inlined ops without effects and coeffects are simple
+     if their arguments are *)
   | Cop(Cextcall { name; builtin = true;
                    effects = No_effects; coeffects = No_coeffects }, args, _)
     when List.mem name inline_ops_builtins ->
@@ -235,8 +224,9 @@ method! is_simple_expr e =
 method! effects_of e =
   match e with
   (* XCR mshinwell: This next line isn't needed, Selectgen takes care of this. *)
-  | Cop(Cextcall { name = "sqrt" }, args, _) ->
-      (* CR mshinwell: I don't think we should remove sqrt from the inline_ops
+    | Cop(Cextcall { name; builtin = true; effects }, args, _)
+      when List.mem name inline_ops_builtins ->
+      (* XCR mshinwell: I don't think we should remove sqrt from the inline_ops
          list.  What about making inline_ops be a list of records, with each
          record specifying the expected name and also the expected value of
          [builtin]?
@@ -244,15 +234,14 @@ method! effects_of e =
          gyorsh: ideally, "sqrt" should simply be marked with builtin,
          and the corresponding no_effects and no_coeffects,
          but it would require a change in stdlib.
+         I added Csqrt to Cmm.operation to handle it earlier.
       *)
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | Cop(Cextcall { name = fn; builtin = true }, args, _)
-    when List.mem fn inline_ops ->
-      (* CR mshinwell: Shouldn't we use the effect/coeffect judgement
+      (* XCR mshinwell: Shouldn't we use the effect/coeffect judgement
          provided on the [external] declaration?  This will require
          augmenting [Cextcall] with the relevant information. *)
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | _ ->
+      Selectgen.Effect_and_coeffect.(join effects
+                                          (join_list_map args self#effects_of))
+    | _ ->
       super#effects_of e
 
 method select_addressing _chunk exp =
@@ -306,7 +295,10 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
-  | Cextcall { name = "sqrt"; alloc = false; } ->
+  | Cbswap Sixteen -> Ispecific (Ibswap 16), args
+  | Cbswap Thirtytwo -> Ispecific (Ibswap 32), args
+  | Cbswap Sixtyfour -> Ispecific (Ibswap 64), args
+  | Csqrt ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
@@ -349,17 +341,19 @@ method! select_operation op args dbg =
        gyorsh: ah, that's a great idea! added.
     *)
       begin match name, ret with
-      | "caml_bswap16_direct", [|Int|] -> Ispecific (Ibswap 16), args
-      | "caml_int32_direct_bswap", [|Int|] -> Ispecific (Ibswap 32), args
-      | "caml_int64_direct_bswap", [|Int|]
-      | "caml_nativeint_direct_bswap", [|Int|] -> Ispecific (Ibswap 64), args
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
       | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
+      | "caml_int64_crc_unboxed", [|Int|]
+      | "caml_int_crc_untagged", [|Int|] ->
+        if !Arch.crc32_support then
+          Ispecific Icrc32q, args
+        else
+          super#select_operation op args dbg
       | "caml_int64_bsr_unboxed", [|Int|]
       | "caml_nativeint_bsr_unboxed", [|Int|] ->
         Ispecific(Ibsr { arg_is_non_zero = false; }), args
       | "caml_int_bsr_untagged", [|Int|] ->
-        (* CR mshinwell: Is it guaranteed that the Cop Cextcall will return a
+        (* XCR mshinwell: Is it guaranteed that the Cop Cextcall will return a
            tagged integer?  There should be a comment explaining why that is
            the case, I think.  Can we add an assertion on [ret] to help check?
            If we're going to use Isub 1 to remove the tag, it is imperative that
@@ -376,54 +370,6 @@ method! select_operation op args dbg =
       | "*int64_bsr", [|Int|] ->
         (* '*' guarantees that it won't clash with user defined names *)
         Ispecific(Ibsr {arg_is_non_zero=true}), args
-      | "caml_untagged_int_ctz", [|Val|] ->
-        (* CR mshinwell: It's hard to follow what the argument and return types
-           of these intrinsics are.  Maybe we could establish a standard naming
-           scheme that names both the argument and result types at all times?
-           Also I think we should use proper names rather than abbreviations
-           for the names, both to avoid confusion, and to avoid platform-specific
-           names in code that is supposed to be generic.
-           Combining both of these suggestions would yield names like:
-           caml_count_trailing_zeroes_untagged_int_to_untagged_int
-
-           gyorsh: yes, I like the explicit pattern <arg>_to_<res>.
-           I didn't dare making the names even longer. I'll keep the instruction
-           names for intrinsics that are archi
-        *)
-        (* Takes untagged int and returns untagged int.
-           Setting the top bit does not change the result of 63 bit operation,
-           and guarantees the input is non-zero, which is required because
-           [bsf] instruction is not defined on input 0. *)
-        (* XCR mshinwell: This should explain why it's beneficial for the input
-           to be guaranteed not to be zero *)
-        (* XCR mshinwell: This needs some more explanation.  Maybe augment the
-           commented-out line with some explanatory text (presuming that this
-           is the code that emits this extra byte)? *)
-        (*
-           The expression [x lor (1 lsl 63)] sets the top bit of x.
-           [1 lsl 64] is a constant 64-bit value with the top bit 1
-           and all other bits are 0. The constant can be precomputed statically:
-
-             Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
-
-           However, the encoding of this OR instruction with the large static
-           constant is 10 bytes long. Instead, we emit a shift instruction,
-           which is 1 byte shorter. This will not require an extra register,
-           unless both argument and result of bsf are in the same register. *)
-        let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
-        Ispecific (Ibsf {arg_is_non_zero=true}),
-        (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
-           might produce an unhelpful exception. *)
-         [Cop(Cor, [one_arg "ctz" args; c], dbg)]
-      | "caml_int64_ctz_unboxed", [|Int|]
-      | "caml_nativeint_ctz_unboxed", [|Int|] ->
-        Ispecific(Ibsf {arg_is_non_zero=false}), args
-      | ("caml_int64_crc_unboxed"
-        | "caml_int_crc_untagged"), [|Int|] ->
-        if !Arch.crc32_support then
-          Ispecific Icrc32q, args
-        else
-          super#select_operation op args dbg
       (* Some Intel targets do not support popcnt and lzcnt *)
       | "caml_int_lzcnt_untagged", [|Int|] ->
         if !lzcnt_support then
@@ -432,7 +378,7 @@ method! select_operation op args dbg =
            stage, this should be a fatal error.
 
            It's not exactly the same.
-           We have a special intrinsics to emit lzcnt instruction,
+           We have a special intrinsic to emit lzcnt instruction directly,
            whereas Cclz emits an instruction sequence using bsr unless lzcnt is
            supported.
         *)

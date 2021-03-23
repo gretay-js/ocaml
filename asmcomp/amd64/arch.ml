@@ -151,7 +151,6 @@ type specific_operation =
      "arg_is_definitely_non_zero" or something (assuming that's what it
      means)? *)
   | Ibsr of { arg_is_non_zero : bool } (* bit scan reverse instruction *)
-  | Ibsf of { arg_is_non_zero : bool } (* bit scan forward instruction *)
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)

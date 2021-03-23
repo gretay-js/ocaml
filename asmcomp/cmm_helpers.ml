@@ -2173,23 +2173,36 @@ let arraylength kind arg dbg =
    and all tests pass. I've also inspected the generated code manually.
 *)
 let bbswap bi arg dbg =
-  let prim = match (bi : Primitive.boxed_integer) with
-    | Pnativeint -> "nativeint"
-    | Pint32 -> "int32"
-    | Pint64 -> "int64"
+  let prim, width = match (bi : Primitive.boxed_integer) with
+    | Pnativeint -> "nativeint",
+                    if size_int = 4 then Thirtytwo else Sixtyfour
+    | Pint32 -> "int32", Thirtytwo
+    | Pint64 -> "int64", Sixtyfour
   in
-  Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
-                 builtin = true;
-                 ret = typ_int; alloc = false; label_after = None },
-      [arg],
-      dbg)
+  let op = Cswap Sixteen in
+  if Proc.operation_supported op then
+    (Cop(op,[arg], dbg)
+  else
+    Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
+                   builtin = true;
+                   effects = No_effects;
+                   co_effects = No_coeffects;
+                   ret = typ_int; alloc = false; label_after = None },
+        [arg],
+        dbg)
 
 let bswap16 arg dbg =
-  (Cop(Cextcall { name = "caml_bswap16_direct";
-                  builtin = true;
-                  ret = typ_int; alloc = false; label_after = None },
-       [arg],
-       dbg))
+  let op = Cswap Sixteen in
+  if Proc.operation_supported op then
+    (Cop(op,[arg], dbg)
+  else
+    (Cop(Cextcall { name = "caml_bswap16_direct";
+                    builtin = true;
+                    effects = No_effects;
+                    co_effects = No_coeffects;
+                    ret = typ_int; alloc = false; label_after = None },
+         [arg],
+         dbg))
 
 (* XCR mshinwell: Maybe rename to [if_operation_supported]? *)
 let if_operation_supported op ~f =
@@ -2197,9 +2210,14 @@ let if_operation_supported op ~f =
   | true -> Some (f ())
   | false -> None
 
+let if_operation_supported_bi bi op ~f =
+  if bi = Primitive.Pint64 && size_int = 4 then None
+  else if_operation_supported op ~f
+
 let clz bi arg dbg =
+  (* CR gyorsh: don't convert pint64 on size_int=4 32-bit platforms, leave as a call *)
   let op = Cclz { arg_is_non_zero = false; } in
-  if_operation_supported op ~f:(fun () ->
+  if_operation_supported_bi bi op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
     (* XCR mshinwell: Use an exhaustive match on [bi]
 
@@ -2219,8 +2237,14 @@ let clz bi arg dbg =
     else
       res)
 
+let ctz bi arg dbg =
+  let op = Cctz  { arg_is_non_zero = false; } in
+  if_operation_supported_bi bi op ~f:(fun () ->
+    if bi = Primitive.Pint32 && size_int = 8 then
+      Cop(op, [make_unsigned_int bi arg dbg], dbg))
+
 let popcnt bi arg dbg =
-  if_operation_supported Cpopcnt ~f:(fun () ->
+  if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
     Cop(Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
@@ -2604,10 +2628,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
-(**
-   [transl_builtin] is called from [Cmmgen.transl_ccall].
+(** [transl_builtin prim args dbg] returns None if the built-in [prim]
+   is not supported, otherwise constructs and returns the corresponding
+   Cmm expression.
    The names of builtins below correspond to the native code names associated
-   with "external" functions declared in the stand-alone library [ocaml_intrinsics].
+   with "external" functions declared in the stand-alone library
+   [ocaml_intrinsics].
    See the library to determine whether the arguments and result of each builtin
    are tagged / boxed or not. The common mechanism for handling this
    is implemented in [Cmmgen.transl_ccall], in the same way other external calls
@@ -2615,6 +2641,8 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
 *)
 let transl_builtin name args dbg =
   match name with
+  | "sqrt" ->
+    if_operation_supported Csqrt ~f:(fun () -> Some(Cop(Csqrt, args, dbg)))
   | "caml_int_clz_untagged" ->
     (* Takes tagged int and returns untagged int.
        The tag does not change the number of leading zeros. *)
@@ -2692,6 +2720,50 @@ let transl_builtin name args dbg =
   | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed" ->
     popcnt Pnativeint (one_arg name args) dbg
+  | "caml_untagged_int_ctz" ->
+    (* CR mshinwell: It's hard to follow what the argument and return types
+       of these intrinsics are.  Maybe we could establish a standard naming
+       scheme that names both the argument and result types at all times?
+       Also I think we should use proper names rather than abbreviations
+       for the names, both to avoid confusion, and to avoid platform-specific
+       names in code that is supposed to be generic.
+       Combining both of these suggestions would yield names like:
+       caml_count_trailing_zeroes_untagged_int_to_untagged_int
+
+       gyorsh: yes, I like the explicit pattern <arg>_to_<res>, but lets
+       keep ctz and clz and popcnt in the names, they are common enough,
+       and easy to search for, and much shorter.
+    *)
+    (* Takes untagged int and returns untagged int.
+       Setting the top bit does not change the result of 63 bit operation,
+       and guarantees the input is non-zero, which is required because
+       [bsf] instruction is not defined on input 0. *)
+    (* XCR mshinwell: This should explain why it's beneficial for the input
+       to be guaranteed not to be zero *)
+    (* XCR mshinwell: This needs some more explanation.  Maybe augment the
+       commented-out line with some explanatory text (presuming that this
+       is the code that emits this extra byte)? *)
+        (*
+       The expression [x lor (1 lsl 63)] sets the top bit of x.
+       [1 lsl 64] is a constant 64-bit value with the top bit 1
+       and all other bits are 0. The constant can be precomputed statically:
+
+       Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
+
+       However, the encoding of this OR instruction with the large static
+       constant is 10 bytes long. Instead, we emit a shift instruction,
+       which is 1 byte shorter. This will not require an extra register,
+           unless both argument and result of bsf are in the same register. *)
+    let op = Cctz {arg_is_non_zero=true} in
+    if_operation_supported op ~f:(fun ()-?
+    let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
+        Cop (op,
+        (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
+           might produce an unhelpful exception. *)
+             [Cop(Cor, [one_arg "ctz" args; c], dbg)]brrr))
+  | "caml_int32_ctz_unboxed" -> ctz Pint32 (one_arg name args) dbg
+  | "caml_int64_ctz_unboxed" -> ctz Pint64 (one_arg name args) dbg
+  | "caml_nativeint_ctz_unboxed" -> ctz Pnativeint (one_arg name args) dbg
   | "caml_ext_pointer_as_native_pointer_unboxed" ->
     (* CR mshinwell: The "_unboxed" is confusing here; there are no
        int32/int64/nativeint/float values involved.  I think it would be
@@ -2793,6 +2865,27 @@ let transl_builtin name args dbg =
   | "caml_prefetch_t2_native_pointer_unboxed" ->
     prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
+
+(* [cextcall] is called from [Cmmgen.transl_ccall] *)
+let cextcall prim args dbg ret =
+  let name = Primitive.native_name prim in
+  let default = Cop(Cextcall { name; ret;
+                               builtin = prim.prim_builtin;
+                               effects = prim.effects;
+                               coeffects = prim.coeffects;
+                               alloc = prim.prim_alloc;
+                               label_after = None},
+                    args, dbg)
+  in
+  (* CR-someday gyorsh: annotate "sqrt" in stdlib with
+     [@@builtin][@@no_effects][@no_coeffects][@noalloc]
+     to remove the special handling of sqrt below. *)
+  if prim.prim_builtin || String.equal name "sqrt" then
+    match transl_builtin name args dbg with
+    | Some op -> op
+    | None -> default
+  else
+    default
 
 (* Symbols *)
 

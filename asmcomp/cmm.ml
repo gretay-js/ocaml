@@ -138,6 +138,11 @@ type memory_chunk =
   | Double
   | Double_u
 
+type swap_width_in_bits =
+  | Sixteen
+  | Thirtytwo
+  | Sixtyfour
+
 and operation =
     Capply of machtype
   | Cextcall of
@@ -157,8 +162,11 @@ and operation =
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz of { arg_is_non_zero: bool; }
+  | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Csqrt
+  | Cbswap of bswap_width_in_bits
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

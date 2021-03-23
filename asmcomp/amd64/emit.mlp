@@ -936,6 +936,18 @@ let emit_instr fallthrough i =
         I.mov (int 64) (res i 0);
         def_label lbl_nz
       end
+  | Lop(Iintop(Cctz { arg_is_non_zero; })) ->
+    (* CR gyorsh: can we do it at selection? *)
+    if arg_is_non_zero then begin
+      (* No need to handle that bsf is undefined on 0 input. *)
+      I.bsf (arg i 0) (res i 0)
+    end else begin
+      let lbl_nz = new_label () in
+      I.bsf (arg i 0) (res i 0);
+      I.jne (label lbl_nz);
+      I.mov (int 64) (res i 0);
+      def_label lbl_nz
+    end
   | Lop(Ispecific Irdtsc) ->
     (* XCR mshinwell: Instead of the above comment, let's write assertions to
        ensure that the constraints have been satisfied.  Likewise for any other
@@ -984,18 +996,6 @@ let emit_instr fallthrough i =
         I.bsr (arg i 0) (res i 0);
         I.jne (label lbl_nz);
         I.mov (int (-1)) (res i 0);
-        def_label lbl_nz
-      end
-  | Lop(Ispecific(Ibsf { arg_is_non_zero; })) ->
-      (* CR gyorsh: can we do it at selection? *)
-      if arg_is_non_zero then begin
-        (* No need to handle that bsr is undefined on 0 input. *)
-        I.bsf (arg i 0) (res i 0)
-      end else begin
-        let lbl_nz = new_label () in
-        I.bsf (arg i 0) (res i 0);
-        I.jne (label lbl_nz);
-        I.mov (int 64) (res i 0);
         def_label lbl_nz
       end
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->

@@ -366,6 +366,7 @@ let operation_supported = function
   | Cpopcnt -> false   (* ARM does not support popcnt *)
   | Cclz _ -> !arch >= ARMv6   (* Supported in ARMv6 and above *)
   | Cprefetch _ -> false
+  | Csqrt
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr

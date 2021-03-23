@@ -211,8 +211,14 @@ let oattr_unboxed = { oattr_name = "unboxed" }
 let oattr_untagged = { oattr_name = "untagged" }
 let oattr_noalloc = { oattr_name = "noalloc" }
 let oattr_builtin = { oattr_name = "builtin" }
+let oattr_no_effects = { oattr_name = "no_effects" }
+let oattr_only_generative_effects = { oattr_name = "only_generative_effects" }
+let oattr_no_coeffects = { oattr_name = "no_coeffects" }
 
-(* CR mshinwell: Should the effects/coeffects annotations also be printed? *)
+(* XCR mshinwell: Should the effects/coeffects annotations also be printed?
+
+   gyorsh: done.
+*)
 let print p osig_val_decl =
   let prims =
     if p.prim_native_name <> "" then
@@ -227,6 +233,15 @@ let print p osig_val_decl =
   let all_untagged = for_all is_untagged in
   let attrs = if p.prim_alloc then [] else [oattr_noalloc] in
   let attrs = if p.prim_builtin then oattr_builtin::attrs else attrs in
+  let attrs = match p.prim_effects with
+    | No_effects -> oattr_no_effects::attrs
+    | Only_generative_effects -> oattr_only_generative_effects::attrs
+    | Arbitrary_effects -> attrs
+  in
+  let attrs = match p.prim_coeffects with
+    | No_coeffects -> oattr_no_coeffects::attrs
+    | Has_coeffects -> attrs
+  in
   let attrs =
     if all_unboxed then
       oattr_unboxed :: attrs
@@ -239,7 +254,7 @@ let print p osig_val_decl =
     | Same_as_ocaml_repr -> None
     | Unboxed_float
     | Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
-    | Untagged_int -> if all_untagged then None else Some oattr_untagged
+    | Untagged_int -> if all_untagged then None else Some oattr_untagg ed
   in
   let type_attrs =
     List.map attr_of_native_repr p.prim_native_repr_args @

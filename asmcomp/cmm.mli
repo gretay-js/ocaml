@@ -152,6 +152,11 @@ type memory_chunk =
   | Double                             (* 64-bit-aligned 64-bit float *)
   | Double_u                           (* word-aligned 64-bit float *)
 
+type bswap_width_in_bits =
+  | Sixteen
+  | Thirtytwo
+  | Sixtyfour
+
 and operation =
     Capply of machtype
   | Cextcall of
@@ -178,11 +183,15 @@ and operation =
      whereas clz was from the previous patch that has been tested and reviewed
      on all architectures before, and so was popcnt. Since then, we introduced
      Proc.operation_supported so now I can put ctz in cmm too. The downside is
-     that cmm is bigger.
+     that we are making Cmm.operation bigger. If that's not an issue, we should
+     add sqrt and bswap.
   *)
   | Cclz of { arg_is_non_zero: bool; }
+  | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
+  | Csqrt
+  | Cbswap of bswap_width_in_bits
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)

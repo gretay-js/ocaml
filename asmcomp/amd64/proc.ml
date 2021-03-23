@@ -409,6 +409,7 @@ let operation_supported = function
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz _
   | Cprefetch _
+  | Csqrt | Cbswap
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat | Ccmpf _

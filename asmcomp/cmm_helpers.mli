@@ -570,12 +570,11 @@ val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
 
-
-(** [transl_builtin prim args dbg]
-    returns None if the built-in [prim] is not supported, otherwise constructs
-    and returns the corresponding Cmm expression. *)
-val transl_builtin : string -> expression list -> Debuginfo.t
-  -> expression option
+(** [transl_cextcall prim args dbg type_of_result] returns Cextcall operation
+    that corresponds to [prim]. If [prim] is a builtin supported on the target,
+    returns [Cmm.operation] variant for [prim]'s intrinsics. *)
+val cextcall : Primitive.t -> expression list -> Debuginfo.t ->
+  machtype -> expression
 
 (** Generic Cmm fragments *)
 
