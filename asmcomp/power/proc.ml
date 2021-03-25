@@ -371,6 +371,9 @@ let init () = ()
 let operation_supported = function
   | Cpopcnt ->   (* Not supported prior to ppc64le *)
     Config.model = "ppc64le"
+  | Cctz _
+  | Csqrt
+  | Cbswap _
   | Cprefetch _ -> false (* Not implemented *)
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi

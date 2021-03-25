@@ -272,7 +272,9 @@ let init () = ()
 let operation_supported = function
   (* CR mshinwell: This should be an exhaustive match. *)
   | Cpopcnt -> false      (* ARM does not support popcnt *)
+  | Cctz
   | Cprefetch _ -> false  (* Not yet implemented by this compiler *)
+  | Csqrt | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr

@@ -76,12 +76,6 @@ let rec run_automata nbits state input =
 let is_logical_immediate n =
   n <> 0 && n <> -1 && run_automata 64 0 n
 
-(* If you update [inline_ops], you may need to update [is_simple_expr] and/or
-   [effects_of], below. *)
-let inline_ops =
-  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
-
 let use_direct_addressing _symb =
   not !Clflags.dlcode
 
@@ -95,18 +89,6 @@ method is_immediate n =
   let mn = -n in
   n land 0xFFF = n || n land 0xFFF_000 = n
   || mn land 0xFFF = mn || mn land 0xFFF_000 = mn
-
-method! is_simple_expr = function
-  (* inlined floating-point ops are simple if their arguments are *)
-  | Cop(Cextcall { name = fn }, args, _) when List.mem fn inline_ops ->
-      List.for_all self#is_simple_expr args
-  | e -> super#is_simple_expr e
-
-method! effects_of e =
-  match e with
-  | Cop(Cextcall { name = fn }, args, _) when List.mem fn inline_ops ->
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | e -> super#effects_of e
 
 method select_addressing chunk = function
   | Cop((Caddv | Cadda), [Cconst_symbol (s, _); Cconst_int (n, _)], _)
@@ -226,20 +208,18 @@ method! select_operation op args dbg =
           (Ispecific Inegmulsubf, arg :: args)
       | _ ->
           super#select_operation op args dbg
-      end
-  | Cextcall { name; } ->
-    begin match name with
-    (* Recognize floating-point square root *)
-    | "sqrt" -> (Ispecific Isqrtf, args)
-    (* Recognize bswap instructions *)
-    | "caml_bswap16_direct" ->
-      (Ispecific(Ibswap 16), args)
-    | "caml_int32_direct_bswap" ->
-      (Ispecific(Ibswap 32), args)
-    | "caml_int64_direct_bswap" |"caml_nativeint_direct_bswap" ->
-      (Ispecific (Ibswap 64), args)
-    | _ -> super#select_operation op args dbg
     end
+  (* Recognize floating-point square root *)
+  | Csqrt -> (Ispecific Isqrtf, args)
+  (* Recognize bswap instructions *)
+  | Cbswap w ->
+    let w =
+      match w with
+      | Sixteen -> 16
+      | Thirtytwo -> 32
+      | Sixtyfour -> 64
+    in
+    (Ispecific(Ibswap w), args)
   (* Other operations are regular *)
   | _ ->
       super#select_operation op args dbg

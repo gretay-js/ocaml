@@ -83,11 +83,6 @@ let pseudoregs_for_operation op arg res =
   (* Other instructions are regular *)
   | _ -> raise Use_default
 
-(* If you update [inline_ops], you may need to update [is_simple_expr] and/or
-   [effects_of], below. *)
-let inline_ops_v6 =
-  [ "caml_int32_direct_bswap"; ]
-
 (* Instruction selection *)
 class selector = object(self)
 
@@ -109,35 +104,6 @@ method! regs_for tyv =
 
 method is_immediate n =
   is_immediate (Int32.of_int n)
-
-method! is_simple_expr = function
-  | Cop(Cextcall { name }, args, _ ) as e ->
-    begin match name with
-    (* inlined floating-point ops are simple if their arguments are *)
-    | "sqrt" when !fpu >= VFPv2 ->
-      List.for_all self#is_simple_expr args
-    (* inlined byte-swap ops are simple if their arguments are *)
-    | "caml_bswap16_direct" when !arch >= ARMv6T2 ->
-      List.for_all self#is_simple_expr args
-    | fn when !arch >= ARMv6 && List.mem fn inline_ops_v6 ->
-      List.for_all self#is_simple_expr args
-    | _ -> super#is_simple_expr e
-    end
-  | e -> super#is_simple_expr e
-
-method! effects_of e =
-  match e with
-  | Cop(Cextcall { name }, args, _) ->
-    begin match name with
-    | "sqrt" when !fpu >= VFPv2 ->
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-    | "caml_bswap16_direct" when !arch >= ARMv6T2 ->
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-    | fn when !arch >= ARMv6 && List.mem fn inline_ops_v6 ->
-      Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-    | _ -> super#effects_of e
-    end
-  | e -> super#effects_of e
 
 method select_addressing chunk = function
   | Cop((Cadda | Caddv), [arg; Cconst_int (n, _)], _)
@@ -229,12 +195,9 @@ method! select_operation op args dbg =
       (* See above for fix up of return register *)
       (self#iextcall("__aeabi_idivmod", false), args)
   (* Recognize 16-bit bswap instruction (ARMv6T2 because we need movt) *)
-  | (Cextcall { name = "caml_bswap16_direct" }, args) when !arch >= ARMv6T2 ->
-      (Ispecific(Ibswap 16), args)
+  | Cbswap Sixteen -> (Ispecific(Ibswap 16), args)
   (* Recognize 32-bit bswap instructions (ARMv6 and above) *)
-  | (Cextcall { name = "caml_int32_direct_bswap" }, args)
-    when !arch >= ARMv6 ->
-      (Ispecific(Ibswap 32), args)
+  | Cbswap Thirtytwo -> (Ispecific(Ibswap 32), args)
   (* Turn floating-point operations into runtime ABI calls for softfp *)
   | (op, args) when !fpu = Soft -> self#select_operation_softfp op args dbg
   (* Select operations for VFPv{2,3} *)
@@ -300,8 +263,7 @@ method private select_operation_vfpv3 op args dbg =
   | (Csubf, [Cop(Cmulf, args, _); arg]) ->
       (Ispecific Imulsubf, arg :: args)
   (* Recognize floating-point square root *)
-  | (Cextcall { name = "sqrt"; alloc = false; }, args) ->
-      (Ispecific Isqrtf, args)
+  | (Csqrt, args) -> (Ispecific Isqrtf, args)
   (* Other operations are regular *)
   | (op, args) -> super#select_operation op args dbg
 
