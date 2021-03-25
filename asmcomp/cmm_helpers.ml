@@ -729,11 +729,15 @@ let float_array_ref arr ofs dbg =
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall { name = "caml_modify"; ret = typ_void; alloc = false;
                  builtin = false;
+                 effects = Arbitrary_effects;
+                 coeffects = Has_coeffects;
                  label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let addr_array_initialize arr ofs newval dbg =
   Cop(Cextcall { name = "caml_initialize";
                  builtin = false;
+                 effects = Arbitrary_effects;
+                 coeffects = Has_coeffects;
                  ret = typ_void; alloc = false; label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
@@ -772,6 +776,8 @@ let lookup_tag obj tag dbg =
   bind "tag" tag (fun tag ->
     Cop(Cextcall { name = "caml_get_public_method"; ret = typ_val;
                    builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    alloc = false; label_after = None },
         [obj; tag],
         dbg))
@@ -804,6 +810,8 @@ let make_alloc_generic set_fn dbg tag wordsize args =
     Clet(VP.create id,
          Cop(Cextcall { name = "caml_alloc"; ret = typ_val; alloc = true;
                         builtin = false;
+                        effects = Arbitrary_effects;
+                        coeffects = Has_coeffects;
                         label_after = None },
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
          fill_fields 1 args)
@@ -813,6 +821,8 @@ let make_alloc dbg tag args =
   let addr_array_init arr ofs newval dbg =
     Cop(Cextcall { name = "caml_initialize"; ret = typ_void; alloc = false;
                    builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    label_after = None },
         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
   in
@@ -2179,30 +2189,30 @@ let bbswap bi arg dbg =
     | Pint32 -> "int32", Thirtytwo
     | Pint64 -> "int64", Sixtyfour
   in
-  let op = Cswap Sixteen in
+  let op = Cbswap width in
   if Proc.operation_supported op then
-    (Cop(op,[arg], dbg)
+    Cop(op,[arg], dbg)
   else
     Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
-                   builtin = true;
-                   effects = No_effects;
-                   co_effects = No_coeffects;
+                   builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    ret = typ_int; alloc = false; label_after = None },
         [arg],
         dbg)
 
 let bswap16 arg dbg =
-  let op = Cswap Sixteen in
+  let op = Cbswap Sixteen in
   if Proc.operation_supported op then
-    (Cop(op,[arg], dbg)
+    Cop(op, [arg], dbg)
   else
-    (Cop(Cextcall { name = "caml_bswap16_direct";
-                    builtin = true;
-                    effects = No_effects;
-                    co_effects = No_coeffects;
-                    ret = typ_int; alloc = false; label_after = None },
-         [arg],
-         dbg))
+    Cop(Cextcall { name = "caml_bswap16_direct";
+                   builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
+                   ret = typ_int; alloc = false; label_after = None },
+        [arg],
+        dbg)
 
 (* XCR mshinwell: Maybe rename to [if_operation_supported]? *)
 let if_operation_supported op ~f =
@@ -2240,8 +2250,8 @@ let clz bi arg dbg =
 let ctz bi arg dbg =
   let op = Cctz  { arg_is_non_zero = false; } in
   if_operation_supported_bi bi op ~f:(fun () ->
-    if bi = Primitive.Pint32 && size_int = 8 then
       Cop(op, [make_unsigned_int bi arg dbg], dbg))
+
 
 let popcnt bi arg dbg =
   if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
@@ -2271,6 +2281,8 @@ let setfield n ptr init arg1 arg2 dbg =
       return_unit dbg (Cop(Cextcall { name = "caml_modify";
                                       ret = typ_void; alloc = false;
                                       builtin = false;
+                                      effects = Arbitrary_effects;
+                                      coeffects = Has_coeffects;
                                       label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
@@ -2279,6 +2291,8 @@ let setfield n ptr init arg1 arg2 dbg =
       return_unit dbg (Cop(Cextcall { name = "caml_initialize";
                                       ret = typ_void; alloc = false;
                                       builtin = false;
+                                      effects = Arbitrary_effects;
+                                      coeffects = Has_coeffects;
                                       label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
@@ -2642,7 +2656,7 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
 let transl_builtin name args dbg =
   match name with
   | "sqrt" ->
-    if_operation_supported Csqrt ~f:(fun () -> Some(Cop(Csqrt, args, dbg)))
+    if_operation_supported Csqrt ~f:(fun () -> Cop(Csqrt, args, dbg))
   | "caml_int_clz_untagged" ->
     (* Takes tagged int and returns untagged int.
        The tag does not change the number of leading zeros. *)
@@ -2755,12 +2769,12 @@ let transl_builtin name args dbg =
        which is 1 byte shorter. This will not require an extra register,
            unless both argument and result of bsf are in the same register. *)
     let op = Cctz {arg_is_non_zero=true} in
-    if_operation_supported op ~f:(fun ()-?
-    let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
-        Cop (op,
+    if_operation_supported op ~f:(fun ()->
+      let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
+      Cop (op,
         (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
            might produce an unhelpful exception. *)
-             [Cop(Cor, [one_arg "ctz" args; c], dbg)]brrr))
+           [Cop(Cor, [one_arg name args; c], dbg)], dbg))
   | "caml_int32_ctz_unboxed" -> ctz Pint32 (one_arg name args) dbg
   | "caml_int64_ctz_unboxed" -> ctz Pint64 (one_arg name args) dbg
   | "caml_nativeint_ctz_unboxed" -> ctz Pnativeint (one_arg name args) dbg
@@ -2866,13 +2880,24 @@ let transl_builtin name args dbg =
     prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
 
+let transl_effects (e : Primitive.effects) : Cmm.effects =
+  match e with
+  | No_effects -> No_effects
+  | Only_generative_effects
+  | Arbitrary_effects -> Arbitrary_effects
+
+let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
+  match ce with
+  | No_coeffects -> No_coeffects
+  | Has_coeffects -> Has_coeffects
+
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall prim args dbg ret =
+let cextcall (prim : Primitive.description) args dbg ret =
   let name = Primitive.native_name prim in
   let default = Cop(Cextcall { name; ret;
                                builtin = prim.prim_builtin;
-                               effects = prim.effects;
-                               coeffects = prim.coeffects;
+                               effects = transl_effects prim.prim_effects;
+                               coeffects = transl_coeffects prim.prim_coeffects;
                                alloc = prim.prim_alloc;
                                label_after = None},
                     args, dbg)

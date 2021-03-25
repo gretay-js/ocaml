@@ -407,9 +407,9 @@ let operation_supported = function
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
-  | Cclz _
+  | Cclz _ | Cctz _
   | Cprefetch _
-  | Csqrt | Cbswap
+  | Csqrt | Cbswap _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat | Ccmpf _

@@ -254,7 +254,7 @@ let print p osig_val_decl =
     | Same_as_ocaml_repr -> None
     | Unboxed_float
     | Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
-    | Untagged_int -> if all_untagged then None else Some oattr_untagg ed
+    | Untagged_int -> if all_untagged then None else Some oattr_untagged
   in
   let type_attrs =
     List.map attr_of_native_repr p.prim_native_repr_args @

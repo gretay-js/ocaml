@@ -76,11 +76,13 @@ let oper_result_type = function
   | Calloc -> typ_val
   | Cstore (_c, _) -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
-    Cand | Cor | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt |
+    Cand | Cor | Cxor | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt |
+    Cbswap _ |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf -> typ_float
+  | Csqrt -> typ_float
   | Cfloatofint -> typ_float
   | Cintoffloat -> typ_int
   | Craise _ -> typ_void
@@ -277,6 +279,7 @@ module Effect_and_coeffect : sig
 
   val effect_only : Effect.t -> t
   val coeffect_only : Coeffect.t -> t
+  val effect_and_coeffect : Effect.t -> Coeffect.t -> t
 
   val join : t -> t -> t
   val join_list_map : 'a list -> ('a -> t) -> t
@@ -293,6 +296,7 @@ end = struct
 
   let effect_only e = e, Coeffect.None
   let coeffect_only ce = Effect.None, ce
+  let effect_and_coeffect e ce = e, ce
 
   let join (e1, ce1) (e2, ce2) =
     Effect.join e1 e2, Coeffect.join ce1 ce2
@@ -333,8 +337,9 @@ method is_simple_expr = function
       | Cprobe_is_enabled _ | Cprefetch _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Cxor | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _
+      | Csqrt
       | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint
       | Cintoffloat | Ccmpf _ | Ccheckbound ->
         List.for_all self#is_simple_expr args
@@ -380,8 +385,9 @@ method effects_of exp =
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
       | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
-      | Clsl | Clsr | Casr | Cclz _ | Cpopcnt
+      | Clsl | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _
       | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
+      | Csqrt
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
       | Ccmpf _ -> EC.none
       | Cprefetch _ -> EC.arbitrary

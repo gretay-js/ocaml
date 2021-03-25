@@ -138,7 +138,7 @@ type memory_chunk =
   | Double
   | Double_u
 
-type swap_width_in_bits =
+type bswap_width_in_bits =
   | Sixteen
   | Thirtytwo
   | Sixtyfour

@@ -130,7 +130,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop (Ipopcnt|Iclz _|Icomp _|Icheckbound _)
   | Iintop_imm ((Imulh|Idiv|Imod|Ipopcnt|Iclz _|Icomp _|Icheckbound _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilzcnt|Ilea _|Istore_int (_, _, _)
-              |Ioffset_loc (_, _)|Ifloatsqrtf _|Ibsr _|Ibsf _|Iprefetch _)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _|Ibsr _|Ibsf _ |Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind _|Icall_imm _|Itailcall_ind _|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
@@ -166,9 +166,6 @@ let inline_ops =
        with names of [external] primitives.
     *)
     "*int64_bsr";
-    "caml_untagged_int_ctz";
-    "caml_int64_ctz_unboxed";
-    "caml_nativeint_ctz_unboxed";
     "caml_int64_crc_unboxed";
     "caml_int_crc_untagged";
     "caml_int_lzcnt_untagged";
@@ -187,6 +184,16 @@ let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   | Low -> Low
   | Moderate -> Moderate
   | High -> High
+
+let select_effects (e : Cmm.effects) : Selectgen.Effect.t =
+  match e with
+  | No_effects -> None
+  | Arbitrary_effects -> Arbitrary
+
+let select_coeffects (e : Cmm.coeffects) : Selectgen.Coeffect.t =
+  match e with
+  | No_coeffects -> None
+  | Has_coeffects -> Arbitrary
 
 (* The selector class *)
 
@@ -213,7 +220,7 @@ method! is_simple_expr e =
      if their arguments are *)
   | Cop(Cextcall { name; builtin = true;
                    effects = No_effects; coeffects = No_coeffects }, args, _)
-    when List.mem name inline_ops_builtins ->
+    when List.mem name inline_ops ->
       (* XCR mshinwell: As per the CR in [effects_of] below, we should not be
          deeming these operations as "simple" if the original [external]
          declaration says that they do in fact have (co)effects. *)
@@ -224,8 +231,8 @@ method! is_simple_expr e =
 method! effects_of e =
   match e with
   (* XCR mshinwell: This next line isn't needed, Selectgen takes care of this. *)
-    | Cop(Cextcall { name; builtin = true; effects }, args, _)
-      when List.mem name inline_ops_builtins ->
+    | Cop(Cextcall { name; builtin = true; effects=e; coeffects=ce; }, args, _)
+      when List.mem name inline_ops ->
       (* XCR mshinwell: I don't think we should remove sqrt from the inline_ops
          list.  What about making inline_ops be a list of records, with each
          record specifying the expected name and also the expected value of
@@ -239,8 +246,10 @@ method! effects_of e =
       (* XCR mshinwell: Shouldn't we use the effect/coeffect judgement
          provided on the [external] declaration?  This will require
          augmenting [Cextcall] with the relevant information. *)
-      Selectgen.Effect_and_coeffect.(join effects
-                                          (join_list_map args self#effects_of))
+      let open Selectgen.Effect_and_coeffect in
+      join
+        (effect_and_coeffect (select_effects e) (select_coeffects ce))
+        (join_list_map args self#effects_of)
     | _ ->
       super#effects_of e
 
@@ -298,6 +307,7 @@ method! select_operation op args dbg =
   | Cbswap Sixteen -> Ispecific (Ibswap 16), args
   | Cbswap Thirtytwo -> Ispecific (Ibswap 32), args
   | Cbswap Sixtyfour -> Ispecific (Ibswap 64), args
+  | Cctz { arg_is_non_zero } -> Ispecific (Ibsf { arg_is_non_zero }), args
   | Csqrt ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
@@ -365,6 +375,8 @@ method! select_operation op args dbg =
         *)
         Iintop_imm (Isub, 1),
         [ Cop(Cextcall{ name = "*int64_bsr"; builtin = true; ret;
+                        effects = Arbitrary_effects;
+                        coeffects = Has_coeffects;
                         alloc = false; label_after; },
               args, dbg) ]
       | "*int64_bsr", [|Int|] ->
@@ -390,7 +402,7 @@ method! select_operation op args dbg =
            [inline_ops]?  I'm worried about missing cases, since there are a lot
            of intrinsics now. *)
         if List.mem name inline_ops then
-          Misc.fatal_errorf "Selection: unexpect intrinsics %s" name;
+          Misc.fatal_errorf "Selection: unexpected intrinsics %s" name;
         super#select_operation op args dbg
       end
   | Cclz _ when !lzcnt_support -> Ispecific Ilzcnt, args

@@ -737,6 +737,8 @@ and transl_make_array dbg env kind args =
   | Pgenarray ->
       Cop(Cextcall { name = "caml_make_array";
                      builtin = false;
+                     effects = Arbitrary_effects;
+                     coeffects = Has_coeffects;
                      ret = typ_val; alloc = true; label_after = None},
           [make_alloc dbg 0 (List.map (transl env) args)], dbg)
   | Paddrarray | Pintarray ->
@@ -1108,7 +1110,7 @@ and transl_unbox_int_low dbg env bi e =
   if bi = Pint32 then low_32 dbg e else e
 
 and transl_unbox_sized size dbg env exp =
-  match size with
+  match (size : Clambda_primitives.memory_access_size) with
   | Sixteen ->
      ignore_high_bit_int (untag_int (transl env exp) dbg)
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
@@ -1318,6 +1320,8 @@ and transl_letrec env bindings cont =
   let op_alloc prim args =
     Cop(Cextcall { name = prim; ret = typ_val; alloc = true;
                    builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    label_after = None },
         args, dbg) in
   let rec init_blocks = function
@@ -1347,6 +1351,10 @@ and transl_letrec env bindings cont =
         let op =
           Cop(Cextcall { name = "caml_update_dummy"; ret = typ_void;
                          builtin = false;
+                         effects = Arbitrary_effects;
+                         coeffects = Has_coeffects;
+                         (* CR gyorsh: should this be no_(co)effects?
+                            why was it [alloc=false]? *)
                          alloc = false; label_after = None },
               [Cvar (VP.var id); transl env exp], dbg) in
         Csequence(op, fill_blocks rem)

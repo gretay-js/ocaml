@@ -134,7 +134,12 @@ let operation d = function
   | Clsl -> "<<"
   | Clsr -> ">>u"
   | Casr -> ">>s"
+  | Csqrt -> "sqrt"
+  | Cbswap Sixteen -> "bswap16"
+  | Cbswap Thirtytwo -> "bswap32"
+  | Cbswap Sixtyfour -> "bswap64"
   | Cclz { arg_is_non_zero; } -> Printf.sprintf "clz %B" arg_is_non_zero
+  | Cctz { arg_is_non_zero; } -> Printf.sprintf "ctz %B" arg_is_non_zero
   | Cpopcnt -> "popcnt"
   | Ccmpi c -> integer_comparison c
   | Caddv -> "+v"

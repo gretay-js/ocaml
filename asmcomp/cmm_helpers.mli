@@ -573,7 +573,7 @@ val send :
 (** [transl_cextcall prim args dbg type_of_result] returns Cextcall operation
     that corresponds to [prim]. If [prim] is a builtin supported on the target,
     returns [Cmm.operation] variant for [prim]'s intrinsics. *)
-val cextcall : Primitive.t -> expression list -> Debuginfo.t ->
+val cextcall : Primitive.description -> expression list -> Debuginfo.t ->
   machtype -> expression
 
 (** Generic Cmm fragments *)

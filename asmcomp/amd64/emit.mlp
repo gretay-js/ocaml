@@ -936,7 +936,7 @@ let emit_instr fallthrough i =
         I.mov (int 64) (res i 0);
         def_label lbl_nz
       end
-  | Lop(Iintop(Cctz { arg_is_non_zero; })) ->
+  | Lop(Ispecific(Ibsf { arg_is_non_zero; })) ->
     (* CR gyorsh: can we do it at selection? *)
     if arg_is_non_zero then begin
       (* No need to handle that bsf is undefined on 0 input. *)
