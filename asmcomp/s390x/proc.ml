@@ -244,6 +244,7 @@ let init () = ()
 
 let operation_supported = function
   | Cpopcnt -> false   (* Z does not support popcnt *)
+  | Cctz _ | Csqrt | Cbswap _
   | Cprefetch _ -> false (* Not implemented *)
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi

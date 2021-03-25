@@ -195,9 +195,9 @@ method! select_operation op args dbg =
       (* See above for fix up of return register *)
       (self#iextcall("__aeabi_idivmod", false), args)
   (* Recognize 16-bit bswap instruction (ARMv6T2 because we need movt) *)
-  | Cbswap Sixteen -> (Ispecific(Ibswap 16), args)
+  | (Cbswap Sixteen, args) -> (Ispecific(Ibswap 16), args)
   (* Recognize 32-bit bswap instructions (ARMv6 and above) *)
-  | Cbswap Thirtytwo -> (Ispecific(Ibswap 32), args)
+  | (Cbswap Thirtytwo, args) -> (Ispecific(Ibswap 32), args)
   (* Turn floating-point operations into runtime ABI calls for softfp *)
   | (op, args) when !fpu = Soft -> self#select_operation_softfp op args dbg
   (* Select operations for VFPv{2,3} *)
@@ -229,6 +229,8 @@ method private select_operation_softfp op args dbg =
       (Iintop_imm(Icomp(Iunsigned comp), 0),
        [Cop(Cextcall { name = func; ret = typ_int; alloc = false;
                        builtin = false;
+                       effects = Arbitrary_effects;
+                       coeffects = Has_coeffects;
                        label_after = None }, args, dbg)])
   (* Add coercions around loads and stores of 32-bit floats *)
   | (Cload (Single, mut), args) ->
@@ -238,6 +240,8 @@ method private select_operation_softfp op args dbg =
       let arg2' =
         Cop(Cextcall {name = "__aeabi_d2f"; ret = typ_int; alloc = false;
                       builtin = false;
+                      effects = Arbitrary_effects;
+                      coeffects = Has_coeffects;
                       label_after = None }, [arg2], dbg) in
       self#select_operation (Cstore (Word_int, init)) [arg1; arg2'] dbg
   (* Other operations are regular *)

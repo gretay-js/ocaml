@@ -337,7 +337,8 @@ let assemble_file infile outfile =
 let init () = ()
 
 let operation_supported = function
-  | Cpopcnt | Cprefetch _ | Cclz _ -> false (* Not implemented *)
+  | Cpopcnt | Cprefetch _ | Cclz _ | Cctz _ | Cbswap _
+  | Csqrt -> false (* Not implemented *)
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
