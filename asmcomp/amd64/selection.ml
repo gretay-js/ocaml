@@ -345,7 +345,7 @@ method! select_operation op args dbg =
        gyorsh: fixed in the new code.
        Should I also fix it in the rest of the function, or leave it as is?
     *)
-    (* CR mshinwell: Can we check [ret] in all of these cases?  It's presumably
+    (* XCR mshinwell: Can we check [ret] in all of these cases?  It's presumably
        uniquely defined in each case.
 
        gyorsh: ah, that's a great idea! added.
