@@ -111,7 +111,7 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
-type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects

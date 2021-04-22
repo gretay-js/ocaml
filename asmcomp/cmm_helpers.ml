@@ -2214,6 +2214,14 @@ let bswap16 arg dbg =
         [arg],
         dbg)
 
+(* Untagging of a negative value shifts in an extra bit. The following code
+   clears the shifted sign bit of the argument before passing it to popcnt.
+   This straightline code is faster than conditional code
+   for checking whether the argument is negative. *)
+let clear_sign_bit arg dbg =
+  let mask = Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1)) in
+  Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+
 (* XCR mshinwell: Maybe rename to [if_operation_supported]? *)
 let if_operation_supported op ~f =
   match Proc.operation_supported op with
@@ -2225,7 +2233,6 @@ let if_operation_supported_bi bi op ~f =
   else if_operation_supported op ~f
 
 let clz bi arg dbg =
-  (* CR gyorsh: don't convert pint64 on size_int=4 32-bit platforms, leave as a call *)
   let op = Cclz { arg_is_non_zero = false; } in
   if_operation_supported_bi bi op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
@@ -2250,8 +2257,7 @@ let clz bi arg dbg =
 let ctz bi arg dbg =
   let op = Cctz  { arg_is_non_zero = false; } in
   if_operation_supported_bi bi op ~f:(fun () ->
-      Cop(op, [make_unsigned_int bi arg dbg], dbg))
-
+    Cop(op, [make_unsigned_int bi arg dbg], dbg))
 
 let popcnt bi arg dbg =
   if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
@@ -2657,7 +2663,7 @@ let transl_builtin name args dbg =
   match name with
   | "sqrt" ->
     if_operation_supported Csqrt ~f:(fun () -> Cop(Csqrt, args, dbg))
-  | "caml_int_clz_untagged" ->
+  | "caml_int_clz_tagged_to_untagged" ->
     (* Takes tagged int and returns untagged int.
        The tag does not change the number of leading zeros. *)
     (* XCR mshinwell: I don't understand what's going on here.  In the [clz]
@@ -2706,7 +2712,7 @@ let transl_builtin name args dbg =
   | "caml_int64_clz_unboxed" -> clz Pint64 (one_arg name args) dbg
   | "caml_int32_clz_unboxed" -> clz Pint32 (one_arg name args) dbg
   | "caml_nativeint_clz_unboxed" -> clz Pnativeint (one_arg name args) dbg
-  | "caml_int_popcnt_untagged" ->
+  | "caml_int_popcnt_tagged_to_untagged" ->
     if_operation_supported Cpopcnt ~f:(fun () ->
       (* CR mshinwell: Presumably this calculation is for untagging; if so
          we should use [untag_int] instead.
@@ -2716,25 +2722,19 @@ let transl_builtin name args dbg =
          by the (-1) below.
       *)
       Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_untagged_int_popcnt" ->
-    (* Both argument and result are untagged. Untagging of a negative
-       value shifts in an extra bit. The following code
-       clears the shifted sign bit of the argument before passing it to popcnt.
-       This straightline code is faster than conditional code
-       for checking whether the argument is negative.
+  | "caml_int_popcnt_untagged" ->
+    (* Both argument and result are untagged.
        This code is expected to be faster than [popcnt(tagged_x) - 1]
-       when the untagged argument is already
-       available from a previous computation. *)
+       when the untagged argument is already available from a previous computation.
+    *)
     if_operation_supported Cpopcnt ~f:(fun () ->
-      Cop(Cpopcnt,
-          [Cop(Cand,
-               [one_arg name args;
-                Cconst_int ((lnot (1 lsl (size_int * 8))),dbg)], dbg)], dbg))
+      let arg = clear_sign_bit (one_arg name args) dbg in
+      Cop(Cpopcnt, [arg], dbg))
   | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (one_arg name args) dbg
   | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed" ->
     popcnt Pnativeint (one_arg name args) dbg
-  | "caml_untagged_int_ctz" ->
+  | "caml_int_ctz_untagged" ->
     (* CR mshinwell: It's hard to follow what the argument and return types
        of these intrinsics are.  Maybe we could establish a standard naming
        scheme that names both the argument and result types at all times?
@@ -2797,19 +2797,26 @@ let transl_builtin name args dbg =
     Some(int_as_pointer (one_arg name args) dbg)
   | "caml_native_pointer_load_value_unboxed" ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
+  | "caml_native_pointer_load_immediate_unboxed" ->
+    let res = Cop(Cload (Word_int, Mutable), args, dbg) in
+    Some(Cop(Cor, [res; Cconst_int (1, dbg)], dbg))
   | "caml_native_pointer_store_value_unboxed" ->
     Some(Cop(Cstore (Word_int, Assignment), args, dbg))
   | "caml_native_pointer_load_float_unboxed" ->
     Some(Cop(Cload (Double_u, Mutable), args, dbg))
   | "caml_native_pointer_store_float_unboxed" ->
     Some(Cop(Cstore (Double_u, Assignment), args, dbg))
-  | "caml_ext_pointer_load_int" ->
+  | "caml_ext_pointer_load_value" ->
     let p = int_as_pointer (one_arg name args) dbg in
     Some(Cop(Cload (Word_int, Mutable), [p], dbg))
-  | "caml_ext_pointer_store_int" ->
+  | "caml_ext_pointer_load_immediate" ->
+    let p = int_as_pointer (one_arg name args) dbg in
+    let res = Cop(Cload (Word_int, Mutable), [p], dbg) in
+    Some(Cop(Cor, [res; Cconst_int (1, dbg)], dbg))
+  | "caml_ext_pointer_store_value" ->
     let arg1, arg2 = two_args name args in
     let p = int_as_pointer arg1 dbg in
-    Some(Cop(Cstore (Word_int, Assignment), [p; arg2], dbg ))
+    Some(Cop(Cstore (Word_int, Assignment), [p; arg2], dbg))
   | "caml_ext_pointer_load_float_unboxed" ->
     let p = int_as_pointer (one_arg name args) dbg in
     (* XCR mshinwell: Is this definitely meant to be Double_u instead of
@@ -2840,43 +2847,55 @@ let transl_builtin name args dbg =
 
      gyorsh: fixed.
   *)
-  | "caml_prefetch_write_bigstring_untagged" ->
+  | "caml_prefetch_write_high_bigstring_untagged" ->
     bigstring_prefetch ~is_write:true High args dbg
-  | "caml_prefetch_write_t1_bigstring_untagged" ->
+  | "caml_prefetch_write_moderate_bigstring_untagged" ->
     bigstring_prefetch ~is_write:true Moderate args dbg
-  | "caml_prefetch_nta_bigstring_untagged" ->
-    bigstring_prefetch ~is_write:false Not_at_all args dbg
-  | "caml_prefetch_t0_bigstring_untagged" ->
+  | "caml_prefetch_write_low_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Low args dbg
+  | "caml_prefetch_write_none_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Nonlocal args dbg
+  | "caml_prefetch_read_none_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Nonlocal args dbg
+  | "caml_prefetch_read_high_bigstring_untagged" ->
     bigstring_prefetch ~is_write:false High args dbg
-  | "caml_prefetch_t1_bigstring_untagged" ->
+  | "caml_prefetch_read_moderate_bigstring_untagged" ->
     bigstring_prefetch ~is_write:false Moderate args dbg
-  | "caml_prefetch_t2_bigstring_untagged" ->
+  | "caml_prefetch_read_low_bigstring_untagged" ->
     bigstring_prefetch ~is_write:false Low args dbg
   (* Ext_pointer prefetch *)
-  | "caml_prefetch_write_ext_pointer" ->
+  | "caml_prefetch_write_high_ext_pointer" ->
     ext_pointer_prefetch ~is_write:true  High (one_arg name args) dbg
-  | "caml_prefetch_write_t1_ext_pointer" ->
+  | "caml_prefetch_write_moderate_ext_pointer" ->
     ext_pointer_prefetch ~is_write:true  Moderate (one_arg name args) dbg
-  | "caml_prefetch_nta_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:false Not_at_all (one_arg name args) dbg
-  | "caml_prefetch_t0_ext_pointer" ->
+  | "caml_prefetch_write_low_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true  Low (one_arg name args) dbg
+  | "caml_prefetch_write_none_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true  Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_none_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_high_ext_pointer" ->
     ext_pointer_prefetch ~is_write:false High (one_arg name args) dbg
-  | "caml_prefetch_t1_ext_pointer" ->
+  | "caml_prefetch_read_moderate_ext_pointer" ->
     ext_pointer_prefetch ~is_write:false Moderate (one_arg name args) dbg
-  | "caml_prefetch_t2_ext_pointer" ->
+  | "caml_prefetch_read_low_ext_pointer" ->
     ext_pointer_prefetch ~is_write:false Low (one_arg name args) dbg
   (* Native_pointer prefetch *)
-  | "caml_prefetch_write_native_pointer_unboxed" ->
+  | "caml_prefetch_write_high_native_pointer_unboxed" ->
     prefetch ~is_write:true High (one_arg name args) dbg
-  | "caml_prefetch_write_t1_native_pointer_unboxed" ->
+  | "caml_prefetch_write_moderate_native_pointer_unboxed" ->
     prefetch ~is_write:true  Moderate (one_arg name args) dbg
-  | "caml_prefetch_nta_native_pointer_unboxed" ->
-    prefetch ~is_write:false Not_at_all (one_arg name args) dbg
-  | "caml_prefetch_t0_native_pointer_unboxed" ->
+  | "caml_prefetch_write_low_native_pointer_unboxed" ->
+    prefetch ~is_write:true  Low (one_arg name args) dbg
+  | "caml_prefetch_write_none_native_pointer_unboxed" ->
+    prefetch ~is_write:true  Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_none_native_pointer_unboxed" ->
+    prefetch ~is_write:false Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_high_native_pointer_unboxed" ->
     prefetch ~is_write:false High (one_arg name args) dbg
-  | "caml_prefetch_t1_native_pointer_unboxed" ->
+  | "caml_prefetch_read_moderate_native_pointer_unboxed" ->
     prefetch ~is_write:false Moderate (one_arg name args) dbg
-  | "caml_prefetch_t2_native_pointer_unboxed" ->
+  | "caml_prefetch_read_low_native_pointer_unboxed" ->
     prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
 

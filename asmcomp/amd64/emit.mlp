@@ -977,7 +977,7 @@ let emit_instr fallthrough i =
     (* The instruction fills in the low 32 bits of the result registers. *)
     (* Combine edx and eax into a single 64-bit result in rdx. *)
     I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
-    I.movzx eax rax; (* zero-extend eax *)
+    I.mov eax eax; (* zero-extend eax *)
     I.or_ rax (res i 0) (* combine high and low into rdx *)
   | Lop(Iintop Ipopcnt) ->
       assert (!popcnt_support);
@@ -1001,7 +1001,7 @@ let emit_instr fallthrough i =
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->
     let locality =
       match locality with
-      | Not_at_all -> Nta
+      | Nonlocal -> Nta
       | Low -> T2
       | Moderate -> T1
       | High -> T0

@@ -109,10 +109,10 @@ or earlier microarchitectures. PREFETCHWT1 is Intel Xeon Phi only.";
 
 open Format
 
-type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 let prefetch_temporal_locality_hint = function
-  | Not_at_all -> "none" (* CR mshinwell: same comment as in the Cmm part *)
+  | Nonlocal -> "none" (* CR mshinwell: same comment as in the Cmm part *)
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"

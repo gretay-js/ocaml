@@ -89,7 +89,7 @@ type rec_flag = Nonrecursive | Recursive
 
 (* XCR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
    this refers to. *)
-type prefetch_temporal_locality_hint = Not_at_all | Low | Moderate | High
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type phantom_defining_expr =
   (* CR-soon mshinwell: Convert this to [Targetint.OCaml.t] (or whatever the

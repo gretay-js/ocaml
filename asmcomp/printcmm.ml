@@ -75,7 +75,7 @@ let chunk = function
 let temporal_locality = function
   (* CR mshinwell: It's probably better to have this print "not_at_all" to
      avoid confusion *)
-  | Not_at_all -> "none"
+  | Nonlocal -> "none"
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"

@@ -149,38 +149,12 @@ let pseudoregs_for_operation op arg res =
    to keep in sync. The new check in [select_operation]
    in combination with new tests helps guard against missing cases
    and misspelled names. *)
-let inline_ops =
-  [ "caml_rdtsc_unboxed";
-    "caml_rdpmc_unboxed";
-    "caml_int64_bsr_unboxed";
-    "caml_nativeint_bsr_unboxed";
-    "caml_int_bsr_untagged";
-    (* XCR mshinwell: What is this one with the percent?  I didn't think %
-       should appear at this stage.
-       ...ah, I now see that there is a comment about this below.  There
-       should be a comment here too, pointing out this is an unfortunate hack
-       necessitated by the fact that [args] in the function below are still
-       Cmm terms.
-
-       gyorsh: I changed '%' to '*' here so it is less confusing
-       with names of [external] primitives.
-    *)
-    "*int64_bsr";
-    "caml_int64_crc_unboxed";
-    "caml_int_crc_untagged";
-    "caml_int_lzcnt_untagged";
-    (* XCR mshinwell: This list appears to be missing:
-       caml_int64_crc_unboxed
-       caml_int_crc_untagged
-
-       gyorsh: fixed, and also found one more that was missing.
-     *)
-  ]
+(* XCR mshinwell: With effects and coeffects propagated, we don't need inline_ops *)
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   : Arch.prefetch_temporal_locality_hint =
   match l with
-  | Not_at_all -> Not_at_all
+  | Nonlocal -> Nonlocal
   | Low -> Low
   | Moderate -> Moderate
   | High -> High
@@ -218,9 +192,9 @@ method! is_simple_expr e =
   match e with
   (* inlined ops without effects and coeffects are simple
      if their arguments are *)
-  | Cop(Cextcall { name; builtin = true;
-                   effects = No_effects; coeffects = No_coeffects }, args, _)
-    when List.mem name inline_ops ->
+  | Cop(Cextcall { builtin = true;
+                   effects = No_effects; coeffects = No_coeffects },
+        args, _) ->
       (* XCR mshinwell: As per the CR in [effects_of] below, we should not be
          deeming these operations as "simple" if the original [external]
          declaration says that they do in fact have (co)effects. *)
@@ -231,8 +205,8 @@ method! is_simple_expr e =
 method! effects_of e =
   match e with
   (* XCR mshinwell: This next line isn't needed, Selectgen takes care of this. *)
-    | Cop(Cextcall { name; builtin = true; effects=e; coeffects=ce; }, args, _)
-      when List.mem name inline_ops ->
+    | Cop(Cextcall { builtin = true; effects=e; coeffects=ce; }, args, _)
+      ->
       (* XCR mshinwell: I don't think we should remove sqrt from the inline_ops
          list.  What about making inline_ops be a list of records, with each
          record specifying the expected name and also the expected value of
@@ -360,9 +334,10 @@ method! select_operation op args dbg =
         else
           super#select_operation op args dbg
       | "caml_int64_bsr_unboxed", [|Int|]
-      | "caml_nativeint_bsr_unboxed", [|Int|] ->
-        Ispecific(Ibsr { arg_is_non_zero = false; }), args
+      | "caml_nativeint_bsr_unboxed", [|Int|]
       | "caml_int_bsr_untagged", [|Int|] ->
+        Ispecific(Ibsr { arg_is_non_zero = false; }), args
+      | "caml_int_bsr_tagged_to_untagged", [|Int|] ->
         (* XCR mshinwell: Is it guaranteed that the Cop Cextcall will return a
            tagged integer?  There should be a comment explaining why that is
            the case, I think.  Can we add an assertion on [ret] to help check?
@@ -372,6 +347,10 @@ method! select_operation op args dbg =
 
            gyorsh: yes, it's guaranteed by the absence of [@untagged] annotation
            on the declaration of the intrinsic.
+           Isub 1 is not to remove the tag, it is applied to the result of "bsr x"
+           where "x" is tagged to account for the way the presence
+           of the tag affects the result of bsr (i.e., the first non-zero
+           index is to the right of what "bsr x" returns.
         *)
         Iintop_imm (Isub, 1),
         [ Cop(Cextcall{ name = "*int64_bsr"; builtin = true; ret;
@@ -383,7 +362,7 @@ method! select_operation op args dbg =
         (* '*' guarantees that it won't clash with user defined names *)
         Ispecific(Ibsr {arg_is_non_zero=true}), args
       (* Some Intel targets do not support popcnt and lzcnt *)
-      | "caml_int_lzcnt_untagged", [|Int|] ->
+      | "caml_int_lzcnt_tagged_to_untagged", [|Int|] ->
         if !lzcnt_support then
         (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
            below?  If this extcall should have always been caught in the Cmm
@@ -400,9 +379,11 @@ method! select_operation op args dbg =
       | _ ->
         (* XCR mshinwell: Add a check here to make sure that [name] is not in
            [inline_ops]?  I'm worried about missing cases, since there are a lot
-           of intrinsics now. *)
-        if List.mem name inline_ops then
-          Misc.fatal_errorf "Selection: unexpected intrinsics %s" name;
+           of intrinsics now.
+
+           gyorsh: inlined_ops is not needed any more, this is the only place where
+           names are used in selection.ml
+        *)
         super#select_operation op args dbg
       end
   | Cclz _ when !lzcnt_support -> Ispecific Ilzcnt, args
