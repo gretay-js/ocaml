@@ -334,9 +334,11 @@ method! select_operation op args dbg =
         else
           super#select_operation op args dbg
       | "caml_int64_bsr_unboxed", [|Int|]
-      | "caml_nativeint_bsr_unboxed", [|Int|]
-      | "caml_int_bsr_untagged", [|Int|] ->
+      | "caml_nativeint_bsr_unboxed", [|Int|] ->
         Ispecific(Ibsr { arg_is_non_zero = false; }), args
+      | "caml_int_bsr_untagged", [|Int|] ->
+        Ispecific(Ibsr { arg_is_non_zero = false; }),
+        [Cmm_helpers.clear_sign_bit (one_arg "bsr" args) dbg]
       | "caml_int_bsr_tagged_to_untagged", [|Int|] ->
         (* XCR mshinwell: Is it guaranteed that the Cop Cextcall will return a
            tagged integer?  There should be a comment explaining why that is

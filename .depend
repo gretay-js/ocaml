@@ -2706,7 +2706,8 @@ asmcomp/proc.cmx : \
     asmcomp/proc.cmi
 asmcomp/proc.cmi : \
     asmcomp/reg.cmi \
-    asmcomp/mach.cmi
+    asmcomp/mach.cmi \
+    asmcomp/cmm.cmi
 asmcomp/reg.cmo : \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
@@ -2723,7 +2724,6 @@ asmcomp/reg.cmi : \
 asmcomp/reload.cmo : \
     asmcomp/reloadgen.cmi \
     asmcomp/reg.cmi \
-    asmcomp/proc.cmi \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
@@ -2732,7 +2732,6 @@ asmcomp/reload.cmo : \
 asmcomp/reload.cmx : \
     asmcomp/reloadgen.cmx \
     asmcomp/reg.cmx \
-    asmcomp/proc.cmx \
     asmcomp/mach.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
@@ -2824,8 +2823,10 @@ asmcomp/selection.cmo : \
     asmcomp/spacetime_profiling.cmi \
     asmcomp/selectgen.cmi \
     asmcomp/proc.cmi \
+    utils/misc.cmi \
     asmcomp/mach.cmi \
     utils/config.cmi \
+    asmcomp/cmm_helpers.cmi \
     asmcomp/cmm.cmi \
     utils/clflags.cmi \
     asmcomp/arch.cmo \
@@ -2834,8 +2835,10 @@ asmcomp/selection.cmx : \
     asmcomp/spacetime_profiling.cmx \
     asmcomp/selectgen.cmx \
     asmcomp/proc.cmx \
+    utils/misc.cmx \
     asmcomp/mach.cmx \
     utils/config.cmx \
+    asmcomp/cmm_helpers.cmx \
     asmcomp/cmm.cmx \
     utils/clflags.cmx \
     asmcomp/arch.cmx \

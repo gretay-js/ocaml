@@ -2257,7 +2257,16 @@ let clz bi arg dbg =
 let ctz bi arg dbg =
   let op = Cctz  { arg_is_non_zero = false; } in
   if_operation_supported_bi bi op ~f:(fun () ->
-    Cop(op, [make_unsigned_int bi arg dbg], dbg))
+    let arg = make_unsigned_int bi arg dbg in
+    let arg =
+      if bi = Primitive.Pint32 && size_int = 8 then
+        (* Set bit 32 *)
+        Cop(Cor, [arg; Cconst_int(0x100000000, dbg)], dbg)
+      else
+        arg
+    in
+    Cop(op, [arg], dbg)
+  )
 
 let popcnt bi arg dbg =
   if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
@@ -2770,7 +2779,8 @@ let transl_builtin name args dbg =
            unless both argument and result of bsf are in the same register. *)
     let op = Cctz {arg_is_non_zero=true} in
     if_operation_supported op ~f:(fun ()->
-      let c = Cop(Clsl, [Cconst_natint (1n, dbg); Cconst_int (63, dbg)], dbg) in
+      let c = Cop(Clsl, [Cconst_natint (1n, dbg);
+                         Cconst_int (((size_int*8)-1), dbg)], dbg) in
       Cop (op,
         (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
            might produce an unhelpful exception. *)
